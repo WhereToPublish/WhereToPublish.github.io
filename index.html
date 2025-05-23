@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scientific Journal Database</title>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.4.1/css/responsive.dataTables.min.css">
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container { 
+            width: 95%; 
+            margin: 20px auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        table.dataTable {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+        }
+        table.dataTable th, table.dataTable td { 
+            white-space: nowrap;
+            padding: 10px;
+            text-align: left;
+        }
+        table.dataTable th {
+            background-color: #4CAF50;
+            color: white;
+            position: relative;
+        }
+        table.dataTable th select {
+            width: 100%;
+            padding: 2px;
+            margin-top: 5px;
+            box-sizing: border-box;
+            font-size: 12px;
+        }
+        table.dataTable tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        table.dataTable tr:hover {
+            background-color: #ddd;
+        }
+        .dataTables_wrapper .dataTables_filter {
+            margin-bottom: 15px;
+        }
+        .dataTables_wrapper .dataTables_filter input {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .dataTables_wrapper .dataTables_length select {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .dataTables_wrapper .dataTables_info {
+            margin-top: 15px;
+        }
+        .dataTables_wrapper .dataTables_paginate {
+            margin-top: 15px;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            margin: 0 2px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+            background-color: #4CAF50;
+            color: white;
+            border: 1px solid #4CAF50;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Scientific Journal Database</h1>
+    <p>This interactive table displays information about various scientific journals. Use the search box to filter journals, click on column headers to sort, and use the pagination controls to navigate through the data.</p>
+
+    <table id="journalTable" class="display" style="width:100%">
+        <thead>
+            <tr>
+                <!-- Headers will be populated by JavaScript -->
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Data will be populated by DataTables -->
+        </tbody>
+    </table>
+
+    <div class="footer">
+        <p>Data source: database.csv | Created with <a href="https://datatables.net/" target="_blank">DataTables.js</a></p>
+        <p><strong>Legend:</strong> 
+           FP = For-profit, 
+           NFP = Not-for-profit, 
+           UP = University Press
+        </p>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.0.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.4.1/js/dataTables.responsive.min.js"></script>
+<script>
+function parseCSV(csvText) {
+    const lines = csvText.split('\n');
+    const data = [];
+
+    // Extract headers from the first two lines of the CSV
+    // Line 0: Journal,Domaine,,,,,,,,Statut (FP=for-profit/NFP=not-for-profit/UP=Universitary Press),Société/Compagnie qui gère le journal,Pays,
+    // Line 1: ,Biologie (général),Neurosciences,Sciences cognitives,Psychiatrie,Neurologie,évolution,Modélisation computationnelle,Immunologie,,,,
+    if (lines.length < 2) {
+        console.error("CSV does not have enough header lines.");
+        return [];
+    }
+
+    const rawHeaders1 = lines[0].split(',');
+    const rawHeaders2 = lines[1].split(',');
+
+    const finalHeadersText = [
+        rawHeaders1[0] ? rawHeaders1[0].trim() : "Journal",
+        rawHeaders2[1] ? rawHeaders2[1].trim() : "Biologie (général)",
+        rawHeaders2[2] ? rawHeaders2[2].trim() : "Neurosciences",
+        rawHeaders2[3] ? rawHeaders2[3].trim() : "Sciences cognitives",
+        rawHeaders2[4] ? rawHeaders2[4].trim() : "Psychiatrie",
+        rawHeaders2[5] ? rawHeaders2[5].trim() : "Neurologie",
+        rawHeaders2[6] ? rawHeaders2[6].trim() : "évolution",
+        rawHeaders2[7] ? rawHeaders2[7].trim() : "Modélisation computationnelle",
+        rawHeaders2[8] ? rawHeaders2[8].trim() : "Immunologie",
+        rawHeaders1[9] ? rawHeaders1[9].trim() : "Statut",
+        rawHeaders1[10] ? rawHeaders1[10].trim() : "Société/Compagnie",
+        rawHeaders1[11] ? rawHeaders1[11].trim() : "Pays"
+    ];
+
+    const headerRow = $('#journalTable thead tr');
+    headerRow.empty(); // Clear existing/placeholder headers
+    finalHeadersText.forEach(headerText => {
+        headerRow.append($('<th>').text(headerText));
+    });
+
+    // Process data rows (starting from the 3rd line, index 2)
+    for (let i = 2; i < lines.length; i++) {
+        const line = lines[i].trim();
+
+        // Skip empty lines or lines that are just commas (often used as separators in the example CSV)
+        if (line === "" || /^,+$/.test(line) || line.startsWith(',,,,')) {
+            continue;
+        }
+
+        const row = [];
+        let currentField = '';
+        let inQuotedField = false;
+
+        for (let k = 0; k < line.length; k++) {
+            const char = line[k];
+
+            if (char === '"') {
+                if (inQuotedField && k + 1 < line.length && line[k+1] === '"') {
+                    // Handle escaped quote "" inside a quoted field
+                    currentField += '"';
+                    k++; // Skip the second quote of the pair
+                } else {
+                    inQuotedField = !inQuotedField;
+                }
+            } else if (char === ',' && !inQuotedField) {
+                row.push(currentField.trim());
+                currentField = '';
+            } else {
+                currentField += char;
+            }
+        }
+        row.push(currentField.trim()); // Add the last field
+
+        // We expect 12 data columns. The CSV might have a trailing comma or extra data.
+        if (row.length > 0 && row[0] !== "") { // Ensure it's a data row
+            data.push(row.slice(0, 12)); // Take the first 12 columns
+        }
+    }
+    return data;
+}
+
+
+$(document).ready(function() {
+    fetch('database.csv')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok: ' + response.statusText + ' (Failed to fetch database.csv)');
+            }
+            return response.text();
+        })
+        .then(csvText => {
+            const tableData = parseCSV(csvText);
+            if (tableData && tableData.length > 0) {
+                $('#journalTable').DataTable({
+                    data: tableData,
+                    scrollX: true, // Recommended for wide tables
+                    paging: true,
+                    searching: true,
+                    ordering: true,
+                    info: true,
+                    responsive: true,
+                    columnDefs: [
+                        // Format the domain columns (1-8) as boolean values (0/1)
+                        { 
+                            targets: [1, 2, 3, 4, 5, 6, 7, 8],
+                            render: function(data, type, row) {
+                                if (type === 'display' || type === 'filter') {
+                                    if (data === '1') return 'Yes';
+                                    if (data === '0') return 'No';
+                                    return data;
+                                }
+                                return data;
+                            }
+                        },
+                        // Format the status column (9)
+                        {
+                            targets: [9],
+                            render: function(data, type, row) {
+                                if (type === 'display' || type === 'filter') {
+                                    if (data === 'FP') return 'For-profit';
+                                    if (data === 'NFP') return 'Not-for-profit';
+                                    if (data === 'UP') return 'University Press';
+                                    return data;
+                                }
+                                return data;
+                            }
+                        }
+                    ],
+                    language: {
+                        search: "Filter:",
+                        lengthMenu: "Show _MENU_ journals per page",
+                        info: "Showing _START_ to _END_ of _TOTAL_ journals",
+                        emptyTable: "No journal data available"
+                    },
+                    initComplete: function() {
+                        // Add a custom filter for the Status column
+                        var column = this.api().column(9);
+                        var select = $('<select><option value="">All Statuses</option></select>')
+                            .appendTo($(column.header()))
+                            .on('change', function() {
+                                var val = $.fn.dataTable.util.escapeRegex(
+                                    $(this).val()
+                                );
+                                column
+                                    .search(val ? '^'+val+'$' : '', true, false)
+                                    .draw();
+                            });
+
+                        column.data().unique().sort().each(function(d, j) {
+                            if (d) {
+                                let displayText = d;
+                                if (d === 'FP') displayText = 'For-profit';
+                                if (d === 'NFP') displayText = 'Not-for-profit';
+                                if (d === 'UP') displayText = 'University Press';
+                                select.append('<option value="'+d+'">'+displayText+'</option>');
+                            }
+                        });
+                    }
+                });
+            } else if (tableData) { // tableData is an empty array
+                 $('#journalTable').parent().append('<p>No data found in CSV after parsing headers.</p>');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading or processing CSV:', error);
+            $('#journalTable').parent().append('<p style="color:red;">Could not load data. Please ensure `database.csv` is in the same directory as this HTML file and check the browser console for errors (e.g., 404 Not Found for `database.csv`).</p>');
+        });
+});
+</script>
+
+
+</body>
+</html>

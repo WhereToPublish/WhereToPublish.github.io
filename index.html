@@ -14,18 +14,26 @@
             font-family: 'Roboto', sans-serif; 
             margin: 0; 
             padding: 0;
-            background-color: #f0f4f8;
             color: #333;
             line-height: 1.6;
         }
         .container { 
             width: 95%; 
-            margin: 30px auto;
+            max-width: 1400px;
+            margin: 0 auto;
             background-color: white;
             padding: 30px;
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.08);
             transition: all 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                width: 100%;
+                padding: 15px;
+                border-radius: 0;
+            }
         }
         h1 {
             font-family: 'Source Sans Pro', sans-serif;
@@ -67,12 +75,36 @@
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            table-layout: auto;
+        }
+
+        /* Responsive table container */
+        .dataTables_wrapper {
+            width: 100%;
+            overflow-x: auto;
         }
         table.dataTable th, table.dataTable td { 
-            white-space: nowrap;
+            white-space: normal;
             padding: 12px 15px;
             text-align: left;
             border-bottom: 1px solid #e2e8f0;
+            word-wrap: break-word;
+            word-break: break-word;
+            max-width: 300px;
+        }
+
+        @media (max-width: 1200px) {
+            table.dataTable th, table.dataTable td {
+                max-width: 200px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            table.dataTable th, table.dataTable td {
+                max-width: 150px;
+                padding: 8px 10px;
+                font-size: 0.9rem;
+            }
         }
         table.dataTable th {
             background-color: #2c5282;
@@ -149,7 +181,6 @@
             border: 1px solid #3182ce;
             font-weight: 500;
         }
-
 
         /* Domain details styles */
         .domain-details {
@@ -307,7 +338,7 @@
     <div id="domainFilters" style="margin-bottom: 15px;">
         <!-- Buttons will be added here by JavaScript -->
     </div>
-    <table id="journalTable" class="display" style="width:100%">
+    <table id="journalTable" class="display" style="width:100%; margin-top: 0;">
         <thead>
             <tr>
                 <!-- Headers will be populated by JavaScript -->
@@ -441,12 +472,16 @@ $(document).ready(function() {
             if (tableData && tableData.length > 0) {
                 $('#journalTable').DataTable({
                     data: tableData,
-                    scrollX: true, // Recommended for wide tables
+                    scrollX: false, // Disable horizontal scrolling to allow responsive wrapping
                     paging: false, // Disable pagination to show all items
                     searching: true,
                     ordering: true,
                     info: true,
-                    responsive: true,
+                    responsive: {
+                        details: {
+                            display: $.fn.dataTable.Responsive.display.childRow
+                        }
+                    },
                     columnDefs: [
                         // Format the domain columns (1-8) as boolean values (0/1) and hide them by default
                         { 

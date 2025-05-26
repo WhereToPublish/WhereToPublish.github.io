@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scientific Journal Database | Research Publication Analytics</title>
+    <title>Where to publish?</title>
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.4.1/css/responsive.dataTables.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -520,8 +520,8 @@ function parseCSV(csvText) {
     const data = [];
 
     // Extract headers from the first two lines of the CSV
-    // Line 0: Journal,Domaine,,,,,,,,Statut (FP=for-profit/NFP=not-for-profit/UP=Universitary Press),Société/Compagnie qui gère le journal,Pays,
-    // Line 1: ,Biologie (général),Neurosciences,Sciences cognitives,Psychiatrie,Neurologie,Évolution,Modélisation computationnelle,Immunologie,,,,
+    // Line 0: Journal,Domain,,,,,,,,Statut,Publisher,Country,Type de journaux (FP=for-profit/NP=non-profit/UP=Universitary Press)
+    // Line 1: ,Biology,Neurosciences,Cognitive science,Psychiatry,Neurology,Evolution,Computational Biology,Immunology,,,,
     if (lines.length < 2) {
         console.error("CSV does not have enough header lines.");
         return [];
@@ -532,17 +532,17 @@ function parseCSV(csvText) {
 
     const finalHeadersText = [
         rawHeaders1[0] ? rawHeaders1[0].trim() : "Journal",
-        rawHeaders2[1] ? rawHeaders2[1].trim() : "Biologie (général)",
+        rawHeaders2[1] ? rawHeaders2[1].trim() : "Biology",
         rawHeaders2[2] ? rawHeaders2[2].trim() : "Neurosciences",
-        rawHeaders2[3] ? rawHeaders2[3].trim() : "Sciences cognitives",
-        rawHeaders2[4] ? rawHeaders2[4].trim() : "Psychiatrie",
-        rawHeaders2[5] ? rawHeaders2[5].trim() : "Neurologie",
-        rawHeaders2[6] ? rawHeaders2[6].trim() : "Évolution",
-        rawHeaders2[7] ? rawHeaders2[7].trim() : "Modélisation computationnelle",
-        rawHeaders2[8] ? rawHeaders2[8].trim() : "Immunologie",
+        rawHeaders2[3] ? rawHeaders2[3].trim() : "Cognitive science",
+        rawHeaders2[4] ? rawHeaders2[4].trim() : "Psychiatry",
+        rawHeaders2[5] ? rawHeaders2[5].trim() : "Neurology",
+        rawHeaders2[6] ? rawHeaders2[6].trim() : "Evolution",
+        rawHeaders2[7] ? rawHeaders2[7].trim() : "Computational Biology",
+        rawHeaders2[8] ? rawHeaders2[8].trim() : "Immunology",
         rawHeaders1[9] ? rawHeaders1[9].trim() : "Statut",
-        rawHeaders1[10] ? rawHeaders1[10].trim() : "Société/Compagnie",
-        rawHeaders1[11] ? rawHeaders1[11].trim() : "Pays"
+        rawHeaders1[10] ? rawHeaders1[10].trim() : "Publisher",
+        rawHeaders1[11] ? rawHeaders1[11].trim() : "Country"
     ];
 
     const headerRow = $('#journalTable thead tr');
@@ -613,10 +613,10 @@ $(document).ready(function() {
         }
     });
 
-    fetch('database.csv')
+    fetch('data.csv')
         .then(response => {
             if (!response.ok) {
-                throw new Error('Network response was not ok: ' + response.statusText + ' (Failed to fetch database.csv)');
+                throw new Error('Network response was not ok: ' + response.statusText + ' (Failed to fetch data.csv)');
             }
             return response.text();
         })
@@ -661,7 +661,7 @@ $(document).ready(function() {
                             render: function(data, type, row) {
                                 if (type === 'display' || type === 'filter') {
                                     if (data === 'FP') return 'For-profit';
-                                    if (data === 'NFP') return 'Not-for-profit';
+                                    if (data === 'NFP' || data === 'NP') return 'Not-for-profit';
                                     if (data === 'UP') return 'University Press';
                                     return data;
                                 }
@@ -685,14 +685,14 @@ $(document).ready(function() {
 
                         // Domain names must match the order of columns 1-8
                         var domainNames = [
-                            'Biologie (général)',
+                            'Biology',
                             'Neurosciences',
-                            'Sciences cognitives',
-                            'Psychiatrie',
-                            'Neurologie',
-                            'Évolution',
-                            'Modélisation computationnelle',
-                            'Immunologie'
+                            'Cognitive science',
+                            'Psychiatry',
+                            'Neurology',
+                            'Evolution',
+                            'Computational Biology',
+                            'Immunology'
                         ];
 
                         // Add "Show All" button
@@ -743,14 +743,14 @@ $(document).ready(function() {
                         // Create domain details HTML
                         var domainDetails = '<div class="domain-details"><h4>Domain Coverage:</h4><ul>';
                         var domainNames = [
-                            'Biologie (général)',
+                            'Biology',
                             'Neurosciences',
-                            'Sciences cognitives',
-                            'Psychiatrie',
-                            'Neurologie',
-                            'Évolution',
-                            'Modélisation computationnelle',
-                            'Immunologie'
+                            'Cognitive science',
+                            'Psychiatry',
+                            'Neurology',
+                            'Evolution',
+                            'Computational Biology',
+                            'Immunology'
                         ];
 
                         for (var i = 0; i < 8; i++) {
@@ -772,7 +772,7 @@ $(document).ready(function() {
         })
         .catch(error => {
             console.error('Error loading or processing CSV:', error);
-            $('#journalTable').parent().append('<p style="color:red;">Could not load data. Please ensure `database.csv` is in the same directory as this HTML file and check the browser console for errors (e.g., 404 Not Found for `database.csv`).</p>');
+            $('#journalTable').parent().append('<p style="color:red;">Could not load data. Please ensure `data.csv` is in the same directory as this HTML file and check the browser console for errors (e.g., 404 Not Found for `data.csv`).</p>');
         });
 });
 </script>

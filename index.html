@@ -85,14 +85,102 @@
             color: white;
             border: 1px solid #4CAF50;
         }
+
+
+        /* Domain details styles */
+        .domain-details {
+            padding: 15px;
+            background-color: #f9f9f9;
+            margin: 10px;
+            border-radius: 4px;
+        }
+
+        .domain-details h4 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .domain-details ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .domain-details li {
+            padding: 5px;
+            border-radius: 3px;
+        }
+
+        .domain-name {
+            font-weight: bold;
+        }
+
+        .domain-yes {
+            color: #4CAF50;
+        }
+
+        .domain-no {
+            color: #f44336;
+        }
+
+        /* Style for the expandable row control */
+        td.details-control {
+            position: relative;
+            cursor: pointer;
+        }
+
+        td.details-control:before {
+            content: '+';
+            display: inline-block;
+            color: #4CAF50;
+            font-weight: bold;
+            margin-right: 5px;
+            width: 16px;
+            text-align: center;
+        }
+
+        tr.shown td.details-control:before {
+            content: '-';
+            color: #f44336;
+        }
+
+        /* Styles for domain filter buttons */
+        .domain-filters-container { /* You can use this class on the div if you prefer */
+            margin-bottom: 15px;
+            text-align: left; /* Or center, as you prefer */
+        }
+        .domain-filter-button {
+            margin: 0 5px 5px 0;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .domain-filter-button:hover {
+            background-color: #e9e9e9;
+        }
+        .domain-filter-button.active {
+            background-color: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+    </style>
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>Scientific Journal Database</h1>
-    <p>This interactive table displays information about various scientific journals. Use the search box to filter journals, click on column headers to sort, and use the pagination controls to navigate through the data.</p>
+    <p>This interactive table displays information about various scientific journals. Click on column headers to sort, and use the pagination controls to navigate through the data.</p>
 
+    <div id="domainFilters" style="margin-bottom: 15px;">
+        <!-- Buttons will be added here by JavaScript -->
+    </div>
     <table id="journalTable" class="display" style="width:100%">
         <thead>
             <tr>
@@ -105,8 +193,7 @@
     </table>
 
     <div class="footer">
-        <p>Data source: database.csv | Created with <a href="https://datatables.net/" target="_blank">DataTables.js</a></p>
-        <p><strong>Legend:</strong> 
+        <p><strong>Legend:</strong>
            FP = For-profit, 
            NFP = Not-for-profit, 
            UP = University Press
@@ -124,7 +211,7 @@ function parseCSV(csvText) {
 
     // Extract headers from the first two lines of the CSV
     // Line 0: Journal,Domaine,,,,,,,,Statut (FP=for-profit/NFP=not-for-profit/UP=Universitary Press),Société/Compagnie qui gère le journal,Pays,
-    // Line 1: ,Biologie (général),Neurosciences,Sciences cognitives,Psychiatrie,Neurologie,évolution,Modélisation computationnelle,Immunologie,,,,
+    // Line 1: ,Biologie (général),Neurosciences,Sciences cognitives,Psychiatrie,Neurologie,Évolution,Modélisation computationnelle,Immunologie,,,,
     if (lines.length < 2) {
         console.error("CSV does not have enough header lines.");
         return [];
@@ -140,7 +227,7 @@ function parseCSV(csvText) {
         rawHeaders2[3] ? rawHeaders2[3].trim() : "Sciences cognitives",
         rawHeaders2[4] ? rawHeaders2[4].trim() : "Psychiatrie",
         rawHeaders2[5] ? rawHeaders2[5].trim() : "Neurologie",
-        rawHeaders2[6] ? rawHeaders2[6].trim() : "évolution",
+        rawHeaders2[6] ? rawHeaders2[6].trim() : "Évolution",
         rawHeaders2[7] ? rawHeaders2[7].trim() : "Modélisation computationnelle",
         rawHeaders2[8] ? rawHeaders2[8].trim() : "Immunologie",
         rawHeaders1[9] ? rawHeaders1[9].trim() : "Statut",
@@ -196,7 +283,26 @@ function parseCSV(csvText) {
 }
 
 
+
 $(document).ready(function() {
+
+    // Add click handler for expandable rows
+    $('#journalTable').on('click', 'td.details-control', function() {
+        var tr = $(this).closest('tr');
+        var row = $('#journalTable').DataTable().row(tr);
+
+        if (row.child.isShown()) {
+            // This row is already open - close it
+            row.child.hide();
+            tr.removeClass('shown');
+        } else {
+            // Open this row
+            var content = tr.data('child-content');
+            row.child(content).show();
+            tr.addClass('shown');
+        }
+    });
+
     fetch('database.csv')
         .then(response => {
             if (!response.ok) {
@@ -216,7 +322,7 @@ $(document).ready(function() {
                     info: true,
                     responsive: true,
                     columnDefs: [
-                        // Format the domain columns (1-8) as boolean values (0/1)
+                        // Format the domain columns (1-8) as boolean values (0/1) and hide them by default
                         { 
                             targets: [1, 2, 3, 4, 5, 6, 7, 8],
                             render: function(data, type, row) {
@@ -226,7 +332,9 @@ $(document).ready(function() {
                                     return data;
                                 }
                                 return data;
-                            }
+                            },
+                            visible: false,
+                            className: 'domain-column'
                         },
                         // Format the status column (9)
                         {
@@ -240,37 +348,103 @@ $(document).ready(function() {
                                 }
                                 return data;
                             }
+                        },
+                        // Make the first column (Journal) expandable to show domain details
+                        {
+                            targets: 0,
+                            className: 'details-control'
                         }
                     ],
                     language: {
-                        search: "Filter:",
                         lengthMenu: "Show _MENU_ journals per page",
                         info: "Showing _START_ to _END_ of _TOTAL_ journals",
                         emptyTable: "No journal data available"
                     },
                     initComplete: function() {
-                        // Add a custom filter for the Status column
-                        var column = this.api().column(9);
-                        var select = $('<select><option value="">All Statuses</option></select>')
-                            .appendTo($(column.header()))
-                            .on('change', function() {
-                                var val = $.fn.dataTable.util.escapeRegex(
-                                    $(this).val()
-                                );
-                                column
-                                    .search(val ? '^'+val+'$' : '', true, false)
-                                    .draw();
-                            });
+                        var table = this.api();
+                        var domainFiltersContainer = $('#domainFilters');
 
-                        column.data().unique().sort().each(function(d, j) {
-                            if (d) {
-                                let displayText = d;
-                                if (d === 'FP') displayText = 'For-profit';
-                                if (d === 'NFP') displayText = 'Not-for-profit';
-                                if (d === 'UP') displayText = 'University Press';
-                                select.append('<option value="'+d+'">'+displayText+'</option>');
-                            }
+                        // Domain names must match the order of columns 1-8
+                        var domainNames = [
+                            'Biologie (général)',
+                            'Neurosciences',
+                            'Sciences cognitives',
+                            'Psychiatrie',
+                            'Neurologie',
+                            'Évolution',
+                            'Modélisation computationnelle',
+                            'Immunologie'
+                        ];
+
+                        // Add "Show All" button
+                        var showAllButton = $('<button class="domain-filter-button">Show All</button>')
+                            .on('click', function() {
+                                // Clear search for all domain columns (1 to 8)
+                                for (var i = 1; i <= 8; i++) {
+                                    table.column(i).search('');
+                                }
+                                table.draw();
+                                domainFiltersContainer.find('.domain-filter-button').removeClass('active');
+                                $(this).addClass('active');
+                            });
+                        domainFiltersContainer.append(showAllButton);
+
+                        // Add domain-specific filter buttons
+                        domainNames.forEach(function(domainName, index) {
+                            var columnIndex = index + 1; // DataTable columns are 0-indexed, data columns 1-8 are domains
+                            var button = $('<button class="domain-filter-button">' + domainName + '</button>')
+                                .on('click', function() {
+                                    var isActive = $(this).hasClass('active');
+
+                                    // Clear search for all domain columns
+                                    for (var i = 1; i <= 8; i++) {
+                                        table.column(i).search('');
+                                    }
+                                    domainFiltersContainer.find('.domain-filter-button').removeClass('active');
+
+                                    if (isActive) {
+                                        // If button was active, clicking again means show all for domains
+                                        showAllButton.addClass('active');
+                                    } else {
+                                        // If button was not active, make it active and apply its filter
+                                        table.column(columnIndex).search('Yes'); // Filter for 'Yes'
+                                        $(this).addClass('active');
+                                    }
+                                    table.draw();
+                                });
+                            domainFiltersContainer.append(button);
                         });
+
+                        // Set "Show All" as active by default
+                        showAllButton.addClass('active');
+                    },
+
+                    // Add child row display functionality for domain details
+                    rowCallback: function(row, data, index) {
+                        // Create domain details HTML
+                        var domainDetails = '<div class="domain-details"><h4>Domain Coverage:</h4><ul>';
+                        var domainNames = [
+                            'Biologie (général)',
+                            'Neurosciences',
+                            'Sciences cognitives',
+                            'Psychiatrie',
+                            'Neurologie',
+                            'Évolution',
+                            'Modélisation computationnelle',
+                            'Immunologie'
+                        ];
+
+                        for (var i = 0; i < 8; i++) {
+                            var value = data[i+1];
+                            var displayValue = value === '1' ? 'Yes' : (value === '0' ? 'No' : value);
+                            var colorClass = value === '1' ? 'domain-yes' : 'domain-no';
+                            domainDetails += '<li><span class="domain-name">' + domainNames[i] + ':</span> <span class="' + colorClass + '">' + displayValue + '</span></li>';
+                        }
+
+                        domainDetails += '</ul></div>';
+
+                        // Store the domain details in the row's data
+                        $(row).data('child-content', domainDetails);
                     }
                 });
             } else if (tableData) { // tableData is an empty array

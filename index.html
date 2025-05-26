@@ -181,6 +181,22 @@
             background-color: #ebf4ff;
             transition: background-color 0.2s ease;
         }
+        /* Row coloring based on status */
+        table.dataTable tr.for-profit-row {
+            background-color: #ffebee; /* Light red */
+        }
+        table.dataTable tr.non-profit-row {
+            background-color: #e8f5e9; /* Light green */
+        }
+        table.dataTable tr.university-press-row {
+            background-color: #fffde7; /* Light yellow */
+        }
+        /* Ensure hover effect still works with colored rows */
+        table.dataTable tr.for-profit-row:hover,
+        table.dataTable tr.non-profit-row:hover,
+        table.dataTable tr.university-press-row:hover {
+            background-color: #ebf4ff;
+        }
         .dataTables_wrapper .dataTables_filter {
             margin-bottom: 20px;
             width: 100%;
@@ -744,6 +760,16 @@ $(document).ready(function() {
 
                     // Add child row display functionality for domain details
                     rowCallback: function(row, data, index) {
+                        // Apply row coloring based on status (column 9)
+                        var status = data[9]; // Get the status value
+                        if (status === 'FP') {
+                            $(row).addClass('for-profit-row');
+                        } else if (status === 'NFP' || status === 'NP') {
+                            $(row).addClass('non-profit-row');
+                        } else if (status === 'UP') {
+                            $(row).addClass('university-press-row');
+                        }
+
                         // Create domain details HTML
                         var domainDetails = '<div class="domain-details"><h4>Domain Coverage:</h4><ul>';
                         var domainNames = [

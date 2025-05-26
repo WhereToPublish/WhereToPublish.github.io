@@ -1,6 +1,6 @@
 # Where to Publish?
 
-![Logo](https://raw.githubusercontent.com/ThibaultLatrille/WhereToPusblish/main/img/logo.png)
+![Logo](https://raw.githubusercontent.com/ThibaultLatrille/WhereToPusblish/main/img/logo128px.png)
 
 An interactive web tool that helps researchers identify suitable journals for their publications based on scientific domains and publisher types. The database visually distinguishes between for-profit, not-for-profit, and university press journals.
 

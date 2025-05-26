@@ -1,5 +1,7 @@
 # Where to Publish?
 
+![Logo](https://raw.githubusercontent.com/ThibaultLatrille/WhereToPusblish/main/img/logo.png)
+
 An interactive web tool that helps researchers identify suitable journals for their publications based on scientific domains and publisher types. The database visually distinguishes between for-profit, not-for-profit, and university press journals.
 
 ## Features
@@ -9,6 +11,7 @@ An interactive web tool that helps researchers identify suitable journals for th
   - For-profit journals (light red)
   - Not-for-profit journals (light green)
   - University Press journals (light yellow)
+- **Custom favicon** using the project's SVG logo
 
 ## Data Structure
 
@@ -25,4 +28,8 @@ The `data.csv` file contains the following information:
 
 - `data.csv` - The source data file containing journal information
 - `index.html` - The web interface that displays the data
+- `favicon.svg` - The SVG favicon used by the website
+- `favicon.ico` - Fallback favicon for browsers that don't support SVG
+- `img/logo.svg` - The SVG logo used in the project
+- `img/logo.png` - The PNG version of the logo
 - `README.md` - This documentation file

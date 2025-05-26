@@ -379,13 +379,14 @@
 
         td.details-control:before {
             content: '+';
-            display: inline-block;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
             color: #3182ce;
             font-weight: bold;
             margin-right: 8px;
             width: 18px;
             height: 18px;
-            line-height: 16px;
             text-align: center;
             border: 1px solid #3182ce;
             border-radius: 50%;
@@ -397,6 +398,9 @@
             content: '-';
             color: white;
             background-color: #3182ce;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
         }
 
         /* Styles for domain filter buttons */

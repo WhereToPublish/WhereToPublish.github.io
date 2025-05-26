@@ -3,101 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scientific Journal Database</title>
+    <title>Scientific Journal Database | Research Publication Analytics</title>
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.4.1/css/responsive.dataTables.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            font-family: 'Roboto', sans-serif; 
             margin: 0; 
             padding: 0;
-            background-color: #f5f5f5;
+            background-color: #f0f4f8;
+            color: #333;
+            line-height: 1.6;
         }
         .container { 
             width: 95%; 
-            margin: 20px auto;
+            margin: 30px auto;
             background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
         }
         h1 {
-            color: #333;
+            font-family: 'Source Sans Pro', sans-serif;
+            color: #1a365d;
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            font-size: 2.2rem;
+            position: relative;
+            padding-bottom: 15px;
+        }
+
+        h1:after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 3px;
+            background: linear-gradient(90deg, #3182ce, #63b3ed);
+            border-radius: 3px;
+        }
+
+        .container > p {
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto 30px;
+            color: #4a5568;
+            font-size: 1.05rem;
+            line-height: 1.7;
         }
         table.dataTable {
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             width: 100%;
-            margin: 20px 0;
+            margin: 25px 0;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
         table.dataTable th, table.dataTable td { 
             white-space: nowrap;
-            padding: 10px;
+            padding: 12px 15px;
             text-align: left;
+            border-bottom: 1px solid #e2e8f0;
         }
         table.dataTable th {
-            background-color: #4CAF50;
+            background-color: #2c5282;
             color: white;
             position: relative;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            font-size: 0.85rem;
         }
         table.dataTable th select {
             width: 100%;
-            padding: 2px;
+            padding: 4px;
             margin-top: 5px;
             box-sizing: border-box;
             font-size: 12px;
+            border-radius: 4px;
+            border: 1px solid #cbd5e0;
         }
         table.dataTable tr:nth-child(even) {
-            background-color: #f2f2f2;
+            background-color: #f8fafc;
         }
         table.dataTable tr:hover {
-            background-color: #ddd;
+            background-color: #ebf4ff;
+            transition: background-color 0.2s ease;
         }
         .dataTables_wrapper .dataTables_filter {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         .dataTables_wrapper .dataTables_filter input {
-            padding: 5px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 8px 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-family: 'Roboto', sans-serif;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: all 0.2s ease;
+        }
+        .dataTables_wrapper .dataTables_filter input:focus {
+            outline: none;
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
         }
         .dataTables_wrapper .dataTables_length select {
-            padding: 5px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 8px 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            font-family: 'Roboto', sans-serif;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         .dataTables_wrapper .dataTables_info {
-            margin-top: 15px;
+            margin-top: 20px;
+            color: #718096;
+            font-size: 0.9rem;
         }
         .dataTables_wrapper .dataTables_paginate {
-            margin-top: 15px;
+            margin-top: 20px;
         }
         .dataTables_wrapper .dataTables_paginate .paginate_button {
-            padding: 5px 10px;
-            border: 1px solid #ddd;
-            margin: 0 2px;
-            border-radius: 4px;
+            padding: 8px 14px;
+            border: 1px solid #e2e8f0;
+            margin: 0 3px;
+            border-radius: 6px;
             cursor: pointer;
+            transition: all 0.2s ease;
+            color: #4a5568 !important;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            background-color: #ebf8ff;
+            border-color: #bee3f8;
         }
         .dataTables_wrapper .dataTables_paginate .paginate_button.current {
-            background-color: #4CAF50;
-            color: white;
-            border: 1px solid #4CAF50;
+            background-color: #3182ce;
+            color: white !important;
+            border: 1px solid #3182ce;
+            font-weight: 500;
         }
 
 
         /* Domain details styles */
         .domain-details {
-            padding: 15px;
-            background-color: #f9f9f9;
-            margin: 10px;
-            border-radius: 4px;
+            padding: 20px;
+            background-color: #f8fafc;
+            margin: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+            border: 1px solid #e2e8f0;
         }
 
         .domain-details h4 {
             margin-top: 0;
-            color: #333;
+            color: #2d3748;
+            font-family: 'Source Sans Pro', sans-serif;
+            font-weight: 600;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
         }
 
         .domain-details ul {
@@ -105,25 +175,38 @@
             padding: 0;
             margin: 0;
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 10px;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
         }
 
         .domain-details li {
-            padding: 5px;
-            border-radius: 3px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            background-color: white;
+            border: 1px solid #edf2f7;
+            transition: all 0.2s ease;
+        }
+
+        .domain-details li:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transform: translateY(-2px);
         }
 
         .domain-name {
-            font-weight: bold;
+            font-weight: 500;
+            color: #4a5568;
+            display: inline-block;
+            margin-right: 5px;
         }
 
         .domain-yes {
-            color: #4CAF50;
+            color: #38a169;
+            font-weight: 500;
         }
 
         .domain-no {
-            color: #f44336;
+            color: #e53e3e;
+            font-weight: 500;
         }
 
         /* Style for the expandable row control */
@@ -135,48 +218,91 @@
         td.details-control:before {
             content: '+';
             display: inline-block;
-            color: #4CAF50;
+            color: #3182ce;
             font-weight: bold;
-            margin-right: 5px;
-            width: 16px;
+            margin-right: 8px;
+            width: 18px;
+            height: 18px;
+            line-height: 16px;
             text-align: center;
+            border: 1px solid #3182ce;
+            border-radius: 50%;
+            font-size: 14px;
+            transition: all 0.2s ease;
         }
 
         tr.shown td.details-control:before {
             content: '-';
-            color: #f44336;
+            color: white;
+            background-color: #3182ce;
         }
 
         /* Styles for domain filter buttons */
-        .domain-filters-container { /* You can use this class on the div if you prefer */
-            margin-bottom: 15px;
-            text-align: left; /* Or center, as you prefer */
+        .domain-filters-container {
+            margin-bottom: 20px;
+            text-align: center;
         }
         .domain-filter-button {
-            margin: 0 5px 5px 0;
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            background-color: #f9f9f9;
+            margin: 0 6px 8px 0;
+            padding: 10px 16px;
+            border: 1px solid #e2e8f0;
+            background-color: #f8fafc;
             cursor: pointer;
-            border-radius: 4px;
+            border-radius: 6px;
             font-size: 14px;
+            font-weight: 500;
+            color: #4a5568;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         .domain-filter-button:hover {
-            background-color: #e9e9e9;
+            background-color: #ebf8ff;
+            border-color: #bee3f8;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.08);
         }
         .domain-filter-button.active {
-            background-color: #4CAF50;
+            background-color: #3182ce;
             color: white;
-            border-color: #4CAF50;
+            border-color: #2b6cb0;
+            box-shadow: 0 2px 5px rgba(49, 130, 206, 0.2);
         }
-    </style>
+
+        /* Footer styles */
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+        }
+
+        .footer p {
+            color: #4a5568;
+            font-size: 0.95rem;
+        }
+
+        .footer strong {
+            color: #2d3748;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+
+        .legend-item {
+            display: inline-block;
+            margin: 0 10px;
+            padding: 5px 10px;
+            background-color: #f8fafc;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>Scientific Journal Database</h1>
-    <p>This interactive table displays information about various scientific journals. Click on column headers to sort, and use the pagination controls to navigate through the data.</p>
+    <p>This comprehensive analytical tool provides detailed information about scientific journals across multiple domains. Click on column headers to sort data, and expand rows to view complete domain coverage information.</p>
 
     <div id="domainFilters" style="margin-bottom: 15px;">
         <!-- Buttons will be added here by JavaScript -->
@@ -194,9 +320,9 @@
 
     <div class="footer">
         <p><strong>Legend:</strong>
-           FP = For-profit, 
-           NFP = Not-for-profit, 
-           UP = University Press
+           <span class="legend-item">FP = For-profit</span>
+           <span class="legend-item">NFP = Not-for-profit</span>
+           <span class="legend-item">UP = University Press</span>
         </p>
     </div>
 </div>
@@ -316,7 +442,7 @@ $(document).ready(function() {
                 $('#journalTable').DataTable({
                     data: tableData,
                     scrollX: true, // Recommended for wide tables
-                    paging: true,
+                    paging: false, // Disable pagination to show all items
                     searching: true,
                     ordering: true,
                     info: true,
@@ -356,8 +482,8 @@ $(document).ready(function() {
                         }
                     ],
                     language: {
-                        lengthMenu: "Show _MENU_ journals per page",
-                        info: "Showing _START_ to _END_ of _TOTAL_ journals",
+                        info: "Displaying all _TOTAL_ journals",
+                        infoEmpty: "No journals available",
                         emptyTable: "No journal data available"
                     },
                     initComplete: function() {

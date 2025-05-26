@@ -16,6 +16,9 @@
             padding: 0;
             color: #333;
             line-height: 1.6;
+            overflow-x: hidden; /* Prevent horizontal scrolling */
+            width: 100%;
+            box-sizing: border-box;
         }
         .container { 
             width: 95%; 
@@ -30,9 +33,32 @@
 
         @media (max-width: 768px) {
             .container {
-                width: 100%;
+                width: 95%;
                 padding: 15px;
                 border-radius: 0;
+                box-sizing: border-box;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                width: 100%;
+                padding: 10px;
+                margin: 0;
+            }
+        }
+
+        @media (max-width: 320px) {
+            .container {
+                padding: 5px;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .container > p {
+                font-size: 0.95rem;
             }
         }
         h1 {
@@ -82,6 +108,15 @@
         .dataTables_wrapper {
             width: 100%;
             overflow-x: auto;
+            max-width: 100%;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+            .dataTables_wrapper {
+                padding-right: 5px; /* Add some padding on the right side */
+            }
         }
         table.dataTable th, table.dataTable td { 
             white-space: normal;
@@ -104,6 +139,21 @@
                 max-width: 150px;
                 padding: 8px 10px;
                 font-size: 0.9rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            table.dataTable th, table.dataTable td {
+                max-width: 120px;
+                padding: 6px 8px;
+                font-size: 0.85rem;
+            }
+
+            /* Ensure the table doesn't overflow the container */
+            table.dataTable {
+                width: 100% !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
             }
         }
         table.dataTable th {
@@ -133,6 +183,9 @@
         }
         .dataTables_wrapper .dataTables_filter {
             margin-bottom: 20px;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: right;
         }
         .dataTables_wrapper .dataTables_filter input {
             padding: 8px 12px;
@@ -141,6 +194,34 @@
             font-family: 'Roboto', sans-serif;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             transition: all 0.2s ease;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+            .dataTables_wrapper .dataTables_filter {
+                text-align: left;
+                margin-bottom: 15px;
+                padding-right: 5px;
+            }
+
+            .dataTables_wrapper .dataTables_filter input {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .dataTables_wrapper .dataTables_filter {
+                text-align: center;
+            }
+
+            .dataTables_wrapper .dataTables_filter input {
+                width: 100%;
+                max-width: 100%;
+                padding: 6px 10px;
+                font-size: 0.9rem;
+            }
         }
         .dataTables_wrapper .dataTables_filter input:focus {
             outline: none;
@@ -158,9 +239,27 @@
             margin-top: 20px;
             color: #718096;
             font-size: 0.9rem;
+            width: 100%;
+            box-sizing: border-box;
+            padding-right: 5px;
         }
         .dataTables_wrapper .dataTables_paginate {
             margin-top: 20px;
+            width: 100%;
+            box-sizing: border-box;
+            padding-right: 5px;
+            text-align: right;
+        }
+
+        @media (max-width: 480px) {
+            .dataTables_wrapper .dataTables_info,
+            .dataTables_wrapper .dataTables_paginate {
+                width: 100%;
+                text-align: center;
+                float: none;
+                padding: 0 5px;
+                font-size: 0.85rem;
+            }
         }
         .dataTables_wrapper .dataTables_paginate .paginate_button {
             padding: 8px 14px;
@@ -170,6 +269,38 @@
             cursor: pointer;
             transition: all 0.2s ease;
             color: #4a5568 !important;
+            display: inline-block;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 768px) {
+            .dataTables_wrapper .dataTables_paginate .paginate_button {
+                padding: 6px 10px;
+                margin: 0 2px;
+                font-size: 0.9rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .dataTables_wrapper .dataTables_paginate .paginate_button {
+                padding: 4px 8px;
+                margin: 0 1px;
+                font-size: 0.85rem;
+            }
+        }
+
+        @media (max-width: 320px) {
+            .dataTables_wrapper .dataTables_paginate .paginate_button {
+                padding: 3px 6px;
+                margin: 0;
+                font-size: 0.8rem;
+                border-radius: 4px;
+            }
+
+            /* Hide some pagination buttons on very small screens */
+            .dataTables_wrapper .dataTables_paginate .paginate_button:not(.previous):not(.next):not(.current) {
+                display: none;
+            }
         }
         .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
             background-color: #ebf8ff;
@@ -327,13 +458,43 @@
             border: 1px solid #e2e8f0;
             font-size: 0.9rem;
         }
+
+        @media (max-width: 768px) {
+            .legend-item {
+                margin: 0 5px;
+                padding: 4px 8px;
+                font-size: 0.85rem;
+                display: inline-block;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .legend-item {
+                margin: 5px 3px;
+                padding: 3px 6px;
+                font-size: 0.8rem;
+                display: inline-block;
+            }
+
+            .footer p {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .footer strong {
+                width: 100%;
+                margin-bottom: 5px;
+            }
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Scientific Journal Database</h1>
-    <p>This comprehensive analytical tool provides detailed information about scientific journals across multiple domains. Click on column headers to sort data, and expand rows to view complete domain coverage information.</p>
+    <h1>Where to publish?</h1>
+    <p>A database of for-profit and non-profit scientific journals.</p>
 
     <div id="domainFilters" style="margin-bottom: 15px;">
         <!-- Buttons will be added here by JavaScript -->
@@ -348,14 +509,6 @@
             <!-- Data will be populated by DataTables -->
         </tbody>
     </table>
-
-    <div class="footer">
-        <p><strong>Legend:</strong>
-           <span class="legend-item">FP = For-profit</span>
-           <span class="legend-item">NFP = Not-for-profit</span>
-           <span class="legend-item">UP = University Press</span>
-        </p>
-    </div>
 </div>
 
 <script src="https://code.jquery.com/jquery-3.7.0.js"></script>
@@ -480,7 +633,12 @@ $(document).ready(function() {
                     responsive: {
                         details: {
                             display: $.fn.dataTable.Responsive.display.childRow
-                        }
+                        },
+                        breakpoints: [
+                            { name: 'desktop', width: Infinity },
+                            { name: 'tablet',  width: 1024 },
+                            { name: 'phone',   width: 480 }
+                        ]
                     },
                     columnDefs: [
                         // Format the domain columns (1-8) as boolean values (0/1) and hide them by default

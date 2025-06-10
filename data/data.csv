@@ -1,57 +1,45 @@
-Journal,Domain,,,,,,,,Statut,Publisher,Country,Type de journaux (FP=for-profit/NP=non-profit/UP=Universitary Press)
-,Biology,Neurosciences,Cognitive science,Psychiatry,Neurology,Evolution,Computational Biology,Immunology,,,,
-Journal of Neuroscience,1,1,1,1,1,0,1,0,NP,Society for Neuroscience,USA,Non-profit
-eLife,1,1,1,1,1,1,1,1,NP,eLife Sciences Publications,UK,
-Science,1,1,1,1,1,1,1,1,NP,American Association for the Advancement of Science,USA,
-Plos Biology,1,1,1,1,1,1,1,1,NP,Public Library of Science (Plos),USA,
-Plos One,1,1,1,1,1,1,1,1,NP,Public Library of Science (Plos),USA,
-Plos Computational Biology,0,1,1,1,1,0,1,1,NP,Public Library of Science (Plos),USA,
-Science Advances,1,1,1,1,1,?,?,1,NP,American Association for the Advancement of Science,USA,
-eNeuro,0,1,1,1,1,0,1,0,NP,Society for Neuroscience,USA,
-Proceedings of the National Academy of Sciences of the United States of America (PNAS),1,1,1,1,1,1,1,1,NP,United States National Academy of Sciences,USA,
-Philosophical Transactions of the Royal Society B: Biological Sciences,1,1,1,1,1,1,1,1,NP,Royal Society,UK,
-,,,,,,,,,,,,
-,,,,,,,,,,,,
-Cerebral Cortex,0,1,1,1,1,0,1,0,UP,Oxford University Press,UK,University Press
-Brain,0,1,1,1,1,0,1,0,UP,Oxford University Press,UK,
-Brain Communications,0,1,1,1,1,0,1,0,UP,Oxford University Press,UK,
-Imaging Neuroscience,0,1,1,1,1,0,0,0,UP,MIT press direct,USA,
-Journal of Cognitive Neuroscience,0,1,1,1,1,0,0,0,UP,MIT press direct,USA,
-,,,,,,,,,,,,
-,,,,,,,,,,,,
-"Cognitive, Affective, & Behavioral Neuroscience",0,1,1,1,1,0,0,0,FP,Springer Nature on behalf of the Psychonomic Society,Allemagne,Society journal published by for-profit publishers.
-European Journal of Neuroscience,0,1,1,1,1,0,0,0,FP,John Wiley & Sons & Wiley-Blackwell on behalf of the Federation of European Neuroscience Societies,USA,
-Annals of Neurology,0,1,1,0,1,0,0,0,FP,John Wiley & Sons & Wiley-Blackwell on behalf of the American Neurological Association and the Child Neurology Society,USA,
-Psychophysiology,0,1,1,1,1,0,1,0,FP,John Wiley & Sons & Wiley-Blackwell on behalf of the Society for Psychophysiological Research,USA,
-Neurology,0,0,0,0,1,0,0,0,FP,Wolters Kluwer on behalf of the American Academy of Neurology,Netherlands,
-,,,,,,,,,,,,
-,,,,,,,,,,,,
-Nature,1,1,1,1,1,1,1,1,FP,Springer Nature,Allemagne,For-profit journal and publisher
-Nature Communications,1,1,1,1,1,1,1,1,FP,Springer Nature,Allemagne,
-Nature Neuroscience,0,1,1,1,1,0,1,0,FP,Springer Nature,Allemagne,
-Scientific Reports,1,1,1,1,1,1,1,1,FP,Springer Nature,Allemagne,
-Nature Ecology and Evolution,0,0,0,0,0,1,0,0,FP,Springer Nature,Allemagne,
-Brain Structure and Function,0,1,1,1,1,0,0,0,FP,Springer Nature,Allemagne,
-Biological Psychiatry,0,1,1,1,0,0,1,0,FP,Springer Nature,Allemagne,
-Translational Psychiatry,0,1,1,1,0,0,1,0,FP,Springer Nature,Allemagne,
-Molecular Psychiatry,0,1,0,1,0,0,1,0,FP,Springer Nature,Allemagne,
-Scientific Reports,1,1,1,1,1,1,1,1,FP,Springer Nature,Allemagne,
-Nature Ecology and Evolution,0,0,0,0,0,1,0,0,FP,Springer Nature,Allemagne,
-Neuroimage,0,1,1,1,1,0,0,0,FP,Elsevier,Netherlands,
-Neuroscience & Biobehavioral Reviews,0,1,1,1,1,0,0,0,FP,Elsevier,Netherlands,
-Neuropsychologia,0,1,1,1,1,0,0,0,FP,Elsevier,Netherlands,
-Current Opinion in Neurobiology,0,1,1,1,1,0,0,0,FP,Elsevier,Netherlands,
-Current Opinion in Psychology,0,0,1,1,1,0,0,0,FP,Elsevier,Netherlands,
-Current Opinion in Behavioral Sciences,0,1,1,1,1,0,0,0,FP,Elsevier,Netherlands,
-Current Opinion in Immunology,0,0,0,0,0,0,0,1,FP,Elsevier,Netherlands,
-Human Brain Mapping,0,1,1,1,1,0,0,0,FP,John Wiley & Sons,USA,
-Current biology,1,1,1,1,1,1,1,1,FP,Cell Press,USA,
-Trends in Neurosciences,0,1,1,1,1,0,0,0,FP,Cell Press,USA,
-Trends in Immunology,0,0,0,0,0,0,0,1,FP,Cell Press,USA,
-Current biology,1,1,1,1,1,1,1,1,FP,Cell Press,USA,
-Trends in Neurosciences,0,1,1,1,1,0,0,0,FP,Cell Press,USA,
-Trends in Immunology,0,0,0,0,0,0,0,1,FP,Cell Press,USA,
-Neuron,0,1,1,1,1,0,1,0,FP,Cell Press,USA,
-Cell,1,1,0,1,1,1,0,1,FP,Cell Press,USA,
-Frontiers in Psychology,0,0,1,1,0,0,1,0,FP,Frontiers,Suisse,
-Frontiers in Computational Neuroscience,0,1,1,1,1,0,1,0,FP,Frontiers,Suisse,
+"Journal","Field","Publisher","Publisher type","Business model","Institution","Institution type","Website","APC €uros","Scimago Rank","PCI partner"
+"eLife","general","eLife Sciences Publications","Non-profit","OA","Howard Hughes Medical Institute / Max Planck Society / Wellcome Trust","Non-profit","https://elifesciences.org/","1844","4.752","none"
+"Science","general","American Association for the Advancement of Science","Non-profit","subscription","American Association for the Advancement of Science","Society","https://www.sciencemag.org/","","14.589","none"
+PLoS Biology,"general","Public Library of Sciences","Non-profit","OA","Public Library of Sciences","Non-profit","https://journals.plos.org/plosbiology/","5069","3.928","PCI friendly"
+PLoS ONE,"general","Public Library of Sciences","Non-profit","OA","Public Library of Sciences","Non-profit","https://journals.plos.org/plosone/","1779","0.852","PCI friendly"
+PLoS Computational Biology,"theory","Public Library of Sciences","Non-profit","OA","Public Library of Sciences","Non-profit","https://journals.plos.org/ploscompbiol/","2617","1.96","none"
+"Science Advances",general,"American Association for the Advancement of Science","Non-profit","OA","American Association for the Advancement of Science","Society","https://advances.sciencemag.org/","4147","4.586","none"
+"Proceedings of the National Academy of Sciences of the USA","general","National Academy of Sciences","Non-profit","hybrid","National Academy of Sciences","Uni/Gov","https://www.pnas.org/","4603","4.184","none"
+"Philosophical Transactions of the Royal Society B","general","The Royal Society","Non-profit","hybrid","The Royal Society","Society","https://royalsocietypublishing.org/journal/rstb","2040","2.151","none"
+Journal of Neuroscience,"neuroscience","Society for Neuroscience","Non-profit","hybrid","Society for Neuroscience","Society","https://www.jneurosci.org/","3850","1.504","none"
+"eNeuro","neuroscience","Society for Neuroscience","Non-profit","OA","Society for Neuroscience","Society","https://www.eneuro.org/","2650","0.782","none"
+"Cerebral Cortex","neuroscience","Oxford University Press","University Press","hybrid","Oxford University Press","Uni/Gov","https://academic.oup.com/cercor","3000","1.384","none"
+"Brain","neuroscience","Oxford University Press","University Press","hybrid","Oxford University Press","Uni/Gov","https://academic.oup.com/brain","3000","4.924","none"
+"Brain Communications","neuroscience","Oxford University Press","University Press","OA","Oxford University Press","Uni/Gov","https://academic.oup.com/braincomms","2100","0.821","none"
+"Imaging Neuroscience","neuroscience","MIT Press","University Press","hybrid","MIT Press","Uni/Gov","https://direct.mit.edu/imag","2500","","none"
+"Journal of Cognitive Neuroscience","neuroscience","MIT Press","University Press","hybrid","MIT Press","Uni/Gov","https://direct.mit.edu/jocn","2500","1.108","none"
+"Cognitive, Affective, & Behavioral Neuroscience","neuroscience","Springer Nature","For-profit","hybrid","Psychonomic Society","Society","https://www.springer.com/journal/13415","2790","0.923","none"
+"European Journal of Neuroscience","neuroscience","Wiley","For-profit","hybrid","Federation of European Neuroscience Societies","Society","https://onlinelibrary.wiley.com/journal/14609568","3500","0.832","none"
+"Annals of Neurology","neuroscience","Wiley","For-profit","hybrid","American Neurological Association and the Child Neurology Society","Society","https://onlinelibrary.wiley.com/journal/15318249","3500","4.939","none"
+"Psychophysiology","neuroscience","Wiley","For-profit","hybrid","Society for Psychophysiological Research","Society","https://onlinelibrary.wiley.com/journal/14698986","3000","0.912","none"
+"Neurology","neuroscience","Wolters Kluwer","For-profit","hybrid","American Academy of Neurology","Society","https://n.neurology.org/","3450","4.183","none"
+"Nature","general","Springer Nature","For-profit","hybrid","Springer Nature","For-profit","https://www.nature.com/","9500","17.134","none"
+"Nature Communications","general","Springer Nature","For-profit","OA","Springer Nature","For-profit","https://www.nature.com/ncomms/","4790","7.928","none"
+"Nature Neuroscience","neuroscience","Springer Nature","For-profit","hybrid","Springer Nature","For-profit","https://www.nature.com/neuro/","5200","10.121","none"
+"Scientific Reports","general","Springer Nature","For-profit","OA","Springer Nature","For-profit","https://www.nature.com/srep/","1870","1.998","none"
+"Nature Ecology and Evolution","ecology","Springer Nature","For-profit","hybrid","Springer Nature","For-profit","https://www.nature.com/natecolevol/","4790","11.138","none"
+"Brain Structure and Function","neuroscience","Springer Nature","For-profit","hybrid","Springer Nature","For-profit","https://www.springer.com/journal/429","3170","2.903","none"
+"Biological Psychiatry","neuroscience","Elsevier","For-profit","hybrid","Society of Biological Psychiatry","Society","https://www.biologicalpsychiatryjournal.com/","3950","5.483","none"
+"Translational Psychiatry","neuroscience","Springer Nature","For-profit","OA","Springer Nature","For-profit","https://www.nature.com/tp/","3490","4.284","none"
+"Molecular Psychiatry","neuroscience","Springer Nature","For-profit","hybrid","Springer Nature","For-profit","https://www.nature.com/mp/","4790","11.973","none"
+"Neuroimage","neuroscience","Elsevier","For-profit","hybrid","Elsevier","For-profit","https://www.journals.elsevier.com/neuroimage","3500","2.953","none"
+"Neuroscience & Biobehavioral Reviews","neuroscience","Elsevier","For-profit","hybrid","Elsevier","For-profit","https://www.journals.elsevier.com/neuroscience-and-biobehavioral-reviews","3500","4.260","none"
+"Neuropsychologia","neuroscience","Elsevier","For-profit","hybrid","Elsevier","For-profit","https://www.journals.elsevier.com/neuropsychologia","3100","2.328","none"
+"Current Opinion in Neurobiology","neuroscience","Elsevier","For-profit","hybrid","Elsevier","For-profit","https://www.journals.elsevier.com/current-opinion-in-neurobiology","3500","4.538","none"
+"Current Opinion in Psychology","psychology","Elsevier","For-profit","hybrid","Elsevier","For-profit","https://www.journals.elsevier.com/current-opinion-in-psychology","3100","3.891","none"
+"Current Opinion in Behavioral Sciences","neuroscience","Elsevier","For-profit","hybrid","Elsevier","For-profit","https://www.journals.elsevier.com/current-opinion-in-behavioral-sciences","2600","3.594","none"
+"Current Opinion in Immunology","immunology","Elsevier","For-profit","hybrid","Elsevier","For-profit","https://www.journals.elsevier.com/current-opinion-in-immunology","3500","4.826","none"
+"Human Brain Mapping","neuroscience","Wiley","For-profit","hybrid","Organization for Human Brain Mapping","Society","https://onlinelibrary.wiley.com/journal/10970193","3500","4.421","none"
+"Current Biology","general","Cell Press","For-profit","hybrid","Cell Press","For-profit","https://www.cell.com/current-biology/home","5200","5.667","none"
+"Trends in Neurosciences","neuroscience","Cell Press","For-profit","hybrid","Cell Press","For-profit","https://www.cell.com/trends/neurosciences/home","3850","12.891","none"
+"Trends in Immunology","immunology","Cell Press","For-profit","hybrid","Cell Press","For-profit","https://www.cell.com/trends/immunology/home","3850","13.422","none"
+"Neuron","neuroscience","Cell Press","For-profit","hybrid","Cell Press","For-profit","https://www.cell.com/neuron/home","5200","14.415","none"
+"Cell","general","Cell Press","For-profit","hybrid","Cell Press","For-profit","https://www.cell.com/cell/home","9500","41.582","none"
+"Frontiers in Psychology","psychology","Frontiers","For-profit","OA","Frontiers","For-profit","https://www.frontiersin.org/journals/psychology","1150","1.280","none"
+"Frontiers in Computational Neuroscience","neuroscience","Frontiers","For-profit","OA","Frontiers","For-profit","https://www.frontiersin.org/journals/computational-neuroscience","1150","1.092","none"

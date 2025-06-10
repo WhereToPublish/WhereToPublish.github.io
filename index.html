@@ -561,7 +561,7 @@ function parseCSV(csvText) {
         "Publisher",
         "Publisher type", // This is equivalent to the old "Statut"
         "Business model", // New column
-        "APC €uros", // New column
+        "APC (€)", // New column
     ];
 
     const headerRow = $('#journalTable thead tr');
@@ -653,6 +653,35 @@ function parseCSV(csvText) {
     };
 }
 
+// Function to merge data from multiple CSV files and remove duplicates
+function mergeData(dataArrays) {
+    const mergedData = [];
+    const journalSet = new Set(); // To track journal names we've already added
+    const allDomains = new Set();
+
+    // Process each data array
+    dataArrays.forEach(dataObj => {
+        // Add domains to the combined set
+        dataObj.domains.forEach(domain => allDomains.add(domain));
+
+        // Process each row of data
+        dataObj.data.forEach(row => {
+            const journalName = row[0]; // Journal name is at index 0
+
+            // If we haven't seen this journal before, add it to the merged data
+            if (!journalSet.has(journalName)) {
+                journalSet.add(journalName);
+                mergedData.push(row);
+            }
+        });
+    });
+
+    return {
+        data: mergedData,
+        domains: Array.from(allDomains).sort()
+    };
+}
+
 
 
 $(document).ready(function() {
@@ -674,15 +703,42 @@ $(document).ready(function() {
         }
     });
 
-    fetch('data/DAFNEE.csv')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok: ' + response.statusText + ' (Failed to fetch data/DAFNEE.csv)');
-            }
-            return response.text();
-        })
-        .then(csvText => {
-            const { data: tableData, domains } = parseCSV(csvText);
+    // Function to fetch all CSV files from the data folder
+    async function fetchAllCSVFiles() {
+        try {
+            // Get list of all CSV files in the data folder
+            const csvFiles = ['data/DAFNEE.csv', 'data/data.csv']; // Add any other CSV files here
+
+            // Fetch and parse all CSV files
+            const dataPromises = csvFiles.map(async (file) => {
+                try {
+                    const response = await fetch(file);
+                    if (!response.ok) {
+                        console.error(`Failed to fetch ${file}: ${response.statusText}`);
+                        return { data: [], domains: [] };
+                    }
+                    const csvText = await response.text();
+                    return parseCSV(csvText);
+                } catch (error) {
+                    console.error(`Error processing ${file}:`, error);
+                    return { data: [], domains: [] };
+                }
+            });
+
+            // Wait for all files to be fetched and parsed
+            const allData = await Promise.all(dataPromises);
+
+            // Merge the data from all files
+            return mergeData(allData);
+        } catch (error) {
+            console.error('Error fetching CSV files:', error);
+            return { data: [], domains: [] };
+        }
+    }
+
+    // Fetch and process all CSV files
+    fetchAllCSVFiles()
+        .then(({ data: tableData, domains }) => {
             if (tableData && tableData.length > 0) {
                 $('#journalTable').DataTable({
                     data: tableData,
@@ -819,8 +875,8 @@ $(document).ready(function() {
             }
         })
         .catch(error => {
-            console.error('Error loading or processing CSV:', error);
-            $('#journalTable').parent().append('<p style="color:red;">Could not load data. Please ensure `data/DAFNEE.csv` exists and check the browser console for errors (e.g., 404 Not Found for `data/DAFNEE.csv`).</p>');
+            console.error('Error loading or processing CSV files:', error);
+            $('#journalTable').parent().append('<p style="color:red;">Could not load data. Please ensure CSV files exist in the data folder and check the browser console for errors.</p>');
         });
 });
 </script>

@@ -577,6 +577,11 @@ function parseCSV(csvText) {
     const publisherTypeIndex = rawHeaders.findIndex(h => h.includes("Publisher type"));
     const businessModelIndex = rawHeaders.findIndex(h => h.includes("Business model"));
     const apcIndex = rawHeaders.findIndex(h => h.includes("APC"));
+    const institutionIndex = rawHeaders.findIndex(h => h.includes("Institution") && !h.includes("type"));
+    const institutionTypeIndex = rawHeaders.findIndex(h => h.includes("Institution type"));
+    const websiteIndex = rawHeaders.findIndex(h => h.includes("Website"));
+    const scimagoRankIndex = rawHeaders.findIndex(h => h.includes("Scimago"));
+    const pciPartnerIndex = rawHeaders.findIndex(h => h.includes("PCI"));
 
     // Process data rows (starting from the 2nd line, index 1)
     for (let i = 1; i < lines.length; i++) {
@@ -630,7 +635,12 @@ function parseCSV(csvText) {
                 cleanRow[publisherTypeIndex] || "", // Publisher type (status)
                 cleanRow[businessModelIndex] || "", // Business model
                 cleanRow[apcIndex] || "", // APC cost
-                "" // Country (not available in DAFNEE.csv)
+                "", // Country (not available in DAFNEE.csv)
+                cleanRow[institutionIndex] || "", // Institution
+                cleanRow[institutionTypeIndex] || "", // Institution type
+                cleanRow[websiteIndex] || "", // Website
+                cleanRow[scimagoRankIndex] || "", // Scimago Rank
+                cleanRow[pciPartnerIndex] || "" // PCI partner
             ];
 
             data.push(newRow);
@@ -771,22 +781,32 @@ $(document).ready(function() {
                         }
 
                         // Create journal details HTML
-                        var journalDetails = '<div class="domain-details"><h4>Journal Details:</h4><ul>';
+                        var journalDetails = '<div class="domain-details"><ul>';
 
-                        // Add field/domain
-                        journalDetails += '<li><span class="domain-name">Field:</span> <span>' + data[1] + '</span></li>';
+                        // Add institution
+                        if (data[7]) {
+                            journalDetails += '<li><span class="domain-name">Institution:</span> <span>' + data[7] + '</span></li>';
+                        }
 
-                        // Add publisher
-                        journalDetails += '<li><span class="domain-name">Publisher:</span> <span>' + data[2] + '</span></li>';
+                        // Add institution type
+                        if (data[8]) {
+                            journalDetails += '<li><span class="domain-name">Institution Type:</span> <span>' + data[8] + '</span></li>';
+                        }
 
-                        // Add publisher type
-                        journalDetails += '<li><span class="domain-name">Publisher Type:</span> <span>' + data[3] + '</span></li>';
+                        // Add website with link
+                        if (data[9]) {
+                            journalDetails += '<li><span class="domain-name">Website:</span> <a href="' + data[9] + '" target="_blank">' + data[9] + '</a></li>';
+                        }
 
-                        // Add business model
-                        journalDetails += '<li><span class="domain-name">Business Model:</span> <span>' + data[4] + '</span></li>';
+                        // Add Scimago Rank
+                        if (data[10]) {
+                            journalDetails += '<li><span class="domain-name">Scimago Rank:</span> <span>' + data[10] + '</span></li>';
+                        }
 
-                        // Add APC cost
-                        journalDetails += '<li><span class="domain-name">APC Cost (€):</span> <span>' + data[5] + '</span></li>';
+                        // Add PCI partner
+                        if (data[11]) {
+                            journalDetails += '<li><span class="domain-name">PCI Partner:</span> <span>' + data[11] + '</span></li>';
+                        }
 
                         journalDetails += '</ul></div>';
 

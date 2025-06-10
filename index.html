@@ -540,31 +540,28 @@
 function parseCSV(csvText) {
     const lines = csvText.split('\n');
     const data = [];
+    const domains = new Set();
 
-    // Extract headers from the first two lines of the CSV
-    // Line 0: Journal,Domain,,,,,,,,Statut,Publisher,Country,Type de journaux (FP=for-profit/NP=non-profit/UP=Universitary Press)
-    // Line 1: ,Biology,Neurosciences,Cognitive science,Psychiatry,Neurology,Evolution,Computational Biology,Immunology,,,,
-    if (lines.length < 2) {
-        console.error("CSV does not have enough header lines.");
-        return [];
+    // Extract headers from the first line of the CSV
+    // Line 0: "Journal","Field","Publisher","Publisher type","Business model","Institution","Institution type","Website","APC €uros","Scimago Rank","PCI partner"
+    if (lines.length < 1) {
+        console.error("CSV does not have header line.");
+        return { data: [], domains: [] };
     }
 
-    const rawHeaders1 = lines[0].split(',');
-    const rawHeaders2 = lines[1].split(',');
+    const rawHeaders = lines[0].split(',').map(header => {
+        // Remove quotes if present
+        return header.replace(/^"|"$/g, '').trim();
+    });
 
+    // Define the columns we want to display
     const finalHeadersText = [
-        rawHeaders1[0] ? rawHeaders1[0].trim() : "Journal",
-        rawHeaders2[1] ? rawHeaders2[1].trim() : "Biology",
-        rawHeaders2[2] ? rawHeaders2[2].trim() : "Neurosciences",
-        rawHeaders2[3] ? rawHeaders2[3].trim() : "Cognitive science",
-        rawHeaders2[4] ? rawHeaders2[4].trim() : "Psychiatry",
-        rawHeaders2[5] ? rawHeaders2[5].trim() : "Neurology",
-        rawHeaders2[6] ? rawHeaders2[6].trim() : "Evolution",
-        rawHeaders2[7] ? rawHeaders2[7].trim() : "Computational Biology",
-        rawHeaders2[8] ? rawHeaders2[8].trim() : "Immunology",
-        rawHeaders1[9] ? rawHeaders1[9].trim() : "Statut",
-        rawHeaders1[10] ? rawHeaders1[10].trim() : "Publisher",
-        rawHeaders1[11] ? rawHeaders1[11].trim() : "Country"
+        "Journal",
+        "Field", // This will be our domain column
+        "Publisher",
+        "Publisher type", // This is equivalent to the old "Statut"
+        "Business model", // New column
+        "APC €uros", // New column
     ];
 
     const headerRow = $('#journalTable thead tr');
@@ -573,15 +570,24 @@ function parseCSV(csvText) {
         headerRow.append($('<th>').text(headerText));
     });
 
-    // Process data rows (starting from the 3rd line, index 2)
-    for (let i = 2; i < lines.length; i++) {
+    // Find the indices of the columns we need
+    const journalIndex = rawHeaders.findIndex(h => h.includes("Journal"));
+    const fieldIndex = rawHeaders.findIndex(h => h.includes("Field"));
+    const publisherIndex = rawHeaders.findIndex(h => h.includes("Publisher") && !h.includes("type"));
+    const publisherTypeIndex = rawHeaders.findIndex(h => h.includes("Publisher type"));
+    const businessModelIndex = rawHeaders.findIndex(h => h.includes("Business model"));
+    const apcIndex = rawHeaders.findIndex(h => h.includes("APC"));
+
+    // Process data rows (starting from the 2nd line, index 1)
+    for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
 
-        // Skip empty lines or lines that are just commas (often used as separators in the example CSV)
-        if (line === "" || /^,+$/.test(line) || line.startsWith(',,,,')) {
+        // Skip empty lines
+        if (line === "") {
             continue;
         }
 
+        // Parse the CSV line
         const row = [];
         let currentField = '';
         let inQuotedField = false;
@@ -606,12 +612,35 @@ function parseCSV(csvText) {
         }
         row.push(currentField.trim()); // Add the last field
 
-        // We expect 12 data columns. The CSV might have a trailing comma or extra data.
-        if (row.length > 0 && row[0] !== "") { // Ensure it's a data row
-            data.push(row.slice(0, 12)); // Take the first 12 columns
+        // Clean up the row data by removing quotes
+        const cleanRow = row.map(field => field.replace(/^"|"$/g, '').trim());
+
+        // If we have a valid row with a journal name
+        if (cleanRow.length > 0 && cleanRow[journalIndex] !== "") {
+            // Extract the domain/field and add it to our set of domains
+            if (cleanRow[fieldIndex]) {
+                domains.add(cleanRow[fieldIndex]);
+            }
+
+            // Create a new row with the columns we want to display
+            const newRow = [
+                cleanRow[journalIndex] || "", // Journal
+                cleanRow[fieldIndex] || "", // Field/Domain
+                cleanRow[publisherIndex] || "", // Publisher
+                cleanRow[publisherTypeIndex] || "", // Publisher type (status)
+                cleanRow[businessModelIndex] || "", // Business model
+                cleanRow[apcIndex] || "", // APC cost
+                "" // Country (not available in DAFNEE.csv)
+            ];
+
+            data.push(newRow);
         }
     }
-    return data;
+
+    return { 
+        data: data, 
+        domains: Array.from(domains).sort() 
+    };
 }
 
 
@@ -635,15 +664,15 @@ $(document).ready(function() {
         }
     });
 
-    fetch('data.csv')
+    fetch('data/DAFNEE.csv')
         .then(response => {
             if (!response.ok) {
-                throw new Error('Network response was not ok: ' + response.statusText + ' (Failed to fetch data.csv)');
+                throw new Error('Network response was not ok: ' + response.statusText + ' (Failed to fetch data/DAFNEE.csv)');
             }
             return response.text();
         })
         .then(csvText => {
-            const tableData = parseCSV(csvText);
+            const { data: tableData, domains } = parseCSV(csvText);
             if (tableData && tableData.length > 0) {
                 $('#journalTable').DataTable({
                     data: tableData,
@@ -663,34 +692,20 @@ $(document).ready(function() {
                         ]
                     },
                     columnDefs: [
-                        // Format the domain columns (1-8) as boolean values (0/1) and hide them by default
-                        { 
-                            targets: [1, 2, 3, 4, 5, 6, 7, 8],
-                            render: function(data, type, row) {
-                                if (type === 'display' || type === 'filter') {
-                                    if (data === '1') return 'Yes';
-                                    if (data === '0') return 'No';
-                                    return data;
-                                }
-                                return data;
-                            },
-                            visible: false,
-                            className: 'domain-column'
-                        },
-                        // Format the status column (9)
+                        // Format the publisher type column (3)
                         {
-                            targets: [9],
+                            targets: [3],
                             render: function(data, type, row) {
                                 if (type === 'display' || type === 'filter') {
-                                    if (data === 'FP') return 'For-profit';
-                                    if (data === 'NFP' || data === 'NP') return 'Not-for-profit';
-                                    if (data === 'UP') return 'University Press';
+                                    if (data === 'For-profit') return 'For-profit';
+                                    if (data === 'Non-profit') return 'Non-profit';
+                                    if (data === 'University Press') return 'University Press';
                                     return data;
                                 }
                                 return data;
                             }
                         },
-                        // Make the first column (Journal) expandable to show domain details
+                        // Make the first column (Journal) expandable to show details
                         {
                             targets: 0,
                             className: 'details-control'
@@ -705,50 +720,33 @@ $(document).ready(function() {
                         var table = this.api();
                         var domainFiltersContainer = $('#domainFilters');
 
-                        // Domain names must match the order of columns 1-8
-                        var domainNames = [
-                            'Biology',
-                            'Neurosciences',
-                            'Cognitive science',
-                            'Psychiatry',
-                            'Neurology',
-                            'Evolution',
-                            'Computational Biology',
-                            'Immunology'
-                        ];
-
                         // Add "Show All" button
                         var showAllButton = $('<button class="domain-filter-button">Show All</button>')
                             .on('click', function() {
-                                // Clear search for all domain columns (1 to 8)
-                                for (var i = 1; i <= 8; i++) {
-                                    table.column(i).search('');
-                                }
+                                // Clear search for the Field column (1)
+                                table.column(1).search('');
                                 table.draw();
                                 domainFiltersContainer.find('.domain-filter-button').removeClass('active');
                                 $(this).addClass('active');
                             });
                         domainFiltersContainer.append(showAllButton);
 
-                        // Add domain-specific filter buttons
-                        domainNames.forEach(function(domainName, index) {
-                            var columnIndex = index + 1; // DataTable columns are 0-indexed, data columns 1-8 are domains
+                        // Add domain-specific filter buttons using the dynamically extracted domains
+                        domains.forEach(function(domainName) {
                             var button = $('<button class="domain-filter-button">' + domainName + '</button>')
                                 .on('click', function() {
                                     var isActive = $(this).hasClass('active');
 
-                                    // Clear search for all domain columns
-                                    for (var i = 1; i <= 8; i++) {
-                                        table.column(i).search('');
-                                    }
+                                    // Clear search for the Field column
+                                    table.column(1).search('');
                                     domainFiltersContainer.find('.domain-filter-button').removeClass('active');
 
                                     if (isActive) {
-                                        // If button was active, clicking again means show all for domains
+                                        // If button was active, clicking again means show all
                                         showAllButton.addClass('active');
                                     } else {
                                         // If button was not active, make it active and apply its filter
-                                        table.column(columnIndex).search('Yes'); // Filter for 'Yes'
+                                        table.column(1).search('^' + domainName + '$', true, false); // Exact match for the domain
                                         $(this).addClass('active');
                                     }
                                     table.draw();
@@ -760,42 +758,40 @@ $(document).ready(function() {
                         showAllButton.addClass('active');
                     },
 
-                    // Add child row display functionality for domain details
+                    // Add child row display functionality for journal details
                     rowCallback: function(row, data, index) {
-                        // Apply row coloring based on status (column 9)
-                        var status = data[9]; // Get the status value
-                        if (status === 'FP') {
+                        // Apply row coloring based on publisher type (column 3)
+                        var publisherType = data[3]; // Get the publisher type value
+                        if (publisherType === 'For-profit') {
                             $(row).addClass('for-profit-row');
-                        } else if (status === 'NFP' || status === 'NP') {
+                        } else if (publisherType === 'Non-profit') {
                             $(row).addClass('non-profit-row');
-                        } else if (status === 'UP') {
+                        } else if (publisherType === 'University Press') {
                             $(row).addClass('university-press-row');
                         }
 
-                        // Create domain details HTML
-                        var domainDetails = '<div class="domain-details"><h4>Domain Coverage:</h4><ul>';
-                        var domainNames = [
-                            'Biology',
-                            'Neurosciences',
-                            'Cognitive science',
-                            'Psychiatry',
-                            'Neurology',
-                            'Evolution',
-                            'Computational Biology',
-                            'Immunology'
-                        ];
+                        // Create journal details HTML
+                        var journalDetails = '<div class="domain-details"><h4>Journal Details:</h4><ul>';
 
-                        for (var i = 0; i < 8; i++) {
-                            var value = data[i+1];
-                            var displayValue = value === '1' ? 'Yes' : (value === '0' ? 'No' : value);
-                            var colorClass = value === '1' ? 'domain-yes' : 'domain-no';
-                            domainDetails += '<li><span class="domain-name">' + domainNames[i] + ':</span> <span class="' + colorClass + '">' + displayValue + '</span></li>';
-                        }
+                        // Add field/domain
+                        journalDetails += '<li><span class="domain-name">Field:</span> <span>' + data[1] + '</span></li>';
 
-                        domainDetails += '</ul></div>';
+                        // Add publisher
+                        journalDetails += '<li><span class="domain-name">Publisher:</span> <span>' + data[2] + '</span></li>';
 
-                        // Store the domain details in the row's data
-                        $(row).data('child-content', domainDetails);
+                        // Add publisher type
+                        journalDetails += '<li><span class="domain-name">Publisher Type:</span> <span>' + data[3] + '</span></li>';
+
+                        // Add business model
+                        journalDetails += '<li><span class="domain-name">Business Model:</span> <span>' + data[4] + '</span></li>';
+
+                        // Add APC cost
+                        journalDetails += '<li><span class="domain-name">APC Cost (€):</span> <span>' + data[5] + '</span></li>';
+
+                        journalDetails += '</ul></div>';
+
+                        // Store the journal details in the row's data
+                        $(row).data('child-content', journalDetails);
                     }
                 });
             } else if (tableData) { // tableData is an empty array
@@ -804,7 +800,7 @@ $(document).ready(function() {
         })
         .catch(error => {
             console.error('Error loading or processing CSV:', error);
-            $('#journalTable').parent().append('<p style="color:red;">Could not load data. Please ensure `data.csv` is in the same directory as this HTML file and check the browser console for errors (e.g., 404 Not Found for `data.csv`).</p>');
+            $('#journalTable').parent().append('<p style="color:red;">Could not load data. Please ensure `data/DAFNEE.csv` exists and check the browser console for errors (e.g., 404 Not Found for `data/DAFNEE.csv`).</p>');
         });
 });
 </script>

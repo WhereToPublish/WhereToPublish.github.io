@@ -12,9 +12,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { 
-            font-family: 'Roboto', sans-serif; 
-            margin: 0; 
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
             padding: 0;
             color: #333;
             line-height: 1.6;
@@ -22,8 +22,8 @@
             width: 100%;
             box-sizing: border-box;
         }
-        .container { 
-            width: 95%; 
+        .container {
+            width: 95%;
             max-width: 1400px;
             margin: 0 auto;
             background-color: white;
@@ -120,7 +120,7 @@
                 padding-right: 5px; /* Add some padding on the right side */
             }
         }
-        table.dataTable th, table.dataTable td { 
+        table.dataTable th, table.dataTable td {
             white-space: normal;
             padding: 12px 15px;
             text-align: left;
@@ -542,14 +542,15 @@
 <body>
 
 <div class="container">
-    <h1>Where to publish?</h1>
-    <p>A database of for-profit and non-profit scientific journals.</p>
-
-    <div id="dataSourceFilters" style="margin-bottom: 15px; text-align: center;">
-        <!-- Data source filter buttons -->
+    <h1 style="margin-bottom: 10px; margin-top: 0">Where to publish? Where to review?</h1>
+    <p style="margin-bottom: 10px">A database of for-profit and non-profit scientific journals.</p>
+    <div id="dataSourceFilters" style="margin-bottom: 10px; text-align: center;">
         <button id="allJournals" class="data-source-button active">All Journals</button>
         <button id="ecologyEvolution" class="data-source-button">Ecology & Evolution</button>
         <button id="neurosciences" class="data-source-button">Neurosciences</button>
+    </div>
+    <div style="position: relative; margin-bottom: 30px;">
+        <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 80px; height: 3px; background: linear-gradient(90deg, #3182ce, #63b3ed); border-radius: 3px;"></div>
     </div>
     <div id="domainFilters" style="margin-bottom: 15px;">
         <!-- Domain filter buttons will be added here by JavaScript -->
@@ -570,6 +571,12 @@
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/responsive/2.4.1/js/dataTables.responsive.min.js"></script>
 <script>
+
+function formatDomainName(domain) {
+    // Capitalize the first letter of each word in the domain name
+    return domain.replace(/_/g, ' ').split(' ').map(word =>word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+}
+
 function parseCSV(csvText) {
     const lines = csvText.split('\n');
     const data = [];
@@ -600,7 +607,11 @@ function parseCSV(csvText) {
     const headerRow = $('#journalTable thead tr');
     headerRow.empty(); // Clear existing/placeholder headers
     finalHeadersText.forEach(headerText => {
-        headerRow.append($('<th>').text(headerText));
+        // Capitalize and replace underscores with spaces
+        const formattedText = headerText.replace(/_/g, ' ').split(' ').map(word =>
+            word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ');
+        headerRow.append($('<th>').text(formattedText));
     });
 
     // Find the indices of the columns we need
@@ -663,7 +674,7 @@ function parseCSV(csvText) {
             // Create a new row with the columns we want to display
             const newRow = [
                 cleanRow[journalIndex] || "", // Journal
-                cleanRow[fieldIndex] || "", // Field/Domain
+                formatDomainName(cleanRow[fieldIndex]) || "", // Field/Domain
                 cleanRow[publisherIndex] || "", // Publisher
                 cleanRow[publisherTypeIndex] || "", // Publisher type (status)
                 cleanRow[businessModelIndex] || "", // Business model
@@ -680,9 +691,9 @@ function parseCSV(csvText) {
         }
     }
 
-    return { 
-        data: data, 
-        domains: Array.from(domains).sort() 
+    return {
+        data: data,
+        domains: Array.from(domains).sort()
     };
 }
 
@@ -714,8 +725,6 @@ function mergeData(dataArrays) {
         domains: Array.from(allDomains).sort()
     };
 }
-
-
 
 $(document).ready(function() {
     let dataTable; // Variable to store the DataTable instance
@@ -868,7 +877,7 @@ $(document).ready(function() {
                         var domainFiltersContainer = $('#domainFilters');
 
                         // Add "Show All" button
-                        var showAllButton = $('<button class="domain-filter-button">Show All</button>')
+                        var showAllButton = $('<button class="domain-filter-button">SHOW ALL</button>')
                             .on('click', function() {
                                 // Clear search for the Field column (1)
                                 table.column(1).search('');
@@ -880,7 +889,7 @@ $(document).ready(function() {
 
                         // Add domain-specific filter buttons using the dynamically extracted domains
                         domains.forEach(function(domainName) {
-                            var button = $('<button class="domain-filter-button">' + domainName + '</button>')
+                            var button = $('<button class="domain-filter-button">' + formatDomainName(domainName) + '</button>')
                                 .on('click', function() {
                                     var isActive = $(this).hasClass('active');
 
@@ -922,27 +931,27 @@ $(document).ready(function() {
 
                         // Add institution
                         if (data[7]) {
-                            journalDetails += '<li><span class="domain-name">Institution:</span> <span>' + data[7] + '</span></li>';
+                            journalDetails += '<li><span class="domain-name">INSTITUTION:</span> <span>' + data[7] + '</span></li>';
                         }
 
                         // Add institution type
                         if (data[8]) {
-                            journalDetails += '<li><span class="domain-name">Institution Type:</span> <span>' + data[8] + '</span></li>';
+                            journalDetails += '<li><span class="domain-name">INSTITUTION TYPE:</span> <span>' + data[8] + '</span></li>';
                         }
 
                         // Add website with link
                         if (data[9]) {
-                            journalDetails += '<li><span class="domain-name">Website:</span> <a href="' + data[9] + '" target="_blank">' + data[9] + '</a></li>';
+                            journalDetails += '<li><span class="domain-name">WEBSITE:</span> <a href="' + data[9] + '" target="_blank">' + data[9] + '</a></li>';
                         }
 
                         // Add Scimago Rank
                         if (data[10]) {
-                            journalDetails += '<li><span class="domain-name">Scimago Rank:</span> <span>' + data[10] + '</span></li>';
+                            journalDetails += '<li><span class="domain-name">SCIMAGO RANK:</span> <span>' + data[10] + '</span></li>';
                         }
 
                         // Add PCI partner
                         if (data[11]) {
-                            journalDetails += '<li><span class="domain-name">PCI Partner:</span> <span>' + data[11] + '</span></li>';
+                            journalDetails += '<li><span class="domain-name">PCI PARTNER:</span> <span>' + data[11] + '</span></li>';
                         }
 
                         journalDetails += '</ul></div>';

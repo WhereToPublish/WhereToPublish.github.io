@@ -568,7 +568,7 @@
 <body>
 
 <div class="container">
-    <h1 style="margin-bottom: 10px; margin-top: 0">Where to publish? Where to review?</h1>
+    <h1 style="margin-bottom: 10px; margin-top: 0">Where to publish? To review?</h1>
     <p style="margin-bottom: 10px">A database of for-profit and non-profit scientific journals.</p>
     <div id="dataSourceFilters" style="margin-bottom: 10px; text-align: center;">
         <button id="allJournals" class="data-source-button active">All Journals</button>
@@ -920,7 +920,8 @@ $(document).ready(function() {
 
                         // Add domain-specific filter buttons using the dynamically extracted domains
                         domains.forEach(function(domainName) {
-                            var button = $('<button class="domain-filter-button">' + formatDomainName(domainName) + '</button>')
+                            var formattedDomainName = formatDomainName(domainName);
+                            var button = $('<button class="domain-filter-button">' + formattedDomainName + '</button>')
                                 .on('click', function() {
                                     var isActive = $(this).hasClass('active');
 
@@ -933,7 +934,7 @@ $(document).ready(function() {
                                         showAllButton.addClass('active');
                                     } else {
                                         // If button was not active, make it active and apply its filter
-                                        table.column(1).search('^' + domainName + '$', true, false); // Exact match for the domain
+                                        table.column(1).search('^' + formattedDomainName + '$', true, false); // Exact match for the domain
                                         $(this).addClass('active');
                                     }
                                     table.draw();

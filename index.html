@@ -201,12 +201,13 @@
         }
         .dataTables_wrapper .dataTables_filter {
             margin-bottom: 20px;
-            width: 100%;
+            width: auto;
+            float: right;
             box-sizing: border-box;
             text-align: right;
         }
         .dataTables_wrapper .dataTables_filter input {
-            padding: 8px 12px;
+            padding: 8px 12px 8px 35px;
             border: 1px solid #cbd5e0;
             border-radius: 6px;
             font-family: 'Roboto', sans-serif;
@@ -214,6 +215,14 @@
             transition: all 0.2s ease;
             max-width: 100%;
             box-sizing: border-box;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23718096" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
+            background-repeat: no-repeat;
+            background-position: 10px center;
+            background-size: 16px 16px;
+        }
+
+        .dataTables_wrapper .dataTables_filter input::placeholder {
+            color: #a0aec0;
         }
 
         @media (max-width: 768px) {
@@ -221,11 +230,19 @@
                 text-align: left;
                 margin-bottom: 15px;
                 padding-right: 5px;
+                float: none;
+                width: 100%;
             }
 
             .dataTables_wrapper .dataTables_filter input {
                 width: 100%;
                 max-width: 300px;
+            }
+
+            .dataTables_wrapper .dataTables_info {
+                float: none;
+                width: 100%;
+                margin-bottom: 10px;
             }
         }
 
@@ -254,12 +271,14 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         .dataTables_wrapper .dataTables_info {
-            margin-top: 20px;
+            margin-bottom: 20px;
             color: #718096;
             font-size: 0.9rem;
-            width: 100%;
+            width: auto;
+            float: left;
             box-sizing: border-box;
             padding-right: 5px;
+            line-height: 32px; /* Match the height of the search input */
         }
         .dataTables_wrapper .dataTables_paginate {
             margin-top: 20px;
@@ -329,6 +348,13 @@
             color: white !important;
             border: 1px solid #3182ce;
             font-weight: 500;
+        }
+
+        /* Add clearfix to ensure proper layout with floated elements */
+        .dataTables_wrapper:after {
+            content: "";
+            display: table;
+            clear: both;
         }
 
         /* Domain details styles */
@@ -837,6 +863,7 @@ $(document).ready(function() {
                     searching: true,
                     ordering: true,
                     info: true,
+                    dom: 'ift', // i=info, f=filtering, t=table (places info above table)
                     responsive: {
                         details: {
                             display: $.fn.dataTable.Responsive.display.childRow
@@ -870,11 +897,15 @@ $(document).ready(function() {
                     language: {
                         info: "Displaying all _TOTAL_ journals",
                         infoEmpty: "No journals available",
-                        emptyTable: "No journal data available"
+                        emptyTable: "No journal data available",
+                        search: ""
                     },
                     initComplete: function() {
                         var table = this.api();
                         var domainFiltersContainer = $('#domainFilters');
+
+                        // Add placeholder to search input
+                        $('.dataTables_filter input').attr('placeholder', 'Search journals...');
 
                         // Add "Show All" button
                         var showAllButton = $('<button class="domain-filter-button">SHOW ALL</button>')

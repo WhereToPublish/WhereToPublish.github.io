@@ -452,6 +452,33 @@
             box-shadow: 0 2px 5px rgba(49, 130, 206, 0.2);
         }
 
+        /* Data source filter buttons styles */
+        .data-source-button {
+            margin: 0 6px 8px 0;
+            padding: 10px 16px;
+            border: 1px solid #e2e8f0;
+            background-color: #f8fafc;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #4a5568;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .data-source-button:hover {
+            background-color: #ebf8ff;
+            border-color: #bee3f8;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+        }
+        .data-source-button.active {
+            background-color: #3182ce;
+            color: white;
+            border-color: #2b6cb0;
+            box-shadow: 0 2px 5px rgba(49, 130, 206, 0.2);
+        }
+
         /* Footer styles */
         .footer {
             margin-top: 30px;
@@ -518,8 +545,14 @@
     <h1>Where to publish?</h1>
     <p>A database of for-profit and non-profit scientific journals.</p>
 
+    <div id="dataSourceFilters" style="margin-bottom: 15px; text-align: center;">
+        <!-- Data source filter buttons -->
+        <button id="allJournals" class="data-source-button active">All Journals</button>
+        <button id="ecologyEvolution" class="data-source-button">Ecology & Evolution</button>
+        <button id="neurosciences" class="data-source-button">Neurosciences</button>
+    </div>
     <div id="domainFilters" style="margin-bottom: 15px;">
-        <!-- Buttons will be added here by JavaScript -->
+        <!-- Domain filter buttons will be added here by JavaScript -->
     </div>
     <table id="journalTable" class="display" style="width:100%; margin-top: 0;">
         <thead>
@@ -685,11 +718,12 @@ function mergeData(dataArrays) {
 
 
 $(document).ready(function() {
+    let dataTable; // Variable to store the DataTable instance
 
     // Add click handler for expandable rows
     $('#journalTable').on('click', 'td.details-control', function() {
         var tr = $(this).closest('tr');
-        var row = $('#journalTable').DataTable().row(tr);
+        var row = dataTable ? dataTable.row(tr) : $('#journalTable').DataTable().row(tr);
 
         if (row.child.isShown()) {
             // This row is already open - close it
@@ -703,13 +737,40 @@ $(document).ready(function() {
         }
     });
 
-    // Function to fetch all CSV files from the data folder
-    async function fetchAllCSVFiles() {
-        try {
-            // Get list of all CSV files in the data folder
-            const csvFiles = ['data/DAFNEE.csv', 'data/data.csv']; // Add any other CSV files here
+    // Add event handlers for data source buttons
+    $('#allJournals').on('click', function() {
+        $('.data-source-button').removeClass('active');
+        $(this).addClass('active');
+        loadTable('all');
+    });
 
-            // Fetch and parse all CSV files
+    $('#ecologyEvolution').on('click', function() {
+        $('.data-source-button').removeClass('active');
+        $(this).addClass('active');
+        loadTable('ecology');
+    });
+
+    $('#neurosciences').on('click', function() {
+        $('.data-source-button').removeClass('active');
+        $(this).addClass('active');
+        loadTable('neuro');
+    });
+
+    // Function to fetch CSV files based on the selected data source
+    async function fetchCSVFiles(dataSource = 'all') {
+        try {
+            let csvFiles = [];
+
+            // Determine which CSV files to load based on the data source
+            if (dataSource === 'all') {
+                csvFiles = ['data/DAFNEE.csv', 'data/data.csv']; // All journals
+            } else if (dataSource === 'ecology') {
+                csvFiles = ['data/DAFNEE.csv']; // Ecology & Evolution
+            } else if (dataSource === 'neuro') {
+                csvFiles = ['data/data.csv']; // Neurosciences
+            }
+
+            // Fetch and parse the selected CSV files
             const dataPromises = csvFiles.map(async (file) => {
                 try {
                     const response = await fetch(file);
@@ -728,7 +789,12 @@ $(document).ready(function() {
             // Wait for all files to be fetched and parsed
             const allData = await Promise.all(dataPromises);
 
-            // Merge the data from all files
+            // If only one file is loaded, return its data directly
+            if (csvFiles.length === 1) {
+                return allData[0];
+            }
+
+            // Otherwise, merge the data from all files
             return mergeData(allData);
         } catch (error) {
             console.error('Error fetching CSV files:', error);
@@ -736,11 +802,26 @@ $(document).ready(function() {
         }
     }
 
-    // Fetch and process all CSV files
-    fetchAllCSVFiles()
-        .then(({ data: tableData, domains }) => {
+    // Function to load and initialize the table with data from the selected source
+    async function loadTable(dataSource = 'all') {
+        try {
+            // Clear existing table if it exists
+            if (dataTable) {
+                dataTable.destroy();
+                $('#domainFilters').empty();
+            }
+
+            // Show loading indicator
+            $('#journalTable').parent().append('<p id="loading-indicator">Loading data...</p>');
+
+            // Fetch data from the selected source
+            const { data: tableData, domains } = await fetchCSVFiles(dataSource);
+
+            // Remove loading indicator
+            $('#loading-indicator').remove();
+
             if (tableData && tableData.length > 0) {
-                $('#journalTable').DataTable({
+                dataTable = $('#journalTable').DataTable({
                     data: tableData,
                     scrollX: false, // Disable horizontal scrolling to allow responsive wrapping
                     paging: false, // Disable pagination to show all items
@@ -871,13 +952,16 @@ $(document).ready(function() {
                     }
                 });
             } else if (tableData) { // tableData is an empty array
-                 $('#journalTable').parent().append('<p>No data found in CSV after parsing headers.</p>');
+                $('#journalTable').parent().append('<p>No data found in CSV after parsing headers.</p>');
             }
-        })
-        .catch(error => {
+        } catch (error) {
             console.error('Error loading or processing CSV files:', error);
             $('#journalTable').parent().append('<p style="color:red;">Could not load data. Please ensure CSV files exist in the data folder and check the browser console for errors.</p>');
-        });
+        }
+    }
+
+    // Load the table with all journals by default
+    loadTable('all');
 });
 </script>
 

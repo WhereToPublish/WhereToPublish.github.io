@@ -634,10 +634,7 @@ function parseCSV(csvText) {
     headerRow.empty(); // Clear existing/placeholder headers
     finalHeadersText.forEach(headerText => {
         // Capitalize and replace underscores with spaces
-        const formattedText = headerText.replace(/_/g, ' ').split(' ').map(word =>
-            word.charAt(0).toUpperCase() + word.slice(1)
-        ).join(' ');
-        headerRow.append($('<th>').text(formattedText));
+        headerRow.append($('<th>').text(formatDomainName(headerText)));
     });
 
     // Find the indices of the columns we need
@@ -703,7 +700,7 @@ function parseCSV(csvText) {
                 formatDomainName(cleanRow[fieldIndex]) || "", // Field/Domain
                 cleanRow[publisherIndex] || "", // Publisher
                 cleanRow[publisherTypeIndex] || "", // Publisher type (status)
-                cleanRow[businessModelIndex] || "", // Business model
+                formatDomainName(cleanRow[businessModelIndex]) || "", // Business model
                 cleanRow[apcIndex] || "", // APC cost
                 "", // Country (not available in DAFNEE.csv)
                 cleanRow[institutionIndex] || "", // Institution

@@ -14,13 +14,13 @@ jobs:
 
       - name: Download data.csv from Google Sheets
         run: |
-          curl -L "https://docs.google.com/spreadsheets/d/e/2PACX-1vTw97FS3eOFbYlqY8j7wWrBd3yrDaG6hqPclYJdPrnvd7t9U2DNz5xXNK4F0iesyHIKEkx9weLz-69a/pub?gid=1775942038&single=true&output=csv" -o data.csv
+          curl -L "https://docs.google.com/spreadsheets/d/e/2PACX-1vTw97FS3eOFbYlqY8j7wWrBd3yrDaG6hqPclYJdPrnvd7t9U2DNz5xXNK4F0iesyHIKEkx9weLz-69a/pub?gid=1775942038&single=true&output=csv" -o data/test.csv
 
       - name: Commit and push if changed
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add data.csv
+          git add data/test.csv
           git diff --cached --quiet || git commit -m "Update data.csv from Google Sheets"
           git push
         env:

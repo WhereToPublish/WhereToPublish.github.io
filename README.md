@@ -4,32 +4,33 @@
 
 An interactive web tool that helps researchers identify suitable journals for their publications based on scientific domains and publisher types. The database visually distinguishes between for-profit, not-for-profit, and university press journals.
 
-## Features
+## Data Sources
 
-- **Interactive data table** with sorting and searching capabilities
-- **Color-coded journal types**:
-  - For-profit journals (light red)
-  - Not-for-profit journals (light green)
-  - University Press journals (light yellow)
-- **Custom favicon** using the project's SVG logo
+This tool uses data from multiple sources:
 
-## Data Structure
+- **DAFNEE database for Ecology and Evolution**: We gratefully acknowledge the [DAFNEE database](https://dafnee.isem-evolution.fr/) which provides comprehensive information about journals in the fields of Ecology and Evolution.
+- Custom curated data for Neurosciences and other biology fields.
 
-The `data.csv` file contains the following information:
+## How to contribute
 
-- **Journal name**
-- **Domain coverage** (columns for Biology, Neurosciences, Cognitive Science, etc.)
-  - Values: 1 (Yes), 0 (No), or ? (Unknown)
-- **Status** (FP = For-profit, NP/NFP = Not-for-profit, UP = University Press)
-- **Publisher** name
-- **Country** of publication
+There are several ways to contribute to this project:
 
-## Files
+### Add new journals
 
-- `data.csv` - The source data file containing journal information
-- `index.html` - The web interface that displays the data
-- `favicon.svg` - The SVG favicon used by the website
-- `favicon.ico` - Fallback favicon for browsers that don't support SVG
-- `img/logo.svg` - The SVG logo used in the project
-- `img/logo.png` - The PNG version of the logo
-- `README.md` - This documentation file
+Add a new journal to the database by filling out the form below. The journal will be reviewed and added to the database if it meets the criteria:
+https://docs.google.com/forms/d/e/1FAIpQLSfTWQ8PaFCL_zabYwUidZZlh8GR_SZJ1rWaQfZWX3ZS98pm3g/viewform
+
+### Edit existing data
+
+Edit the database directly in suggestion mode. The changes will be reviewed and merged by the maintainers:
+https://docs.google.com/spreadsheets/d/1PRXViyQlo5ZMjpCJ_XpcHfsnZEJmmdCiXjnkazMyua8/edit?resourcekey=&gid=1775942038#gid=1775942038
+
+### Report issues or suggest features
+
+Create an issue to report a problem or suggest a new feature:
+https://github.com/WhereToPublish/WhereToPublish.github.io/issues
+
+### Become a maintainer
+
+Become a maintainer by contacting us at:
+thibault.latrille@ens-lyon.org

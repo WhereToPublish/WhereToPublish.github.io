@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Where to publish?</title>
+    <title>Where to Publish?</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="alternate icon" href="favicon.ico" type="image/x-icon">
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
@@ -16,8 +16,8 @@
 <body>
 
 <div class="container">
-    <h1 style="margin-bottom: 10px; margin-top: 0">Where to publish? To review?</h1>
-    <p style="margin-bottom: 10px">A database of for-profit and non-profit scientific journals in biology.</p>
+    <h1 style="margin-bottom: 10px; margin-top: 0"><span class="modal-trigger">Where to Publish? To review?</span></h1>
+    <p class="modal-trigger" style="margin-bottom: 10px">A database of for-profit and non-profit scientific journals in biology.</p>
     <div id="dataSourceFilters" style="margin-bottom: 10px; text-align: center;">
         <button id="allJournals" class="data-source-button active">All biology</button>
         <button id="ecologyEvolution" class="data-source-button">Ecology & Evolution</button>
@@ -83,6 +83,29 @@
             <!-- Data will be populated by DataTables -->
         </tbody>
     </table>
+    There is an error in the data, or a journal is not in the database?  <br>
+    Help us and contribute at <a href="https://github.com/WhereToPublish/WhereToPublish.github.io" target="_blank">WhereToPublish/WhereToPublish.github.io</a>
+</div>
+
+<!-- Modal -->
+<div id="aboutModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h2>About</h2>
+        <p>There is a growing consensus in academia within the life sciences domain that the current scientific publishing system needs to change. This consensus has many causes: the high profit margins of big publishers, the pervasive presence of predatory journals, the extremely high article processing charges using open access as an excuse, the scarcity of reviewers, etc. However, it is quite common for early-career researchers to accept the publish-or-perish culture and to pursue a first-author publication in a top-tier journal claiming that this is the only way possible to play the game in academia and that no alternatives exist when it comes to journal choices. Although the former may be true to a certain extent, the latter is not. There are many alternatives and, importantly, making use of these alternatives is the way to begin to make changes in the current system and to enable a transition to a healthier and sustainable academic publishing system.</p>
+        <p><b>Where to Publish?</b> is a database of journals within the life-science domain created to highlight three main factors that, combined, represent an alternative to the current dominant publishing system: non-profit, open access, and society-based journals. <b>Where to Publish?</b> is intended to generate awareness of the existing diversity of journals with these three characteristics and to help researchers make informed contrasted decisions about where to send their work and for whom they are willing to review or act as editors. A change is possible and alternatives exist. Let's make it happen.</p>
+        <p>Got a review invitation from a for-profit journal, use the following text to decline it:</p>
+        <div class="copy-box-container">
+            <div class="copy-box" id="copyBox">
+                <span id="copyContent">
+                    I thank you for your invitation. However, I need to decline it. I have a strict personal policy to check the publishing guidelines of the publishers I receive review invitations from. I consider that your journal has extremely high APC’s that do not reflect the true cost of publishing. Money which is mostly public is rendering high profits. I do not agree this should be the case.
+                </span><br>
+                <span class="copy-icon">📋 Click to copy! 📋</span>
+                <div class="copy-tooltip" id="copyTooltip">Copied!</div>
+            </div>
+        </div>
+        Know more about the project, help us or contribute at <a href="https://github.com/WhereToPublish/WhereToPublish.github.io" target="_blank">WhereToPublish/WhereToPublish.github.io</a>.
+    </div>
 </div>
 
 <script src="https://code.jquery.com/jquery-3.7.0.js"></script>

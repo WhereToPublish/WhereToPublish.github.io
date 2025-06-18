@@ -693,6 +693,70 @@ $(document).ready(function() {
         }
     }
 
+    // Modal functionality
+    const modal = $('#aboutModal');
+    const modalContent = $('.modal-content');
+    const closeModalButton = $('.close-modal');
+    const modalTriggers = $('.modal-trigger');
+
+    // Function to open the modal
+    function openModal() {
+        modal.addClass('show');
+        // Prevent scrolling of the body when modal is open
+        $('body').css('overflow', 'hidden');
+    }
+
+    // Function to close the modal
+    function closeModal() {
+        modal.removeClass('show');
+        // Re-enable scrolling of the body
+        $('body').css('overflow', '');
+    }
+
+    // Event listeners for opening the modal
+    modalTriggers.on('click', function() {
+        openModal();
+    });
+
+    // Event listeners for closing the modal
+    closeModalButton.on('click', function() {
+        closeModal();
+    });
+
+    // Close modal when clicking outside the modal content
+    modal.on('click', function(event) {
+        if ($(event.target).is(modal)) {
+            closeModal();
+        }
+    });
+
+    // Close modal when pressing Escape key
+    $(document).on('keydown', function(event) {
+        if (event.key === 'Escape' && modal.hasClass('show')) {
+            closeModal();
+        }
+    });
+
+    $('#copyBox').on('click', function() {
+    // Get the text to copy
+    const textToCopy = $('#copyContent').text();
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(textToCopy)
+        .then(() => {
+            // Show tooltip
+            $('#copyTooltip').css('opacity', '1');
+
+            // Hide tooltip after 2 seconds
+            setTimeout(() => {
+                $('#copyTooltip').css('opacity', '0');
+            }, 2000);
+        })
+        .catch(err => {
+            console.error('Failed to copy: ', err);
+        });
+});
     // Load the table with all journals by default
     loadTable('all');
 });
+

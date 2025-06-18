@@ -668,23 +668,183 @@ tr.shown td.details-control:before {
     transform: scale(1.1);
 }
 
-/* Footer styles */
-.footer {
-    margin-top: 30px;
-    padding-top: 20px;
-    border-top: 1px solid #e2e8f0;
-    text-align: center;
+/* Modal styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
-.footer p {
-    color: #4a5568;
-    font-size: 0.95rem;
+.modal.show {
+    display: block;
+    opacity: 1;
 }
 
-.footer strong {
+.modal-content {
+    background-color: white;
+    margin: 10% auto;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    width: 80%;
+    max-width: 800px;
+    transform: translateY(-20px);
+    transition: transform 0.3s ease;
+    position: relative;
+}
+
+.modal.show .modal-content {
+    transform: translateY(0);
+}
+
+.close-modal {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    color: #718096;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.close-modal:hover {
     color: #2d3748;
+}
+
+.modal h2 {
+    font-family: 'Source Sans Pro', sans-serif;
+    color: #1a365d;
+    margin-bottom: 20px;
     font-weight: 600;
-    margin-right: 10px;
+    font-size: 1.8rem;
+}
+
+.modal p {
+    color: #4a5568;
+    line-height: 1.7;
+    margin-bottom: 20px;
+    font-size: 1.05rem;
+}
+
+.modal p:last-child {
+    margin-bottom: 0;
+}
+
+/* Add cursor pointer and visual cues to clickable elements */
+.modal-trigger {
+    cursor: pointer;
+    position: relative;
+    transition: color 0.2s ease;
+}
+
+/* Add hover effect to indicate clickability */
+.modal-trigger:hover {
+    color: #3182ce; /* Change to blue on hover */
+}
+
+/* Special styling for h1 with modal-trigger class */
+h1.modal-trigger {
+    position: relative;
+}
+
+/* Add info icon after paragraph with modal-trigger class */
+p.modal-trigger:after {
+    content: "ⓘ"; /* Unicode for information icon */
+    font-size: 0.8em;
+    color: #3182ce;
+    opacity: 0.8;
+    vertical-align: super;
+    margin-left: 5px;
+}
+
+@media (max-width: 768px) {
+    .modal-content {
+        width: 90%;
+        margin: 15% auto;
+        padding: 20px;
+    }
+
+    .modal h2 {
+        font-size: 1.5rem;
+    }
+
+    .modal p {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .modal-content {
+        width: 95%;
+        margin: 20% auto;
+        padding: 15px;
+    }
+
+    .modal h2 {
+        font-size: 1.3rem;
+    }
+
+    .modal p {
+        font-size: 0.95rem;
+    }
+}
+
+.copy-box-container {
+    margin: 20px 0;
+    display: flex;
+    justify-content: center;
+}
+
+.copy-box {
+    position: relative;
+    padding: 15px;
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    text-align: center;
+    max-width: 80%;
+    width: 100%;
+}
+
+.copy-box:hover {
+    background-color: #e9e9e9;
+}
+
+.copy-tooltip {
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.copy-icon {
+    margin-left: 8px;
+    font-size: 16px;
+    opacity: 0.7;
+    vertical-align: middle;
+}
+
+.copy-box:hover .copy-icon {
+    opacity: 1;
 }
 
 .legend-item {
@@ -726,3 +886,4 @@ tr.shown td.details-control:before {
         margin-bottom: 5px;
     }
 }
+

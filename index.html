@@ -530,6 +530,81 @@
             background-color: #3182ce !important;
         }
 
+        /* Business model filter buttons styles */
+        .business-model-button {
+            margin: 0 6px 8px 0;
+            padding: 10px 16px;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #4a5568;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .business-model-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+            filter: brightness(0.95);
+        }
+        .business-model-button.active {
+            color: white;
+            border-color: #2b6cb0;
+            box-shadow: 0 2px 5px rgba(49, 130, 206, 0.2);
+            background-color: #3182ce !important;
+        }
+
+        /* APC slider styles */
+        #apcSliderContainer {
+            padding: 15px;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        #apcSlider {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            outline: none;
+            margin: 10px 0;
+        }
+
+        #apcSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #3182ce;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        #apcSlider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #3182ce;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        #apcSlider::-webkit-slider-thumb:hover {
+            background: #2c5282;
+            transform: scale(1.1);
+        }
+
+        #apcSlider::-moz-range-thumb:hover {
+            background: #2c5282;
+            transform: scale(1.1);
+        }
+
         /* Footer styles */
         .footer {
             margin-top: 30px;
@@ -614,6 +689,22 @@
         <button id="forProfitPublishers" class="profit-status-button" style="background-color: #ffebee;">For-profit</button>
         <button id="nonProfitPublishers" class="profit-status-button" style="background-color: #e8f5e9;">Non-profit</button>
         <button id="universityPressPublishers" class="profit-status-button" style="background-color: #fffde7;">University Press</button>
+    </div>
+    <div id="businessModelFilters" style="margin-bottom: 10px; text-align: center;">
+        <button id="allBusinessModels" class="business-model-button active">All Business Models</button>
+        <button id="diamondOABusinessModel" class="business-model-button" style="background-color: #e3f2fd;">Diamond OA</button>
+        <button id="oaBusinessModel" class="business-model-button" style="background-color: #e8eaf6;">OA</button>
+        <button id="hybridBusinessModel" class="business-model-button" style="background-color: #f3e5f5;">Hybrid</button>
+        <button id="subscriptionBusinessModel" class="business-model-button" style="background-color: #fce4ec;">Subscription</button>
+    </div>
+    <div id="apcSliderContainer" style="margin: 20px auto; max-width: 400px; text-align: center;">
+        <p style="margin-bottom: 5px; font-weight: 500; color: #4a5568;">APC Cost Filter: <span id="apcValue">All</span></p>
+        <div id="apcHistogram" style="height: 40px; margin-bottom: 5px; position: relative;"></div>
+        <input type="range" id="apcSlider" min="0" max="10000" value="10000" style="width: 100%;">
+        <div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 12px; color: #718096;">
+            <span>0 €</span>
+            <span>10,000 €</span>
+        </div>
     </div>
     <table id="journalTable" class="display" style="width:100%; margin-top: 0;">
         <thead>
@@ -828,6 +919,11 @@ $(document).ready(function() {
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(3).search('').draw();
+
+            // Update histogram based on filtered data
+            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const distribution = calculateAPCDistribution(filteredData);
+            renderHistogram(distribution);
         }
     });
 
@@ -836,6 +932,11 @@ $(document).ready(function() {
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(3).search('^For-profit$', true, false).draw();
+
+            // Update histogram based on filtered data
+            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const distribution = calculateAPCDistribution(filteredData);
+            renderHistogram(distribution);
         }
     });
 
@@ -844,6 +945,11 @@ $(document).ready(function() {
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(3).search('^Non-profit$', true, false).draw();
+
+            // Update histogram based on filtered data
+            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const distribution = calculateAPCDistribution(filteredData);
+            renderHistogram(distribution);
         }
     });
 
@@ -852,6 +958,178 @@ $(document).ready(function() {
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(3).search('^University Press$', true, false).draw();
+
+            // Update histogram based on filtered data
+            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const distribution = calculateAPCDistribution(filteredData);
+            renderHistogram(distribution);
+        }
+    });
+
+    // Add event handlers for business model filter buttons
+    $('#allBusinessModels').on('click', function() {
+        $('.business-model-button').removeClass('active');
+        $(this).addClass('active');
+        if (dataTable) {
+            dataTable.column(4).search('').draw();
+
+            // Update histogram based on filtered data
+            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const distribution = calculateAPCDistribution(filteredData);
+            renderHistogram(distribution);
+        }
+    });
+
+    $('#diamondOABusinessModel').on('click', function() {
+        $('.business-model-button').removeClass('active');
+        $(this).addClass('active');
+        if (dataTable) {
+            dataTable.column(4).search('Diamond OA', false, false).draw();
+
+            // Update histogram based on filtered data
+            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const distribution = calculateAPCDistribution(filteredData);
+            renderHistogram(distribution);
+        }
+    });
+
+    $('#oaBusinessModel').on('click', function() {
+        $('.business-model-button').removeClass('active');
+        $(this).addClass('active');
+        if (dataTable) {
+            dataTable.column(4).search('^OA$', true, false).draw();
+
+            // Update histogram based on filtered data
+            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const distribution = calculateAPCDistribution(filteredData);
+            renderHistogram(distribution);
+        }
+    });
+
+    $('#hybridBusinessModel').on('click', function() {
+        $('.business-model-button').removeClass('active');
+        $(this).addClass('active');
+        if (dataTable) {
+            dataTable.column(4).search('^Hybrid$', true, false).draw();
+
+            // Update histogram based on filtered data
+            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const distribution = calculateAPCDistribution(filteredData);
+            renderHistogram(distribution);
+        }
+    });
+
+    $('#subscriptionBusinessModel').on('click', function() {
+        $('.business-model-button').removeClass('active');
+        $(this).addClass('active');
+        if (dataTable) {
+            dataTable.column(4).search('^Subscription$', true, false).draw();
+
+            // Update histogram based on filtered data
+            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const distribution = calculateAPCDistribution(filteredData);
+            renderHistogram(distribution);
+        }
+    });
+
+    // Function to calculate APC distribution
+    function calculateAPCDistribution(data) {
+        // Define bins for APC costs (0-1000, 1001-2000, etc.)
+        const bins = [0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];
+        const distribution = Array(bins.length - 1).fill(0);
+
+        // Count journals in each bin
+        data.forEach(row => {
+            const apcValue = row[5].replace(/[^\d]/g, '');
+            if (apcValue !== '') {
+                const apc = parseInt(apcValue);
+                for (let i = 0; i < bins.length - 1; i++) {
+                    if (apc >= bins[i] && apc <= bins[i + 1]) {
+                        distribution[i]++;
+                        break;
+                    }
+                }
+            }
+        });
+
+        return { bins, distribution };
+    }
+
+    // Function to render the histogram
+    function renderHistogram(distribution, maxCount) {
+        const histogramContainer = $('#apcHistogram');
+        histogramContainer.empty();
+
+        const { bins, distribution: counts } = distribution;
+        const containerWidth = histogramContainer.width();
+        const barWidth = containerWidth / (bins.length - 1);
+
+        // Find the maximum count for scaling
+        const maxValue = maxCount || Math.max(...counts, 1);
+
+        // Create bars for each bin
+        for (let i = 0; i < counts.length; i++) {
+            const height = (counts[i] / maxValue) * 100;
+            const bar = $('<div>')
+                .css({
+                    position: 'absolute',
+                    left: (i * barWidth) + 'px',
+                    bottom: '0',
+                    width: (barWidth - 2) + 'px',
+                    height: height + '%',
+                    backgroundColor: '#3182ce',
+                    borderRadius: '2px 2px 0 0',
+                    opacity: '0.7'
+                })
+                .attr('title', counts[i] + ' journals with APC between ' + bins[i] + '€ and ' + bins[i+1] + '€');
+
+            // Add count label on top of the bar
+            const label = $('<div>')
+                .text(counts[i])
+                .css({
+                    position: 'absolute',
+                    top: '-18px',
+                    width: '100%',
+                    textAlign: 'center',
+                    fontSize: '10px',
+                    color: '#4a5568'
+                });
+
+            if (counts[i] > 0) {
+                bar.append(label);
+            }
+
+            histogramContainer.append(bar);
+        }
+    }
+
+    // Add event handler for APC slider
+    $('#apcSlider').on('input', function() {
+        const maxAPC = $(this).val();
+        $('#apcValue').text(maxAPC === '10000' ? 'All' : '≤ ' + maxAPC + ' €');
+
+        if (dataTable) {
+            // Custom filtering function for APC column
+            $.fn.dataTable.ext.search.push(
+                function(settings, data, dataIndex) {
+                    if (maxAPC === '10000') return true; // Show all if slider is at max
+
+                    const apcValue = data[5].replace(/[^\d]/g, ''); // Extract numeric value from APC column
+                    if (apcValue === '') return true; // Show entries with no APC value
+
+                    return parseInt(apcValue) <= parseInt(maxAPC);
+                }
+            );
+
+            dataTable.draw();
+
+            // Update histogram based on filtered data
+            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const distribution = calculateAPCDistribution(filteredData);
+            renderHistogram(distribution);
+
+            // Remove the custom filter after drawing to avoid stacking multiple filters
+            $.fn.dataTable.ext.search.pop();
         }
     });
 
@@ -914,6 +1192,14 @@ $(document).ready(function() {
             $('.profit-status-button').removeClass('active');
             $('#allPublishers').addClass('active');
 
+            // Reset business model filters
+            $('.business-model-button').removeClass('active');
+            $('#allBusinessModels').addClass('active');
+
+            // Reset APC slider
+            $('#apcSlider').val(10000);
+            $('#apcValue').text('All');
+
             // Show loading indicator
             $('#journalTable').parent().append('<p id="loading-indicator">Loading data...</p>');
 
@@ -975,6 +1261,19 @@ $(document).ready(function() {
                         // Add placeholder to search input
                         $('.dataTables_filter input').attr('placeholder', 'Search journals...');
 
+                        // Add event handler for search box
+                        $('.dataTables_filter input').on('keyup', function() {
+                            // Update histogram based on filtered data
+                            const filteredData = table.rows({ search: 'applied' }).data().toArray();
+                            const distribution = calculateAPCDistribution(filteredData);
+                            renderHistogram(distribution);
+                        });
+
+                        // Initialize the APC histogram
+                        const allData = table.rows().data().toArray();
+                        const distribution = calculateAPCDistribution(allData);
+                        renderHistogram(distribution);
+
                         // Add "Show All" button
                         var showAllButton = $('<button class="domain-filter-button">SHOW ALL</button>')
                             .on('click', function() {
@@ -983,6 +1282,11 @@ $(document).ready(function() {
                                 table.draw();
                                 domainFiltersContainer.find('.domain-filter-button').removeClass('active');
                                 $(this).addClass('active');
+
+                                // Update histogram based on filtered data
+                                const filteredData = table.rows({ search: 'applied' }).data().toArray();
+                                const distribution = calculateAPCDistribution(filteredData);
+                                renderHistogram(distribution);
                             });
                         domainFiltersContainer.append(showAllButton);
 
@@ -1006,6 +1310,11 @@ $(document).ready(function() {
                                         $(this).addClass('active');
                                     }
                                     table.draw();
+
+                                    // Update histogram based on filtered data
+                                    const filteredData = table.rows({ search: 'applied' }).data().toArray();
+                                    const distribution = calculateAPCDistribution(filteredData);
+                                    renderHistogram(distribution);
                                 });
                             domainFiltersContainer.append(button);
                         });

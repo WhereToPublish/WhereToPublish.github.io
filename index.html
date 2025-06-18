@@ -453,13 +453,13 @@
             text-align: center;
         }
         .domain-filter-button {
-            margin: 0 4px 6px 0;
-            padding: 6px 10px;
+            margin: 0 3px 4px 0;
+            padding: 4px 8px;
             border: 1px solid #e2e8f0;
             background-color: #f8fafc;
             cursor: pointer;
-            border-radius: 6px;
-            font-size: 13px;
+            border-radius: 4px;
+            font-size: 14px;
             font-weight: 500;
             color: #4a5568;
             transition: all 0.2s ease;
@@ -507,7 +507,7 @@
 
         /* Profit status filter buttons styles */
         .profit-status-button {
-            margin: 0 4px 6px 0;
+            margin: 0 0 6px 0;
             padding: 6px 10px;
             border: 1px solid #e2e8f0;
             cursor: pointer;
@@ -517,8 +517,8 @@
             color: #4a5568;
             transition: all 0.2s ease;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            display: inline-block;
-            width: calc(50% - 6px);
+            display: block;
+            width: 100%;
             text-align: center;
         }
         .profit-status-button:hover {
@@ -535,7 +535,7 @@
 
         /* Business model filter buttons styles */
         .business-model-button {
-            margin: 0 4px 6px 0;
+            margin: 0 0 6px 0;
             padding: 6px 10px;
             border: 1px solid #e2e8f0;
             cursor: pointer;
@@ -545,8 +545,8 @@
             color: #4a5568;
             transition: all 0.2s ease;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            display: inline-block;
-            width: calc(50% - 6px);
+            display: block;
+            width: 100%;
             text-align: center;
         }
         .business-model-button:hover {
@@ -561,20 +561,13 @@
             background-color: #3182ce !important;
         }
 
-        @media (max-width: 576px) {
-            .profit-status-button,
-            .business-model-button {
-                width: 100%;
-                margin-right: 0;
-            }
-        }
 
         /* Filters row and columns styles */
         .filters-row {
             display: flex;
             flex-wrap: wrap;
             margin-bottom: 15px;
-            gap: 15px;
+            gap: 10px;
         }
 
         .filters-column {
@@ -583,18 +576,20 @@
             border: 1px solid #e2e8f0;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             padding: 10px;
-        }
-
-        .left-column {
             flex: 1;
-            min-width: 250px;
+            min-width: 200px;
         }
 
-        .right-column {
-            flex: 1;
-            min-width: 250px;
-        }
+        @media (max-width: 1200px) {
+            .filters-row {
+                flex-wrap: wrap;
+            }
 
+            .filters-column {
+                flex-basis: calc(50% - 10px);
+                min-width: 200px;
+            }
+        }
 
         @media (max-width: 768px) {
             .filters-row {
@@ -755,15 +750,17 @@
     </div>
 
     <div class="filters-row">
-        <div class="filters-column left-column">
-            <div id="profitStatusFilters" style="margin-bottom: 15px; text-align: left;">
+        <div class="filters-column">
+            <div id="profitStatusFilters" style="text-align: center;">
                 <button id="allPublishers" class="profit-status-button active">All Publishers</button>
                 <button id="forProfitPublishers" class="profit-status-button" style="background-color: #ffebee;">For-profit</button>
                 <button id="nonProfitPublishers" class="profit-status-button" style="background-color: #e8f5e9;">Non-profit</button>
                 <button id="universityPressPublishers" class="profit-status-button" style="background-color: #fffde7;">University Press</button>
             </div>
+        </div>
 
-            <div id="businessModelFilters" style="margin-bottom: 10px; text-align: left;">
+        <div class="filters-column">
+            <div id="businessModelFilters" style="text-align: center;">
                 <button id="allBusinessModels" class="business-model-button active">All Business Models</button>
                 <button id="diamondOABusinessModel" class="business-model-button" style="background-color: #e3f2fd;">Diamond OA</button>
                 <button id="oaBusinessModel" class="business-model-button" style="background-color: #e8eaf6;">OA</button>
@@ -772,8 +769,8 @@
             </div>
         </div>
 
-        <div class="filters-column right-column">
-            <div id="apcSliderContainer" style="text-align: center; width: 70%; margin: 0 auto 15px auto;">
+        <div class="filters-column">
+            <div id="apcSliderContainer" style="text-align: center; margin: 0 auto;">
                 <p class="apc-value-label"><span id="apcValue">All</span></p>
                 <div id="apcHistogram"></div>
                 <input type="range" id="apcSlider" min="0" max="10000" value="10000">
@@ -782,7 +779,10 @@
                     <span>10,000 €</span>
                 </div>
             </div>
-            <div id="domainFilters" style="margin-bottom: 10px; text-align: center;">
+        </div>
+
+        <div class="filters-column">
+            <div id="domainFilters" style="text-align: center;">
                 <!-- Domain filter buttons will be added here by JavaScript -->
             </div>
         </div>

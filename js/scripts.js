@@ -381,7 +381,7 @@ $(document).ready(function() {
     // Add event handler for APC slider
     $('#apcSlider').on('input', function() {
         const maxAPC = $(this).val();
-        $('#apcValue').text(maxAPC === '10000' ? 'All' : '≤ ' + maxAPC + ' €');
+        $('#apcValue').text(maxAPC === '10000' ? 'All APC' : '≤ ' + maxAPC + ' €');
 
         if (dataTable) {
             // Custom filtering function for APC column
@@ -473,7 +473,7 @@ $(document).ready(function() {
 
             // Reset APC slider
             $('#apcSlider').val(10000);
-            $('#apcValue').text('All');
+            $('#apcValue').text('All APC');
 
             // Show loading indicator
             $('#journalTable').parent().append('<p id="loading-indicator">Loading data...</p>');

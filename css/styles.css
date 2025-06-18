@@ -598,6 +598,12 @@ tr.shown td.details-control:before {
     width: 100%;
 }
 
+.slider-container {
+    margin-bottom: 10px; /* Add margin to ensure proper spacing */
+    position: relative;
+    padding-top: 10px; /* Add padding to make space for the slider */
+}
+
 #apcSlider {
     -webkit-appearance: none;
     appearance: none;
@@ -605,8 +611,9 @@ tr.shown td.details-control:before {
     background: #e2e8f0;
     border-radius: 4px;
     outline: none;
-    margin: 10px 0;
+    margin: 0;
     width: 100%;
+    position: relative;
 }
 
 .apc-value-label {
@@ -625,7 +632,7 @@ tr.shown td.details-control:before {
 .apc-range-labels {
     display: flex;
     justify-content: space-between;
-    margin-top: 5px;
+    margin-top: 0px; /* Increased margin to avoid overlap with tick labels */
     font-size: 12px;
     color: #718096;
 }

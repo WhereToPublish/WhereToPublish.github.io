@@ -505,6 +505,31 @@
             box-shadow: 0 2px 5px rgba(49, 130, 206, 0.2);
         }
 
+        /* Profit status filter buttons styles */
+        .profit-status-button {
+            margin: 0 6px 8px 0;
+            padding: 10px 16px;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #4a5568;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .profit-status-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+            filter: brightness(0.95);
+        }
+        .profit-status-button.active {
+            color: white;
+            border-color: #2b6cb0;
+            box-shadow: 0 2px 5px rgba(49, 130, 206, 0.2);
+            background-color: #3182ce !important;
+        }
+
         /* Footer styles */
         .footer {
             margin-top: 30px;
@@ -580,6 +605,15 @@
     </div>
     <div id="domainFilters" style="margin-bottom: 15px;">
         <!-- Domain filter buttons will be added here by JavaScript -->
+    </div>
+        <div style="position: relative; margin-bottom: 30px;">
+        <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 80px; height: 3px; background: linear-gradient(90deg, #3182ce, #63b3ed); border-radius: 3px;"></div>
+    </div>
+    <div id="profitStatusFilters" style="margin-bottom: 10px; text-align: center;">
+        <button id="allPublishers" class="profit-status-button active">All Publishers</button>
+        <button id="forProfitPublishers" class="profit-status-button" style="background-color: #ffebee;">For-profit</button>
+        <button id="nonProfitPublishers" class="profit-status-button" style="background-color: #e8f5e9;">Non-profit</button>
+        <button id="universityPressPublishers" class="profit-status-button" style="background-color: #fffde7;">University Press</button>
     </div>
     <table id="journalTable" class="display" style="width:100%; margin-top: 0;">
         <thead>
@@ -788,6 +822,39 @@ $(document).ready(function() {
         loadTable('neuro');
     });
 
+    // Add event handlers for profit status filter buttons
+    $('#allPublishers').on('click', function() {
+        $('.profit-status-button').removeClass('active');
+        $(this).addClass('active');
+        if (dataTable) {
+            dataTable.column(3).search('').draw();
+        }
+    });
+
+    $('#forProfitPublishers').on('click', function() {
+        $('.profit-status-button').removeClass('active');
+        $(this).addClass('active');
+        if (dataTable) {
+            dataTable.column(3).search('^For-profit$', true, false).draw();
+        }
+    });
+
+    $('#nonProfitPublishers').on('click', function() {
+        $('.profit-status-button').removeClass('active');
+        $(this).addClass('active');
+        if (dataTable) {
+            dataTable.column(3).search('^Non-profit$', true, false).draw();
+        }
+    });
+
+    $('#universityPressPublishers').on('click', function() {
+        $('.profit-status-button').removeClass('active');
+        $(this).addClass('active');
+        if (dataTable) {
+            dataTable.column(3).search('^University Press$', true, false).draw();
+        }
+    });
+
     // Function to fetch CSV files based on the selected data source
     async function fetchCSVFiles(dataSource = 'all') {
         try {
@@ -842,6 +909,10 @@ $(document).ready(function() {
                 dataTable.destroy();
                 $('#domainFilters').empty();
             }
+
+            // Reset profit status filters
+            $('.profit-status-button').removeClass('active');
+            $('#allPublishers').addClass('active');
 
             // Show loading indicator
             $('#journalTable').parent().append('<p id="loading-indicator">Loading data...</p>');

@@ -739,9 +739,9 @@
 
 <div class="container">
     <h1 style="margin-bottom: 10px; margin-top: 0">Where to publish? To review?</h1>
-    <p style="margin-bottom: 10px">A database of for-profit and non-profit scientific journals.</p>
+    <p style="margin-bottom: 10px">A database of for-profit and non-profit scientific journals in biology.</p>
     <div id="dataSourceFilters" style="margin-bottom: 10px; text-align: center;">
-        <button id="allJournals" class="data-source-button active">All Journals</button>
+        <button id="allJournals" class="data-source-button active">All biology</button>
         <button id="ecologyEvolution" class="data-source-button">Ecology & Evolution</button>
         <button id="neurosciences" class="data-source-button">Neurosciences</button>
     </div>
@@ -1359,6 +1359,46 @@ $(document).ready(function() {
                         const allData = table.rows().data().toArray();
                         const distribution = calculateAPCDistribution(allData);
                         renderHistogram(distribution);
+
+                        // Count journals by publisher type and business model
+                        const publisherTypeCounts = {
+                            'For-profit': 0,
+                            'Non-profit': 0,
+                            'University Press': 0
+                        };
+
+                        const businessModelCounts = {
+                            'Diamond OA': 0,
+                            'OA': 0,
+                            'Hybrid': 0,
+                            'Subscription': 0
+                        };
+
+                        allData.forEach(row => {
+                            const publisherType = row[3];
+                            const businessModel = row[4];
+
+                            if (publisherType in publisherTypeCounts) {
+                                publisherTypeCounts[publisherType]++;
+                            }
+
+                            if (businessModel in businessModelCounts) {
+                                businessModelCounts[businessModel]++;
+                            }
+                        });
+
+                        // Update publisher type buttons with counts
+                        $('#allPublishers').text('All Publishers (' + allData.length + ')');
+                        $('#forProfitPublishers').text('For-profit (' + publisherTypeCounts['For-profit'] + ')');
+                        $('#nonProfitPublishers').text('Non-profit (' + publisherTypeCounts['Non-profit'] + ')');
+                        $('#universityPressPublishers').text('University Press (' + publisherTypeCounts['University Press'] + ')');
+
+                        // Update business model buttons with counts
+                        $('#allBusinessModels').text('All Business Models (' + allData.length + ')');
+                        $('#diamondOABusinessModel').text('Diamond OA (' + businessModelCounts['Diamond OA'] + ')');
+                        $('#oaBusinessModel').text('OA (' + businessModelCounts['OA'] + ')');
+                        $('#hybridBusinessModel').text('Hybrid (' + businessModelCounts['Hybrid'] + ')');
+                        $('#subscriptionBusinessModel').text('Subscription (' + businessModelCounts['Subscription'] + ')');
 
                         // Add "Show All" button
                         var showAllButton = $('<button class="domain-filter-button">SHOW ALL</button>')

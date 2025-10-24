@@ -102,7 +102,7 @@ function parseCSV(csvText) {
                 cleanRow[publisherTypeIndex] || "", // Publisher type (status)
                 formatDomainName(cleanRow[businessModelIndex]) || "", // Business model
                 cleanRow[apcIndex] || "", // APC cost
-                "", // Country (not available in DAFNEE.csv)
+                "", // Country (not available)
                 cleanRow[institutionIndex] || "", // Institution
                 cleanRow[institutionTypeIndex] || "", // Institution type
                 cleanRow[websiteIndex] || "", // Website
@@ -173,19 +173,61 @@ $(document).ready(function() {
     $('#allJournals').on('click', function() {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('all');
+        loadTable('all_biology');
+    });
+
+    $('#generalist').on('click', function() {
+        $('.data-source-button').removeClass('active');
+        $(this).addClass('active');
+        loadTable('generalist');
+    });
+
+    $('#cancer').on('click', function() {
+        $('.data-source-button').removeClass('active');
+        $(this).addClass('active');
+        loadTable('cancer');
+    });
+
+    $('#development').on('click', function() {
+        $('.data-source-button').removeClass('active');
+        $(this).addClass('active');
+        loadTable('development');
     });
 
     $('#ecologyEvolution').on('click', function() {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('ecology');
+        loadTable('ecology_evolution');
+    });
+
+    $('#geneticsGenomics').on('click', function() {
+        $('.data-source-button').removeClass('active');
+        $(this).addClass('active');
+        loadTable('genetics_genomics');
+    });
+
+    $('#immunology').on('click', function() {
+        $('.data-source-button').removeClass('active');
+        $(this).addClass('active');
+        loadTable('immunology');
+    });
+
+    $('#molecularCellularBiology').on('click', function() {
+        $('.data-source-button').removeClass('active');
+        $(this).addClass('active');
+        loadTable('molecular_cellular_biology');
     });
 
     $('#neurosciences').on('click', function() {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('neuro');
+        loadTable('neurosciences');
+    });
+
+    $('#plants').on('click', function() {
+        $('.data-source-button').removeClass('active');
+        $(this).addClass('active');
+        loadTable('plants');
     });
 
     // Add event handlers for profit status filter buttons
@@ -414,12 +456,26 @@ $(document).ready(function() {
             let csvFiles = [];
 
             // Determine which CSV files to load based on the data source
-            if (dataSource === 'all') {
-                csvFiles = ['data/DAFNEE.csv', 'data/data.csv']; // All journals
-            } else if (dataSource === 'ecology') {
-                csvFiles = ['data/DAFNEE.csv']; // Ecology & Evolution
-            } else if (dataSource === 'neuro') {
-                csvFiles = ['data/data.csv']; // Neurosciences
+            if (dataSource === 'all_biology') {
+                csvFiles = ['data/all_biology.csv']; // All journals
+            } else if (dataSource === 'ecology_evolution') {
+                csvFiles = ['data/ecology_evolution.csv']; // Ecology & Evolution
+            } else if (dataSource === 'neurosciences') {
+                csvFiles = ['data/neurosciences.csv']; // Neurosciences
+            } else if (dataSource === 'cancer') {
+                csvFiles = ['data/cancer.csv']; // Cancer
+            } else if (dataSource === 'generalist') {
+                csvFiles = ['data/generalist.csv']; // Generalist
+            } else if (dataSource === 'development') {
+                csvFiles = ['data/development.csv']; // Development
+            } else if (dataSource === 'genetics_genomics') {
+                csvFiles = ['data/genetics_genomics.csv']; // Genetics & Genomics
+            } else if (dataSource === 'immunology') {
+                csvFiles = ['data/immunology.csv']; // Immunology
+            } else if (dataSource === 'molecular_cellular_biology') {
+                csvFiles = ['data/molecular_cellular_biology.csv']; // Molecular & Cellular Biology
+            } else if (dataSource === 'plants') {
+                csvFiles = ['data/plants.csv']; // Plants
             }
 
             // Fetch and parse the selected CSV files
@@ -455,7 +511,7 @@ $(document).ready(function() {
     }
 
     // Function to load and initialize the table with data from the selected source
-    async function loadTable(dataSource = 'all') {
+    async function loadTable(dataSource = 'all_biology') {
         try {
             // Clear existing table if it exists
             if (dataTable) {
@@ -757,6 +813,5 @@ $(document).ready(function() {
         });
 });
     // Load the table with all journals by default
-    loadTable('all');
+    loadTable('generalist');
 });
-

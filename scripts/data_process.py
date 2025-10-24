@@ -13,20 +13,17 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 # Expected columns and their required order
 EXPECTED_COLUMNS = [
     "Journal",
-    "Website",
-    "Journal's MAIN field",
     "Field",
-    "Publisher type",
     "Publisher",
+    "Publisher type",
+    "Business model",
     "Institution",
     "Institution type",
-    "Country",
-    "Business model",
+    "Website",
     "APC Euros",
     "Scimago Rank",
     "PCI partner",
 ]
-
 
 def ensure_columns_and_order(df: pl.DataFrame) -> pl.DataFrame:
     """Ensure the dataframe has exactly the EXPECTED_COLUMNS in order, adding missing columns with nulls."""
@@ -94,7 +91,8 @@ for csv_path in sorted(glob(os.path.join(INPUT_DIR, "*.csv"))):
 
     # Write to output directory using same filename
     out_path = os.path.join(OUTPUT_DIR, os.path.basename(csv_path))
-    df.write_csv(out_path)
+    # Write using "" surrounding for all fields to ensure proper CSV formatting
+    df.write_csv(out_path, quote_char='"', quote_style="always")
     print(f"Wrote formatted data to: {out_path}")
 
     processed_frames.append(df)
@@ -109,5 +107,5 @@ if processed_frames:
     all_df = all_df.unique(subset=["norm_journal"], keep="first").drop(["norm_journal"]).sort("Journal")
 
     all_out_path = os.path.join(OUTPUT_DIR, "all_biology.csv")
-    all_df.write_csv(all_out_path)
+    all_df.write_csv(all_out_path, quote_char='"', quote_style="always")
     print(f"Wrote all biology entries to: {all_out_path}")

@@ -19,9 +19,17 @@
     <h1 style="margin-bottom: 10px; margin-top: 0"><span class="modal-trigger">Where to Publish? To review?</span></h1>
     <p class="modal-trigger" style="margin-bottom: 10px">A database of for-profit and non-profit scientific journals in biology.</p>
     <div id="dataSourceFilters" style="margin-bottom: 10px; text-align: center;">
-        <button id="allJournals" class="data-source-button active">All biology</button>
+        <!-- Data source buttons: one per CSV category -->
+        <button id="generalist" class="data-source-button">Generalist</button>
+        <button id="cancer" class="data-source-button">Cancer</button>
+        <button id="development" class="data-source-button">Development</button>
         <button id="ecologyEvolution" class="data-source-button">Ecology & Evolution</button>
+        <button id="geneticsGenomics" class="data-source-button">Genetics & Genomics</button>
+        <button id="immunology" class="data-source-button">Immunology</button>
+        <button id="molecularCellularBiology" class="data-source-button">Molecular & Cellular Biology</button>
         <button id="neurosciences" class="data-source-button">Neurosciences</button>
+        <button id="plants" class="data-source-button">Plants</button>
+        <button id="allJournals" class="data-source-button active">All biology</button>
     </div>
     <div style="position: relative; margin-bottom: 30px;">
         <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 80px; height: 3px; background: linear-gradient(90deg, #3182ce, #63b3ed); border-radius: 3px;"></div>

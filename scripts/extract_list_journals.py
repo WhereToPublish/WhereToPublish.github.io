@@ -3,7 +3,7 @@ import os
 import polars as pl
 from glob import glob
 
-col="Title of the journal"
+col="Journal"
 input_directory = "data_raw"
 output_file = "data_extracted/journals.txt"
 os.makedirs("data_extracted", exist_ok=True)

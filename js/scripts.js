@@ -1,6 +1,6 @@
 function formatDomainName(domain) {
     // Capitalize the first letter of each word in the domain name
-    return domain.replace(/_/g, ' ').split(' ').map(word =>word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    return domain.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 }
 
 function parseCSV(csvText) {
@@ -12,7 +12,7 @@ function parseCSV(csvText) {
     // Line 0: "Journal","Field","Publisher","Publisher type","Business model","Institution","Institution type","Website","APC €uros","Scimago Rank","PCI partner"
     if (lines.length < 1) {
         console.error("CSV does not have header line.");
-        return { data: [], domains: [] };
+        return {data: [], domains: []};
     }
 
     const rawHeaders = lines[0].split(',').map(header => {
@@ -68,7 +68,7 @@ function parseCSV(csvText) {
             const char = line[k];
 
             if (char === '"') {
-                if (inQuotedField && k + 1 < line.length && line[k+1] === '"') {
+                if (inQuotedField && k + 1 < line.length && line[k + 1] === '"') {
                     // Handle escaped quote "" inside a quoted field
                     currentField += '"';
                     k++; // Skip the second quote of the pair
@@ -97,10 +97,10 @@ function parseCSV(csvText) {
             // Create a new row with the columns we want to display
             const newRow = [
                 cleanRow[journalIndex] || "", // Journal
-                formatDomainName(cleanRow[fieldIndex]) || "", // Field/Domain
+                cleanRow[fieldIndex] || "", // Field/Domain
                 cleanRow[publisherIndex] || "", // Publisher
                 cleanRow[publisherTypeIndex] || "", // Publisher type (status)
-                formatDomainName(cleanRow[businessModelIndex]) || "", // Business model
+                cleanRow[businessModelIndex] || "", // Business model
                 cleanRow[apcIndex] || "", // APC cost
                 "", // Country (not available)
                 cleanRow[institutionIndex] || "", // Institution
@@ -120,40 +120,11 @@ function parseCSV(csvText) {
     };
 }
 
-// Function to merge data from multiple CSV files and remove duplicates
-function mergeData(dataArrays) {
-    const mergedData = [];
-    const journalSet = new Set(); // To track journal names we've already added
-    const allDomains = new Set();
-
-    // Process each data array
-    dataArrays.forEach(dataObj => {
-        // Add domains to the combined set
-        dataObj.domains.forEach(domain => allDomains.add(domain));
-
-        // Process each row of data
-        dataObj.data.forEach(row => {
-            const journalName = row[0]; // Journal name is at index 0
-
-            // If we haven't seen this journal before, add it to the merged data
-            if (!journalSet.has(journalName)) {
-                journalSet.add(journalName);
-                mergedData.push(row);
-            }
-        });
-    });
-
-    return {
-        data: mergedData,
-        domains: Array.from(allDomains).sort()
-    };
-}
-
-$(document).ready(function() {
+$(document).ready(function () {
     let dataTable; // Variable to store the DataTable instance
 
     // Add click handler for expandable rows
-    $('#journalTable').on('click', 'td.details-control', function() {
+    $('#journalTable').on('click', 'td.details-control', function () {
         var tr = $(this).closest('tr');
         var row = dataTable ? dataTable.row(tr) : $('#journalTable').DataTable().row(tr);
 
@@ -170,180 +141,180 @@ $(document).ready(function() {
     });
 
     // Add event handlers for data source buttons
-    $('#allJournals').on('click', function() {
+    $('#allJournals').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         loadTable('all_biology');
     });
 
-    $('#generalist').on('click', function() {
+    $('#generalist').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         loadTable('generalist');
     });
 
-    $('#cancer').on('click', function() {
+    $('#cancer').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         loadTable('cancer');
     });
 
-    $('#development').on('click', function() {
+    $('#development').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         loadTable('development');
     });
 
-    $('#ecologyEvolution').on('click', function() {
+    $('#ecologyEvolution').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         loadTable('ecology_evolution');
     });
 
-    $('#geneticsGenomics').on('click', function() {
+    $('#geneticsGenomics').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         loadTable('genetics_genomics');
     });
 
-    $('#immunology').on('click', function() {
+    $('#immunology').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         loadTable('immunology');
     });
 
-    $('#molecularCellularBiology').on('click', function() {
+    $('#molecularCellularBiology').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         loadTable('molecular_cellular_biology');
     });
 
-    $('#neurosciences').on('click', function() {
+    $('#neurosciences').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         loadTable('neurosciences');
     });
 
-    $('#plants').on('click', function() {
+    $('#plants').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         loadTable('plants');
     });
 
     // Add event handlers for profit status filter buttons
-    $('#allPublishers').on('click', function() {
+    $('#allPublishers').on('click', function () {
         $('.profit-status-button').removeClass('active');
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(3).search('').draw();
 
             // Update histogram based on filtered data
-            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
             const distribution = calculateAPCDistribution(filteredData);
             renderHistogram(distribution);
         }
     });
 
-    $('#forProfitPublishers').on('click', function() {
+    $('#forProfitPublishers').on('click', function () {
         $('.profit-status-button').removeClass('active');
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(3).search('^For-profit$', true, false).draw();
 
             // Update histogram based on filtered data
-            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
             const distribution = calculateAPCDistribution(filteredData);
             renderHistogram(distribution);
         }
     });
 
-    $('#nonProfitPublishers').on('click', function() {
+    $('#nonProfitPublishers').on('click', function () {
         $('.profit-status-button').removeClass('active');
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(3).search('^Non-profit$', true, false).draw();
 
             // Update histogram based on filtered data
-            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
             const distribution = calculateAPCDistribution(filteredData);
             renderHistogram(distribution);
         }
     });
 
-    $('#universityPressPublishers').on('click', function() {
+    $('#universityPressPublishers').on('click', function () {
         $('.profit-status-button').removeClass('active');
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(3).search('^University Press$', true, false).draw();
 
             // Update histogram based on filtered data
-            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
             const distribution = calculateAPCDistribution(filteredData);
             renderHistogram(distribution);
         }
     });
 
     // Add event handlers for business model filter buttons
-    $('#allBusinessModels').on('click', function() {
+    $('#allBusinessModels').on('click', function () {
         $('.business-model-button').removeClass('active');
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(4).search('').draw();
 
             // Update histogram based on filtered data
-            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
             const distribution = calculateAPCDistribution(filteredData);
             renderHistogram(distribution);
         }
     });
 
-    $('#diamondOABusinessModel').on('click', function() {
+    $('#diamondOABusinessModel').on('click', function () {
         $('.business-model-button').removeClass('active');
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(4).search('Diamond OA', false, false).draw();
 
             // Update histogram based on filtered data
-            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
             const distribution = calculateAPCDistribution(filteredData);
             renderHistogram(distribution);
         }
     });
 
-    $('#oaBusinessModel').on('click', function() {
+    $('#oaBusinessModel').on('click', function () {
         $('.business-model-button').removeClass('active');
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(4).search('^OA$', true, false).draw();
 
             // Update histogram based on filtered data
-            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
             const distribution = calculateAPCDistribution(filteredData);
             renderHistogram(distribution);
         }
     });
 
-    $('#hybridBusinessModel').on('click', function() {
+    $('#hybridBusinessModel').on('click', function () {
         $('.business-model-button').removeClass('active');
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(4).search('^Hybrid$', true, false).draw();
 
             // Update histogram based on filtered data
-            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
             const distribution = calculateAPCDistribution(filteredData);
             renderHistogram(distribution);
         }
     });
 
-    $('#subscriptionBusinessModel').on('click', function() {
+    $('#subscriptionBusinessModel').on('click', function () {
         $('.business-model-button').removeClass('active');
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(4).search('^Subscription$', true, false).draw();
 
             // Update histogram based on filtered data
-            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
             const distribution = calculateAPCDistribution(filteredData);
             renderHistogram(distribution);
         }
@@ -369,7 +340,7 @@ $(document).ready(function() {
             }
         });
 
-        return { bins, distribution };
+        return {bins, distribution};
     }
 
     // Function to render the histogram
@@ -377,7 +348,7 @@ $(document).ready(function() {
         const histogramContainer = $('#apcHistogram');
         histogramContainer.empty();
 
-        const { bins, distribution: counts } = distribution;
+        const {bins, distribution: counts} = distribution;
         const containerWidth = histogramContainer.width();
         const barWidth = containerWidth / (bins.length - 1);
 
@@ -398,7 +369,7 @@ $(document).ready(function() {
                     borderRadius: '2px 2px 0 0',
                     opacity: '0.7'
                 })
-                .attr('title', counts[i] + ' journals with APC between ' + bins[i] + '€ and ' + bins[i+1] + '€');
+                .attr('title', counts[i] + ' journals with APC between ' + bins[i] + '€ and ' + bins[i + 1] + '€');
 
             // Add count label on top of the bar
             const label = $('<div>')
@@ -421,14 +392,14 @@ $(document).ready(function() {
     }
 
     // Add event handler for APC slider
-    $('#apcSlider').on('input', function() {
+    $('#apcSlider').on('input', function () {
         const maxAPC = $(this).val();
         $('#apcValue').text(maxAPC === '10000' ? 'All APC' : '≤ ' + maxAPC + ' €');
 
         if (dataTable) {
             // Custom filtering function for APC column
             $.fn.dataTable.ext.search.push(
-                function(settings, data, dataIndex) {
+                function (settings, data, dataIndex) {
                     if (maxAPC === '10000') return true; // Show all if slider is at max
 
                     const apcValue = data[5].replace(/[^\d]/g, ''); // Extract numeric value from APC column
@@ -441,7 +412,7 @@ $(document).ready(function() {
             dataTable.draw();
 
             // Update histogram based on filtered data
-            const filteredData = dataTable.rows({ search: 'applied' }).data().toArray();
+            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
             const distribution = calculateAPCDistribution(filteredData);
             renderHistogram(distribution);
 
@@ -484,13 +455,13 @@ $(document).ready(function() {
                     const response = await fetch(file);
                     if (!response.ok) {
                         console.error(`Failed to fetch ${file}: ${response.statusText}`);
-                        return { data: [], domains: [] };
+                        return {data: [], domains: []};
                     }
                     const csvText = await response.text();
                     return parseCSV(csvText);
                 } catch (error) {
                     console.error(`Error processing ${file}:`, error);
-                    return { data: [], domains: [] };
+                    return {data: [], domains: []};
                 }
             });
 
@@ -498,15 +469,12 @@ $(document).ready(function() {
             const allData = await Promise.all(dataPromises);
 
             // If only one file is loaded, return its data directly
-            if (csvFiles.length === 1) {
-                return allData[0];
-            }
+            console.assert(csvFiles.length === 1)
+            return allData[0];
 
-            // Otherwise, merge the data from all files
-            return mergeData(allData);
         } catch (error) {
             console.error('Error fetching CSV files:', error);
-            return { data: [], domains: [] };
+            return {data: [], domains: []};
         }
     }
 
@@ -535,7 +503,7 @@ $(document).ready(function() {
             $('#journalTable').parent().append('<p id="loading-indicator">Loading data...</p>');
 
             // Fetch data from the selected source
-            const { data: tableData, domains } = await fetchCSVFiles(dataSource);
+            const {data: tableData, domains} = await fetchCSVFiles(dataSource);
 
             // Remove loading indicator
             $('#loading-indicator').remove();
@@ -554,16 +522,16 @@ $(document).ready(function() {
                             display: $.fn.dataTable.Responsive.display.childRow
                         },
                         breakpoints: [
-                            { name: 'desktop', width: Infinity },
-                            { name: 'tablet',  width: 1024 },
-                            { name: 'phone',   width: 480 }
+                            {name: 'desktop', width: Infinity},
+                            {name: 'tablet', width: 1024},
+                            {name: 'phone', width: 480}
                         ]
                     },
                     columnDefs: [
                         // Format the publisher type column (3)
                         {
                             targets: [3],
-                            render: function(data, type, row) {
+                            render: function (data, type, row) {
                                 if (type === 'display' || type === 'filter') {
                                     if (data === 'For-profit') return 'For-profit';
                                     if (data === 'Non-profit') return 'Non-profit';
@@ -585,7 +553,7 @@ $(document).ready(function() {
                         emptyTable: "No journal data available",
                         search: ""
                     },
-                    initComplete: function() {
+                    initComplete: function () {
                         var table = this.api();
                         var domainFiltersContainer = $('#domainFilters');
 
@@ -593,9 +561,9 @@ $(document).ready(function() {
                         $('.dataTables_filter input').attr('placeholder', 'Search journals...');
 
                         // Add event handler for search box
-                        $('.dataTables_filter input').on('keyup', function() {
+                        $('.dataTables_filter input').on('keyup', function () {
                             // Update histogram based on filtered data
-                            const filteredData = table.rows({ search: 'applied' }).data().toArray();
+                            const filteredData = table.rows({search: 'applied'}).data().toArray();
                             const distribution = calculateAPCDistribution(filteredData);
                             renderHistogram(distribution);
                         });
@@ -647,7 +615,7 @@ $(document).ready(function() {
 
                         // Add "Show All" button
                         var showAllButton = $('<button class="domain-filter-button">SHOW ALL</button>')
-                            .on('click', function() {
+                            .on('click', function () {
                                 // Clear search for the Field column (1)
                                 table.column(1).search('');
                                 table.draw();
@@ -655,17 +623,16 @@ $(document).ready(function() {
                                 $(this).addClass('active');
 
                                 // Update histogram based on filtered data
-                                const filteredData = table.rows({ search: 'applied' }).data().toArray();
+                                const filteredData = table.rows({search: 'applied'}).data().toArray();
                                 const distribution = calculateAPCDistribution(filteredData);
                                 renderHistogram(distribution);
                             });
                         domainFiltersContainer.append(showAllButton);
 
                         // Add domain-specific filter buttons using the dynamically extracted domains
-                        domains.forEach(function(domainName) {
-                            var formattedDomainName = formatDomainName(domainName);
-                            var button = $('<button class="domain-filter-button">' + formattedDomainName + '</button>')
-                                .on('click', function() {
+                        domains.forEach(function (domainName) {
+                            var button = $('<button class="domain-filter-button">' + domainName + '</button>')
+                                .on('click', function () {
                                     var isActive = $(this).hasClass('active');
 
                                     // Clear search for the Field column
@@ -677,13 +644,13 @@ $(document).ready(function() {
                                         showAllButton.addClass('active');
                                     } else {
                                         // If button was not active, make it active and apply its filter
-                                        table.column(1).search('^' + formattedDomainName + '$', true, false); // Exact match for the domain
+                                        table.column(1).search('^' + domainName + '$', true, false); // Exact match for the domain
                                         $(this).addClass('active');
                                     }
                                     table.draw();
 
                                     // Update histogram based on filtered data
-                                    const filteredData = table.rows({ search: 'applied' }).data().toArray();
+                                    const filteredData = table.rows({search: 'applied'}).data().toArray();
                                     const distribution = calculateAPCDistribution(filteredData);
                                     renderHistogram(distribution);
                                 });
@@ -695,7 +662,7 @@ $(document).ready(function() {
                     },
 
                     // Add child row display functionality for journal details
-                    rowCallback: function(row, data, index) {
+                    rowCallback: function (row, data, index) {
                         // Apply row coloring based on publisher type (column 3)
                         var publisherType = data[3]; // Get the publisher type value
                         if (publisherType === 'For-profit') {
@@ -770,48 +737,48 @@ $(document).ready(function() {
     }
 
     // Event listeners for opening the modal
-    modalTriggers.on('click', function() {
+    modalTriggers.on('click', function () {
         openModal();
     });
 
     // Event listeners for closing the modal
-    closeModalButton.on('click', function() {
+    closeModalButton.on('click', function () {
         closeModal();
     });
 
     // Close modal when clicking outside the modal content
-    modal.on('click', function(event) {
+    modal.on('click', function (event) {
         if ($(event.target).is(modal)) {
             closeModal();
         }
     });
 
     // Close modal when pressing Escape key
-    $(document).on('keydown', function(event) {
+    $(document).on('keydown', function (event) {
         if (event.key === 'Escape' && modal.hasClass('show')) {
             closeModal();
         }
     });
 
-    $('#copyBox').on('click', function() {
-    // Get the text to copy
-    const textToCopy = $('#copyContent').text();
+    $('#copyBox').on('click', function () {
+        // Get the text to copy
+        const textToCopy = $('#copyContent').text();
 
-    // Copy to clipboard
-    navigator.clipboard.writeText(textToCopy)
-        .then(() => {
-            // Show tooltip
-            $('#copyTooltip').css('opacity', '1');
+        // Copy to clipboard
+        navigator.clipboard.writeText(textToCopy)
+            .then(() => {
+                // Show tooltip
+                $('#copyTooltip').css('opacity', '1');
 
-            // Hide tooltip after 2 seconds
-            setTimeout(() => {
-                $('#copyTooltip').css('opacity', '0');
-            }, 2000);
-        })
-        .catch(err => {
-            console.error('Failed to copy: ', err);
-        });
-});
+                // Hide tooltip after 2 seconds
+                setTimeout(() => {
+                    $('#copyTooltip').css('opacity', '0');
+                }, 2000);
+            })
+            .catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+    });
     // Load the table with all journals by default
     loadTable('generalist');
 });

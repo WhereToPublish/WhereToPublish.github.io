@@ -18,6 +18,43 @@ FINAL_COLUMNS = [
 ]
 
 
+def normalize_publisher(name: str) -> str:
+    """
+    Normalize publisher names to standard forms.
+    1. Map known variants to standard names.
+    2. Remove " Inc." suffix.
+    3. Handle specific known encoding issues.
+    4. Trim leading/trailing spaces.
+    5. Return empty string if name is None.
+    """
+    if name is None:
+        return ""
+    name_lower = name.lower()
+    if "springer" in name_lower or "nature" == name_lower or "nature publishing group" in name_lower or "nature research" in name_lower or "nature portfolio" in name_lower:
+        return "Springer Nature"
+    if "wiley" in name_lower:
+        return "John Wiley & Sons"
+    if "taylor" in name_lower and "francis" in name_lower:
+        return "Taylor & Francis Group"
+    if "elsevier" in name_lower:
+        return "Elsevier"
+    if "frontiers" in name_lower:
+        return "Frontiers Media SA"
+    if "BMC" in name or "biomed central" in name_lower:
+        return "BioMed Central (BMC)"
+    if "BMJ" in name:
+        return "BMJ Group"
+    if "BioOne Complete" in name:
+        return "BioOne"
+    if " Inc." in name:
+        name = name.replace(" Inc.", "")
+    if "¬†" in name:
+        name = name.replace("¬†", " ")
+    if "T√ºbingen" in name:
+        name = name.replace("T√ºbingen", "Tubingen")
+    return str(name).strip()
+
+
 def ensure_columns(df: pl.DataFrame) -> pl.DataFrame:
     # Ensure all FINAL_COLUMNS exist; add missing as nulls
     for c in FINAL_COLUMNS:

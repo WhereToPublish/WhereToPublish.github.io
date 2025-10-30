@@ -9,7 +9,7 @@ function parseCSV(csvText) {
     const domains = new Set();
 
     // Extract headers from the first line of the CSV
-    // Line 0: "Journal","Field","Publisher","Publisher type","Business model","Institution","Institution type","Website","APC €uros","Scimago Rank","PCI partner"
+    // Line 0: "Journal","Field","Publisher","Publisher type","Business model","Institution","Institution type","Website","APC Euros","Scimago Rank","PCI partner"
     if (lines.length < 1) {
         console.error("CSV does not have header line.");
         return {data: [], domains: []};
@@ -25,9 +25,9 @@ function parseCSV(csvText) {
         "Journal",
         "Field", // This will be our domain column
         "Publisher",
-        "Publisher type", // This is equivalent to the old "Statut"
-        "Business model", // New column
-        "APC (€)", // New column
+        "Publisher type",
+        "Business model",
+        "APC (€)",
     ];
 
     const headerRow = $('#journalTable thead tr');
@@ -44,6 +44,7 @@ function parseCSV(csvText) {
     const publisherTypeIndex = rawHeaders.findIndex(h => h.includes("Publisher type"));
     const businessModelIndex = rawHeaders.findIndex(h => h.includes("Business model"));
     const apcIndex = rawHeaders.findIndex(h => h.includes("APC"));
+    const countryIndex = rawHeaders.findIndex(h => h.includes("Country"));
     const institutionIndex = rawHeaders.findIndex(h => h.includes("Institution") && !h.includes("type"));
     const institutionTypeIndex = rawHeaders.findIndex(h => h.includes("Institution type"));
     const websiteIndex = rawHeaders.findIndex(h => h.includes("Website"));
@@ -102,7 +103,7 @@ function parseCSV(csvText) {
                 cleanRow[publisherTypeIndex] || "", // Publisher type (status)
                 cleanRow[businessModelIndex] || "", // Business model
                 cleanRow[apcIndex] || "", // APC cost
-                "", // Country (not available)
+                cleanRow[countryIndex] || "", // Country
                 cleanRow[institutionIndex] || "", // Institution
                 cleanRow[institutionTypeIndex] || "", // Institution type
                 cleanRow[websiteIndex] || "", // Website
@@ -228,11 +229,11 @@ $(document).ready(function () {
         }
     });
 
-    $('#nonProfitPublishers').on('click', function () {
+    $('#forProfitSocietyRunPublishers').on('click', function () {
         $('.profit-status-button').removeClass('active');
         $(this).addClass('active');
         if (dataTable) {
-            dataTable.column(3).search('^Non-profit$', true, false).draw();
+            dataTable.column(3).search('^For-profit Society-Run$', true, false).draw();
 
             // Update histogram based on filtered data
             const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
@@ -241,11 +242,25 @@ $(document).ready(function () {
         }
     });
 
+
     $('#universityPressPublishers').on('click', function () {
         $('.profit-status-button').removeClass('active');
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(3).search('^University Press$', true, false).draw();
+
+            // Update histogram based on filtered data
+            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
+            const distribution = calculateAPCDistribution(filteredData);
+            renderHistogram(distribution);
+        }
+    });
+
+    $('#nonProfitPublishers').on('click', function () {
+        $('.profit-status-button').removeClass('active');
+        $(this).addClass('active');
+        if (dataTable) {
+            dataTable.column(3).search('^Non-profit$', true, false).draw();
 
             // Update histogram based on filtered data
             const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
@@ -273,6 +288,19 @@ $(document).ready(function () {
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(4).search('Diamond OA', false, false).draw();
+
+            // Update histogram based on filtered data
+            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
+            const distribution = calculateAPCDistribution(filteredData);
+            renderHistogram(distribution);
+        }
+    });
+
+    $('#goldOABusinessModel').on('click', function () {
+        $('.business-model-button').removeClass('active');
+        $(this).addClass('active');
+        if (dataTable) {
+            dataTable.column(4).search('Gold OA', false, false).draw();
 
             // Update histogram based on filtered data
             const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
@@ -582,6 +610,7 @@ $(document).ready(function () {
 
                         const businessModelCounts = {
                             'Diamond OA': 0,
+                            'Gold OA': 0,
                             'OA': 0,
                             'Hybrid': 0,
                             'Subscription': 0
@@ -609,6 +638,7 @@ $(document).ready(function () {
                         // Update business model buttons with counts
                         $('#allBusinessModels').text('All Business Models (' + allData.length + ')');
                         $('#diamondOABusinessModel').text('Diamond OA (' + businessModelCounts['Diamond OA'] + ')');
+                        $('#goldOABusinessModel').text('Gold OA (' + businessModelCounts['Gold OA'] + ')');
                         $('#oaBusinessModel').text('OA (' + businessModelCounts['OA'] + ')');
                         $('#hybridBusinessModel').text('Hybrid (' + businessModelCounts['Hybrid'] + ')');
                         $('#subscriptionBusinessModel').text('Subscription (' + businessModelCounts['Subscription'] + ')');
@@ -667,10 +697,12 @@ $(document).ready(function () {
                         var publisherType = data[3]; // Get the publisher type value
                         if (publisherType === 'For-profit') {
                             $(row).addClass('for-profit-row');
-                        } else if (publisherType === 'Non-profit') {
-                            $(row).addClass('non-profit-row');
+                        } else if (publisherType === 'For-profit Society-run') {
+                            $(row).addClass('for-profit-society-run-row');
                         } else if (publisherType === 'University Press') {
                             $(row).addClass('university-press-row');
+                        } else if (publisherType === 'Non-profit') {
+                            $(row).addClass('non-profit-row');
                         }
 
                         // Create journal details HTML
@@ -678,27 +710,32 @@ $(document).ready(function () {
 
                         // Add institution
                         if (data[7]) {
-                            journalDetails += '<li><span class="domain-name">INSTITUTION:</span> <span>' + data[7] + '</span></li>';
+                            journalDetails += '<li><span class="domain-name">Institution:</span> <span>' + data[7] + '</span></li>';
                         }
 
                         // Add institution type
                         if (data[8]) {
-                            journalDetails += '<li><span class="domain-name">INSTITUTION TYPE:</span> <span>' + data[8] + '</span></li>';
+                            journalDetails += '<li><span class="domain-name">Institution type:</span> <span>' + data[8] + '</span></li>';
                         }
 
                         // Add website with link
                         if (data[9]) {
-                            journalDetails += '<li><span class="domain-name">WEBSITE:</span> <a href="' + data[9] + '" target="_blank">' + data[9] + '</a></li>';
+                            journalDetails += '<li><span class="domain-name">Website:</span> <a href="' + data[9] + '" target="_blank">' + data[9] + '</a></li>';
+                        }
+
+                        // Add country
+                        if (data[6]) {
+                            journalDetails += '<li><span class="domain-name">Country:</span> <span>' + data[6] + '</span></li>';
                         }
 
                         // Add Scimago Rank
                         if (data[10]) {
-                            journalDetails += '<li><span class="domain-name">SCIMAGO RANK:</span> <span>' + data[10] + '</span></li>';
+                            journalDetails += '<li><span class="domain-name">SCIMAGO rank:</span> <span>' + data[10] + '</span></li>';
                         }
 
                         // Add PCI partner
                         if (data[11]) {
-                            journalDetails += '<li><span class="domain-name">PCI PARTNER:</span> <span>' + data[11] + '</span></li>';
+                            journalDetails += '<li><span class="domain-name">PCI partner:</span> <span>' + data[11] + '</span></li>';
                         }
 
                         journalDetails += '</ul></div>';

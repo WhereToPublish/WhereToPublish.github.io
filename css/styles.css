@@ -173,11 +173,14 @@ table.dataTable tr:hover {
 table.dataTable tr.for-profit-row {
     background-color: #ffebee; /* Light red */
 }
-table.dataTable tr.non-profit-row {
-    background-color: #e8f5e9; /* Light green */
+table.dataTable tr.for-profit-society-run-row {
+    background-color: #fff6eb; /* Light orange */
 }
 table.dataTable tr.university-press-row {
-    background-color: #fffde7; /* Light yellow */
+    background-color: #e7fbff; /* Light blue */
+}
+table.dataTable tr.non-profit-row {
+    background-color: #e8f5e9; /* Light green */
 }
 /* Ensure hover effect still works with colored rows */
 table.dataTable tr.for-profit-row:hover,

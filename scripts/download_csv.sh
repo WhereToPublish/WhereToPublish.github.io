@@ -10,6 +10,7 @@ GID_IMMUNOLOGY="1030012941"
 GID_MOLECULAR_CELLULAR_BIOLOGY="86261319"
 GID_NEUROSCIENCES="312916140"
 GID_PLANTS="818438400"
+mkdir -p ./data_raw
 wget -O ./data_raw/dafnee.csv "${URL}?gid=${GID_DAFNEE}&single=true&output=csv"
 wget -O ./data_raw/generalist.csv "${URL}?gid=${GID_GENERALIST}&single=true&output=csv"
 wget -O ./data_raw/cancer.csv "${URL}?gid=${GID_CANCER}&single=true&output=csv"

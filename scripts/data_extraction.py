@@ -2,7 +2,7 @@ import os
 import re
 from glob import glob
 import polars as pl
-from libraries import load_csv, write_ordered, project_to_final_string_schema
+from libraries import load_csv, write_ordered, project_to_final_string_schema, normalize_publisher
 
 # Directories
 INPUT_DIR = "data_raw"
@@ -193,6 +193,7 @@ def coalesce_from_extraction(base_df: pl.DataFrame, ext_df: pl.DataFrame) -> pl.
     left = left.with_columns(pl.col("Business model").map_elements(normalize_business_model, return_dtype=pl.Utf8).alias("Business model"))
     left = left.with_columns(pl.col("Publisher type").map_elements(normalize_publisher_type, return_dtype=pl.Utf8).alias("Publisher type"))
     left = left.with_columns(pl.col("Field").map_elements(normalize_field, return_dtype=pl.Utf8).alias("Field"))
+    left = left.with_columns(pl.col("Publisher").map_elements(normalize_publisher, return_dtype=pl.Utf8).alias("Publisher"))
     return left
 
 

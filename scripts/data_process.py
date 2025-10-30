@@ -3,6 +3,7 @@
 import os
 from glob import glob
 import polars as pl
+from libraries import normalize_publisher
 
 INPUT_DIR = "data_merged"
 OUTPUT_DIR = "data"
@@ -119,6 +120,9 @@ def main():
 
         # Format APC Euros to be numeric
         df = format_APC_Euros(df)
+
+        # Format publisher names
+        df = df.with_columns(pl.col("Publisher").map_elements(normalize_publisher, return_dtype=pl.Utf8).alias("Publisher"))
 
         # Ensure required columns and order
         df = ensure_columns_and_order(df)

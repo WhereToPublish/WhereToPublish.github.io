@@ -5,8 +5,8 @@ from glob import glob
 
 col="Journal"
 input_directory = "data_raw"
-output_file = "data_extracted/journals.txt"
-os.makedirs("data_extracted", exist_ok=True)
+output_file = "data_extraction/journals.txt"
+os.makedirs("data_extraction", exist_ok=True)
 journal_names = set()
 for csv_file in glob(os.path.join(input_directory, "*.csv")):
     if "dafnee" in os.path.basename(csv_file).lower():

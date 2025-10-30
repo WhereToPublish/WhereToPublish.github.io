@@ -1,31 +1,13 @@
 import os
-from glob import glob
 import re
+from glob import glob
 import polars as pl
+from libraries import load_csv, write_ordered, project_to_final_string_schema
 
 # Directories
 INPUT_DIR = "data_raw"
-INPUT_EXTRACTION_PATH = "data_extracted/extraction.tsv"
-OUTPUT_DIR = "data_merged"
-
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-# Expected columns and their final order
-FINAL_COLUMNS = [
-    "Journal",
-    "Website",
-    "Journal's MAIN field",
-    "Field",
-    "Publisher type",
-    "Publisher",
-    "Institution",
-    "Institution type",
-    "Country",
-    "Business model",
-    "APC Euros",
-    "Scimago Rank",
-    "PCI partner",
-]
+INPUT_EXTRACTION_PATH = "data_extraction/extraction.tsv"
+OUTPUT_DIR = "data_extracted"
 
 # Mapping from extraction.tsv columns to our target columns
 EXTRACTION_TO_TARGET = {
@@ -37,6 +19,7 @@ EXTRACTION_TO_TARGET = {
     "publisher": "Publisher",
     "website": "Website",
 }
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
 def normalize_journal_name(name: str) -> str:
@@ -60,6 +43,52 @@ def normalize_journal_name(name: str) -> str:
     return name
 
 
+def normalize_publisher_type(name: str) -> str:
+    """ Normalize publisher type values.
+    "for-profit" -> "For-profit"
+    "university press" -> "University press"
+    "non-profit" -> "Non-profit"
+    """
+    if name is None:
+        return ""
+    s = str(name).strip().lower()
+    mapping = {
+        "for-profit": "For-profit",
+        "university press": "University Press",
+        "non-profit": "Non-profit",
+        "for-profit society-run": "For-profit Society-run"
+    }
+    return mapping.get(s, name)
+
+
+def normalize_business_model(name: str) -> str:
+    """Normalize business model values.
+    "oa" -> "OA"
+    "gold_OA" -> "Gold OA"
+    "diamond_OA" -> "Diamond OA"
+    "hybrid" -> "Hybrid"
+    "subscription" -> "Subscription"
+    """
+    if name is None:
+        return ""
+    s = str(name).strip().lower()
+    mapping = {
+        "oa": "OA",
+        "gold_oa": "Gold OA",
+        "diamond_oa": "Diamond OA",
+        "hybrid": "Hybrid",
+        "subscription": "Subscription",
+    }
+    return mapping.get(s, name)
+
+def normalize_field(name: str) -> str:
+    """Normalize field values by stripping leading/trailing spaces."""
+    if name is None:
+        return ""
+    if name.lower() == "general":
+        return "Generalist"
+    return str(name).strip()
+
 def first_source_value(val: str) -> str | None:
     """Take the first source entry (split by '|'), return the value after the first ':'; strip source labels."""
     if val is None:
@@ -72,37 +101,6 @@ def first_source_value(val: str) -> str | None:
     if ":" in first:
         return first.split(":", 1)[1].strip() or None
     return first.strip() or None
-
-
-def infer_publisher_type(publisher: str | None) -> str | None:
-    """Infer Publisher type from publisher name when missing.
-    - contains 'university press' -> 'University Press'
-    - contains springer, elsevier, wiley, taylor, francis, frontiers, informa, sciendo, nature -> 'for-profit'
-    - contains mdpi or hindawi -> 'predatory'
-    """
-    if not publisher:
-        return None
-    p = publisher.lower()
-    if "university press" in p:
-        return "University Press"
-    # predatory first for clarity on overlaps
-    if "mdpi" in p or "hindawi" in p:
-        return "predatory"
-    # for-profit list
-    for kw in [
-        "springer",
-        "elsevier",
-        "wiley",
-        "taylor",
-        " francis",
-        "frontiers",
-        "informa",
-        "sciendo",
-        "nature",
-    ]:
-        if kw in p:
-            return "for-profit"
-    return None
 
 
 def load_and_prepare_extraction(path: str) -> pl.DataFrame:
@@ -125,23 +123,29 @@ def load_and_prepare_extraction(path: str) -> pl.DataFrame:
     return df
 
 
-def ensure_columns(df: pl.DataFrame) -> pl.DataFrame:
-    # Ensure all FINAL_COLUMNS exist; add missing as nulls
-    for c in FINAL_COLUMNS:
-        if c not in df.columns:
-            df = df.with_columns(pl.lit(None).alias(c))
-    return df
-
-
-def project_to_final_string_schema(df: pl.DataFrame) -> pl.DataFrame:
-    """Ensure all final columns are present and cast them to Utf8 for safe concatenation/merging."""
-    df = ensure_columns(df)
-    return df.select([pl.col(c).cast(pl.Utf8).alias(c) for c in FINAL_COLUMNS])
+def infer_publisher_type(publisher: str | None) -> str | None:
+    """Infer Publisher type from publisher name when missing.
+    - contains 'university press' -> 'University Press'
+    - contains springer, elsevier, wiley, taylor, francis, frontiers, informa, sciendo, nature -> 'for-profit'
+    - contains mdpi or hindawi -> 'predatory'
+    """
+    if not publisher:
+        return None
+    p = publisher.lower()
+    if "university press" in p:
+        return "University Press"
+    # for-profit list
+    fp_list = ["springer", "elsevier", "wiley", "mdpi", "taylor", "francis", "hindawi", "frontiers", "informa",
+               "sciendo", "nature"]
+    for kw in fp_list:
+        if kw in p:
+            return "For-profit"
+    return None
 
 
 def coalesce_from_extraction(base_df: pl.DataFrame, ext_df: pl.DataFrame) -> pl.DataFrame:
     # Join on normalized journal key
-    left = base_df.join(ext_df, on="__norm_journal__", how="left", suffix="_ext")
+    left = base_df.join(ext_df, on="__norm_journal__", how="left", suffix="_ext", coalesce=True)
 
     # For each mapped column from extraction, fill into base only when base is missing/empty
     mapped_targets = [
@@ -159,8 +163,8 @@ def coalesce_from_extraction(base_df: pl.DataFrame, ext_df: pl.DataFrame) -> pl.
             continue
         # treat empty strings as missing
         presence = (
-            pl.col(col).is_not_null()
-            & (pl.col(col).cast(pl.Utf8).str.strip_chars().str.len_chars() > 0)
+                pl.col(col).is_not_null()
+                & (pl.col(col).cast(pl.Utf8).str.strip_chars().str.len_chars() > 0)
         )
         left = left.with_columns(
             pl.when(presence).then(pl.col(col)).otherwise(pl.col(col_ext)).alias(col)
@@ -169,8 +173,8 @@ def coalesce_from_extraction(base_df: pl.DataFrame, ext_df: pl.DataFrame) -> pl.
     # Infer Publisher type if missing
     if "Publisher type" in left.columns:
         presence_pubtype = (
-            pl.col("Publisher type").is_not_null()
-            & (pl.col("Publisher type").cast(pl.Utf8).str.strip_chars().str.len_chars() > 0)
+                pl.col("Publisher type").is_not_null()
+                & (pl.col("Publisher type").cast(pl.Utf8).str.strip_chars().str.len_chars() > 0)
         )
         left = left.with_columns(
             pl.when(presence_pubtype)
@@ -186,7 +190,9 @@ def coalesce_from_extraction(base_df: pl.DataFrame, ext_df: pl.DataFrame) -> pl.
     # Clean up temporary extraction columns
     drop_cols = [c for c in left.columns if c.endswith("_ext")]
     left = left.drop(drop_cols)
-
+    left = left.with_columns(pl.col("Business model").map_elements(normalize_business_model, return_dtype=pl.Utf8).alias("Business model"))
+    left = left.with_columns(pl.col("Publisher type").map_elements(normalize_publisher_type, return_dtype=pl.Utf8).alias("Publisher type"))
+    left = left.with_columns(pl.col("Field").map_elements(normalize_field, return_dtype=pl.Utf8).alias("Field"))
     return left
 
 
@@ -199,63 +205,19 @@ def prepare_base_df(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
-def write_ordered(df: pl.DataFrame, out_path: str) -> None:
-    # Order columns and write CSV
-    ordered = df.select([pl.col(c) for c in FINAL_COLUMNS])
-    ordered.write_csv(out_path)
-
-
-def load_csv(path: str) -> pl.DataFrame:
-    return pl.read_csv(path, ignore_errors=True)
-
-
 def main():
     # Load and prepare extraction data
     extraction_df = load_and_prepare_extraction(INPUT_EXTRACTION_PATH)
-
-    # Detect if dafnee.csv exists and load/split for later merging
-    dafnee_path = os.path.join(INPUT_DIR, "dafnee.csv")
-    dafnee_general = None
-    dafnee_not_general = None
-    if os.path.exists(dafnee_path):
-        ddf = load_csv(dafnee_path)
-        # Project to final string schema for safe concatenation later
-        ddf = project_to_final_string_schema(ddf)
-        # Split by Field == 'general' (case-insensitive, strip)
-        field_norm = (
-            pl.col("Field")
-            .cast(pl.Utf8)
-            .str.to_lowercase()
-            .str.strip_chars()
-        )
-        ddf = ddf.with_columns(field_norm.alias("__field_norm__"))
-        dafnee_general = ddf.filter(pl.col("__field_norm__") == "general").drop("__field_norm__")
-        dafnee_not_general = ddf.filter(pl.col("__field_norm__") != "general").drop("__field_norm__")
-        # Do NOT add normalized key yet; we'll compute it after concatenation into targets
-        # Set Journal's MAIN field for dafnee-derived rows according to destination
-        if dafnee_general.height > 0:
-            dafnee_general = dafnee_general.with_columns(pl.lit("Generalist").alias("Journal's MAIN field"))
-        if dafnee_not_general.height > 0:
-            dafnee_not_general = dafnee_not_general.with_columns(pl.lit("Ecology and Evolution").alias("Journal's MAIN field"))
 
     # Process each CSV in input dir
     csv_paths = sorted(glob(os.path.join(INPUT_DIR, "*.csv")))
 
     for path in csv_paths:
         fname = os.path.basename(path)
-        if fname == "dafnee.csv":
-            # Do not write dafnee.csv output
-            continue
 
         base_df = load_csv(path)
         # Project to final string schema to align with dafnee frames if appended
         base_df = project_to_final_string_schema(base_df)
-
-        # Special handling: append dafnee rows to target files
-        if fname == "ecology_evolution.csv" and dafnee_not_general is not None and dafnee_not_general.height > 0:
-            base_df = pl.concat([base_df, dafnee_not_general], how="vertical", rechunk=True)
-        if fname == "generalist.csv" and dafnee_general is not None and dafnee_general.height > 0:
-            base_df = pl.concat([base_df, dafnee_general], how="vertical", rechunk=True)
 
         # Prepare for join (adds normalized key)
         base_df = prepare_base_df(base_df)

@@ -19,6 +19,7 @@ EXPECTED_COLUMNS = [
     "Business model",
     "Institution",
     "Institution type",
+    "Country",
     "Website",
     "APC Euros",
     "Scimago Rank",

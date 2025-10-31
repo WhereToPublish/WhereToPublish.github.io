@@ -46,6 +46,8 @@ def normalize_publisher(name: str) -> str:
         return "BMJ Group"
     if "BioOne Complete" in name:
         return "BioOne"
+    if "public library of science" in name_lower or "plos" in name_lower:
+        return "Public Library of Science (PLoS)"
     if " Inc." in name:
         name = name.replace(" Inc.", "")
     if "¬†" in name:

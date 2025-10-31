@@ -220,20 +220,7 @@ $(document).ready(function () {
         $('.profit-status-button').removeClass('active');
         $(this).addClass('active');
         if (dataTable) {
-            dataTable.column(3).search('^For-profit$', true, false).draw();
-
-            // Update histogram based on filtered data
-            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
-            const distribution = calculateAPCDistribution(filteredData);
-            renderHistogram(distribution);
-        }
-    });
-
-    $('#forProfitSocietyRunPublishers').on('click', function () {
-        $('.profit-status-button').removeClass('active');
-        $(this).addClass('active');
-        if (dataTable) {
-            dataTable.column(3).search('^For-profit Society-Run$', true, false).draw();
+            dataTable.column(3).search('For-profit', false, false).draw();
 
             // Update histogram based on filtered data
             const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
@@ -247,7 +234,7 @@ $(document).ready(function () {
         $('.profit-status-button').removeClass('active');
         $(this).addClass('active');
         if (dataTable) {
-            dataTable.column(3).search('^University Press$', true, false).draw();
+            dataTable.column(3).search('University Press', false, false).draw();
 
             // Update histogram based on filtered data
             const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
@@ -260,7 +247,7 @@ $(document).ready(function () {
         $('.profit-status-button').removeClass('active');
         $(this).addClass('active');
         if (dataTable) {
-            dataTable.column(3).search('^Non-profit$', true, false).draw();
+            dataTable.column(3).search('Non-profit', false, false).draw();
 
             // Update histogram based on filtered data
             const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
@@ -604,8 +591,10 @@ $(document).ready(function () {
                         // Count journals by publisher type and business model
                         const publisherTypeCounts = {
                             'For-profit': 0,
+                            'For-profit on behalf of a society': 0,
                             'Non-profit': 0,
-                            'University Press': 0
+                            'University Press': 0,
+                            'University Press on behalf of a society': 0
                         };
 
                         const businessModelCounts = {
@@ -630,18 +619,50 @@ $(document).ready(function () {
                         });
 
                         // Update publisher type buttons with counts
+
                         $('#allPublishers').text('All Publishers (' + allData.length + ')');
-                        $('#forProfitPublishers').text('For-profit (' + publisherTypeCounts['For-profit'] + ')');
+                        $('#forProfitPublishers').text('For-profit (' + (publisherTypeCounts['For-profit'] + publisherTypeCounts['For-profit on behalf of a society']) + ')');
                         $('#nonProfitPublishers').text('Non-profit (' + publisherTypeCounts['Non-profit'] + ')');
-                        $('#universityPressPublishers').text('University Press (' + publisherTypeCounts['University Press'] + ')');
+                        $('#universityPressPublishers').text('University Press (' + (publisherTypeCounts['University Press'] + publisherTypeCounts['University Press on behalf of a society']) + ')');
 
                         // Update business model buttons with counts
+                        let d;
                         $('#allBusinessModels').text('All Business Models (' + allData.length + ')');
-                        $('#diamondOABusinessModel').text('Diamond OA (' + businessModelCounts['Diamond OA'] + ')');
-                        $('#goldOABusinessModel').text('Gold OA (' + businessModelCounts['Gold OA'] + ')');
-                        $('#oaBusinessModel').text('OA (' + businessModelCounts['OA'] + ')');
-                        $('#hybridBusinessModel').text('Hybrid (' + businessModelCounts['Hybrid'] + ')');
-                        $('#subscriptionBusinessModel').text('Subscription (' + businessModelCounts['Subscription'] + ')');
+                        if (businessModelCounts['Diamond OA'] === 0) {
+                            $('#diamondOABusinessModel').addClass('hidden');
+                        } else {
+                            d = $('#diamondOABusinessModel')
+                            d.removeClass('hidden')
+                            d.text('Diamond OA (' + businessModelCounts['Diamond OA'] + ')');
+                        }
+                        if (businessModelCounts['Gold OA'] === 0) {
+                            $('#goldOABusinessModel').addClass('hidden');
+                        } else {
+                            d = $('#goldOABusinessModel')
+                            d.removeClass('hidden')
+                            d.text('Gold OA (' + businessModelCounts['Gold OA'] + ')');
+                        }
+                        if (businessModelCounts['OA'] === 0) {
+                            $('#oaBusinessModel').addClass('hidden');
+                        } else {
+                            d = $('#oaBusinessModel')
+                            d.removeClass('hidden')
+                            d.text('OA (' + businessModelCounts['OA'] + ')');
+                        }
+                        if (businessModelCounts['Hybrid'] === 0) {
+                            $('#hybridBusinessModel').addClass('hidden');
+                        } else {
+                            d = $('#hybridBusinessModel')
+                            d.removeClass('hidden')
+                            d.text('Hybrid (' + businessModelCounts['Hybrid'] + ')');
+                        }
+                        if (businessModelCounts['Subscription'] === 0) {
+                            $('#subscriptionBusinessModel').addClass('hidden');
+                        } else {
+                            d = $('#subscriptionBusinessModel')
+                            d.removeClass('hidden')
+                            d.text('Subscription (' + businessModelCounts['Subscription'] + ')');
+                        }
 
                         // Add "Show All" button
                         var showAllButton = $('<button class="domain-filter-button">SHOW ALL</button>')
@@ -697,10 +718,12 @@ $(document).ready(function () {
                         var publisherType = data[3]; // Get the publisher type value
                         if (publisherType === 'For-profit') {
                             $(row).addClass('for-profit-row');
-                        } else if (publisherType === 'For-profit Society-run') {
+                        } else if (publisherType.includes('For-profit')) {
                             $(row).addClass('for-profit-society-run-row');
                         } else if (publisherType === 'University Press') {
                             $(row).addClass('university-press-row');
+                        } else if (publisherType.includes('University Press')) {
+                            $(row).addClass('university-press-society-run-row');
                         } else if (publisherType === 'Non-profit') {
                             $(row).addClass('non-profit-row');
                         }

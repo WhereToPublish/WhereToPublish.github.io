@@ -3,7 +3,7 @@
 import os
 from glob import glob
 import polars as pl
-from libraries import normalize_publisher
+from libraries import normalize_publisher, normalize_publisher_type, normalize_business_model
 
 INPUT_DIR = "data_merged"
 OUTPUT_DIR = "data"
@@ -121,11 +121,22 @@ def main():
         # Format APC Euros to be numeric
         df = format_APC_Euros(df)
 
-        # Format publisher names
-        df = df.with_columns(pl.col("Publisher").map_elements(normalize_publisher, return_dtype=pl.Utf8).alias("Publisher"))
-
         # Ensure required columns and order
         df = ensure_columns_and_order(df)
+
+        # Format publisher names
+        df = df.with_columns(
+            pl.col("Publisher").map_elements(normalize_publisher, return_dtype=pl.Utf8)
+            .alias("Publisher")
+        )
+        df = df.with_columns(
+            pl.col("Publisher type").map_elements(normalize_publisher_type, return_dtype=pl.Utf8)
+            .alias("Publisher type")
+        )
+        df = df.with_columns(
+            pl.col("Business model").map_elements(normalize_business_model, return_dtype=pl.Utf8)
+            .alias("Business model")
+        )
 
         # Drop rows with empty/null Journal
         df = drop_empty_journals(df, os.path.basename(csv_path))

@@ -1,8 +1,7 @@
 import os
 import re
 from glob import glob
-import polars as pl
-from libraries import load_csv, write_ordered, project_to_final_string_schema, normalize_publisher
+from libraries import *
 
 # Directories
 INPUT_DIR = "data_raw"
@@ -43,44 +42,6 @@ def normalize_journal_name(name: str) -> str:
     return name
 
 
-def normalize_publisher_type(name: str) -> str:
-    """ Normalize publisher type values.
-    "for-profit" -> "For-profit"
-    "university press" -> "University press"
-    "non-profit" -> "Non-profit"
-    """
-    if name is None:
-        return ""
-    s = str(name).strip().lower()
-    mapping = {
-        "for-profit": "For-profit",
-        "university press": "University Press",
-        "non-profit": "Non-profit",
-        "for-profit society-run": "For-profit Society-run"
-    }
-    return mapping.get(s, name)
-
-
-def normalize_business_model(name: str) -> str:
-    """Normalize business model values.
-    "oa" -> "OA"
-    "gold_OA" -> "Gold OA"
-    "diamond_OA" -> "Diamond OA"
-    "hybrid" -> "Hybrid"
-    "subscription" -> "Subscription"
-    """
-    if name is None:
-        return ""
-    s = str(name).strip().lower()
-    mapping = {
-        "oa": "OA",
-        "gold_oa": "Gold OA",
-        "diamond_oa": "Diamond OA",
-        "hybrid": "Hybrid",
-        "subscription": "Subscription",
-    }
-    return mapping.get(s, name)
-
 def normalize_field(name: str) -> str:
     """Normalize field values by stripping leading/trailing spaces."""
     if name is None:
@@ -88,6 +49,7 @@ def normalize_field(name: str) -> str:
     if name.lower() == "general":
         return "Generalist"
     return str(name).strip()
+
 
 def first_source_value(val: str) -> str | None:
     """Take the first source entry (split by '|'), return the value after the first ':'; strip source labels."""
@@ -190,10 +152,13 @@ def coalesce_from_extraction(base_df: pl.DataFrame, ext_df: pl.DataFrame) -> pl.
     # Clean up temporary extraction columns
     drop_cols = [c for c in left.columns if c.endswith("_ext")]
     left = left.drop(drop_cols)
-    left = left.with_columns(pl.col("Business model").map_elements(normalize_business_model, return_dtype=pl.Utf8).alias("Business model"))
-    left = left.with_columns(pl.col("Publisher type").map_elements(normalize_publisher_type, return_dtype=pl.Utf8).alias("Publisher type"))
+    left = left.with_columns(
+        pl.col("Business model").map_elements(normalize_business_model, return_dtype=pl.Utf8).alias("Business model"))
+    left = left.with_columns(
+        pl.col("Publisher type").map_elements(normalize_publisher_type, return_dtype=pl.Utf8).alias("Publisher type"))
     left = left.with_columns(pl.col("Field").map_elements(normalize_field, return_dtype=pl.Utf8).alias("Field"))
-    left = left.with_columns(pl.col("Publisher").map_elements(normalize_publisher, return_dtype=pl.Utf8).alias("Publisher"))
+    left = left.with_columns(
+        pl.col("Publisher").map_elements(normalize_publisher, return_dtype=pl.Utf8).alias("Publisher"))
     return left
 
 

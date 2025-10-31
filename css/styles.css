@@ -174,9 +174,12 @@ table.dataTable tr.for-profit-row {
     background-color: #ffebee; /* Light red */
 }
 table.dataTable tr.for-profit-society-run-row {
-    background-color: #fff6eb; /* Light orange */
+    background-color: #ffebee; /* Light orange */
 }
 table.dataTable tr.university-press-row {
+    background-color: #e7fbff; /* Light blue */
+}
+table.dataTable tr.university-press-society-run-row {
     background-color: #e7fbff; /* Light blue */
 }
 table.dataTable tr.non-profit-row {
@@ -889,4 +892,6 @@ p.modal-trigger:after {
         margin-bottom: 5px;
     }
 }
-
+.hidden {
+    display: none !important;
+}

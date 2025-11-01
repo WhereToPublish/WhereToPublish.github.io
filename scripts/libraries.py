@@ -103,14 +103,16 @@ def normalize_business_model(name: str) -> str:
     mapping = {
         "oa": "OA",
         "gold_oa": "Gold OA",
+        "gold oa": "Gold OA",
         "diamond_oa": "Diamond OA",
+        "diamond oa": "Diamond OA",
         "hybrid": "Hybrid",
         "subscription": "Subscription",
     }
     if s in mapping:
         return mapping[s]
     else:
-        return s
+        return name.strip()
 
 
 def ensure_columns(df: pl.DataFrame) -> pl.DataFrame:

@@ -18,6 +18,10 @@ FINAL_COLUMNS = [
 ]
 
 
+def load_csv(path: str) -> pl.DataFrame:
+    return pl.read_csv(path, ignore_errors=True)
+
+
 def clean_string(name: str) -> str:
     if "¬†" in name:
         name = name.replace("¬†", " ")
@@ -32,6 +36,70 @@ def clean_string(name: str) -> str:
     return str(name).strip()
 
 
+def format_APC_Euros(df: pl.DataFrame) -> pl.DataFrame:
+    """Format the 'APC Euros' column to be integer, extracting only the part before any comma or period, then removing non-digit characters."""
+    return df.with_columns(
+        pl.col("APC Euros")
+        .cast(pl.Utf8)
+        .str.replace_all(r"[,.].*", "")
+        .str.replace_all(r"[^\d]", "")
+        .cast(pl.Int64, strict=False)
+        .alias("APC Euros")
+    )
+
+
+def format_Scimago_Rank(df: pl.DataFrame) -> pl.DataFrame:
+    """Format the 'Scimago Rank' column to be a float, removing non-numeric characters."""
+    return df.with_columns(
+        pl.col("Scimago Rank")
+        .cast(pl.Utf8)
+        .str.replace_all(",", ".")
+        .str.replace_all(r"[^\d.]", "")
+        .cast(pl.Float64, strict=False)
+        .alias("Scimago Rank")
+    )
+
+
+def load_pci_friendly_set() -> set[str]:
+    """Load the set of normalized (lowercase, trimmed) journal names that are PCI-friendly."""
+    PCI_FRIENDLY_PATH = "data_extraction/PCI_friendly.csv"
+    df = pl.read_csv(PCI_FRIENDLY_PATH)
+    journals = [clean_string(j) for j in df["Journal"].to_list()]
+    return {str(j).lower().strip() for j in journals if j is not None}
+
+
+def normalize_pci_friendly(entry: str) -> str:
+    """Normalize a journal name for PCI-friendly comparison: lowercase and trim."""
+    if entry is None:
+        return ""
+    name = str(entry).strip().lower()
+    if name == "none":
+        return ""
+    elif name == "pci friendly":
+        return "PCI friendly"
+    elif name == "pci":
+        return "PCI"
+    else:
+        return ""
+
+
+def mark_pci_friendly(df: pl.DataFrame, friendly_set: set[str]) -> pl.DataFrame:
+    """Set 'PCI partner' to 'PCI friendly' when journal is in friendly_set."""
+    df = df.with_columns(
+        pl.col("PCI partner").map_elements(normalize_pci_friendly, return_dtype=pl.Utf8).alias(
+            "PCI partner"
+        )
+    )
+    return df.with_columns(
+        pl.when(
+            pl.col("Journal").cast(pl.Utf8).str.to_lowercase().str.strip_chars().is_in(list(friendly_set))
+        )
+        .then(pl.lit("PCI friendly"))
+        .otherwise(pl.col("PCI partner"))
+        .alias("PCI partner")
+    )
+
+
 def normalize_publisher(name: str) -> str:
     """
     Normalize publisher names to standard forms.
@@ -44,40 +112,37 @@ def normalize_publisher(name: str) -> str:
     if name is None:
         return ""
     name_lower = name.lower()
-    if "springer" in name_lower or "nature" == name_lower or "nature publishing group" in name_lower or "nature research" in name_lower or "nature portfolio" in name_lower:
-        return "Springer Nature"
-    if "wiley" in name_lower:
-        return "John Wiley & Sons"
-    if "taylor" in name_lower and "francis" in name_lower:
-        return "Taylor & Francis Group"
-    if "elsevier" in name_lower:
-        return "Elsevier"
-    if "frontiers" in name_lower:
-        return "Frontiers Media SA"
     if "BMC" in name or "biomed central" in name_lower:
         return "Springer Nature (BioMed Central)"
-    if "BMJ" in name:
-        return "BMJ Group"
-    if "Cell" == name or "cell press" in name_lower:
+    elif "springer" in name_lower or "nature" == name_lower or "nature publishing group" in name_lower or "nature research" in name_lower or "nature portfolio" in name_lower:
+        return "Springer Nature"
+    elif "wiley" in name_lower:
+        return "John Wiley & Sons"
+    elif "taylor" in name_lower and "francis" in name_lower:
+        return "Taylor & Francis Group"
+    elif "Cell" == name or "cell press" in name_lower:
         return "Elsevier (Cell Press)"
-    if "BioOne Complete" in name:
+    elif "elsevier" in name_lower:
+        return "Elsevier"
+    elif "frontiers" in name_lower:
+        return "Frontiers Media SA"
+    elif "BMJ" in name:
+        return "BMJ Group"
+    elif "BioOne Complete" in name:
         return "BioOne"
-    if "OUP" in name:
+    elif "OUP" in name:
         return "Oxford University Press"
-    if "APA" in name:
+    elif "APA" in name:
         return "American Psychological Association"
-    if "AMA" in name:
+    elif "AMA" in name:
         return "American Medical Association"
-    if "AAAS" in name:
+    elif "AAAS" in name:
         return "American Association for the Advancement of Science"
-    if "public library of science" in name_lower or "plos" in name_lower:
+    elif "public library of science" in name_lower or "plos" in name_lower:
         return "Public Library of Science (PLoS)"
-    if "PCI" in name:
+    elif "PCI" in name:
         return "Peer Community In"
-    if " Inc." in name:
-        name = name.replace(" Inc.", "")
-    name = clean_string(name)
-    return str(name).strip()
+    return str(clean_string(name))
 
 
 def normalize_institution(name: str) -> str:
@@ -86,8 +151,7 @@ def normalize_institution(name: str) -> str:
     """
     if name is None:
         return ""
-    name = clean_string(name)
-    return str(name).strip()
+    return str(clean_string(name))
 
 
 def derive_country_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
@@ -175,6 +239,32 @@ def normalize_business_model(name: str) -> str:
         return name.strip()
 
 
+def format_table(df: pl.DataFrame) -> pl.DataFrame:
+    # Format numeric columns
+    df = format_APC_Euros(df)
+    df = format_Scimago_Rank(df)
+
+    # Normalize text fields
+    # Format names
+    df = df.with_columns(
+        pl.col("Journal").map_elements(clean_string, return_dtype=pl.Utf8)
+        .alias("Journal")
+    )
+    df = df.with_columns(
+        pl.col("Publisher").map_elements(normalize_publisher, return_dtype=pl.Utf8).alias("Publisher")
+    )
+    df = df.with_columns(
+        pl.col("Business model").map_elements(normalize_business_model, return_dtype=pl.Utf8).alias("Business model")
+    )
+    df = df.with_columns(
+        pl.col("Institution").map_elements(normalize_institution, return_dtype=pl.Utf8).alias("Institution")
+    )
+
+    # Derive Country from Publisher when missing/empty
+    df = derive_country_from_publisher(df)
+    return df
+
+
 def ensure_columns(df: pl.DataFrame) -> pl.DataFrame:
     # Ensure all FINAL_COLUMNS exist; add missing as nulls
     for c in FINAL_COLUMNS:
@@ -193,7 +283,3 @@ def write_ordered(df: pl.DataFrame, out_path: str) -> None:
     # Order columns and write CSV
     ordered = df.select([pl.col(c) for c in FINAL_COLUMNS])
     ordered.write_csv(out_path)
-
-
-def load_csv(path: str) -> pl.DataFrame:
-    return pl.read_csv(path, ignore_errors=True)

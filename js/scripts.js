@@ -98,6 +98,10 @@ function parseCSV(csvText) {
 $(document).ready(function () {
     let dataTable; // Variable to store the DataTable instance
 
+    // Track APC slider state for persistent filtering
+    let currentMaxAPC = '10000';
+    let apcSearchRegistered = false;
+
     // Batch expensive adjust/recalc to the next animation frame
     let adjustScheduled = false;
 
@@ -344,22 +348,13 @@ $(document).ready(function () {
 
     // APC slider filter
     $('#apcSlider').on('input', function () {
-        const maxAPC = $(this).val();
-        $('#apcValue').text(maxAPC === '10000' ? 'All APC' : '≤ ' + maxAPC + ' €');
+        currentMaxAPC = $(this).val();
+        $('#apcValue').text(currentMaxAPC === '10000' ? 'All APC' : '≤ ' + currentMaxAPC + ' €');
         if (dataTable) {
-            $.fn.dataTable.ext.search.push(
-                function (settings, data/*, dataIndex*/) {
-                    if (maxAPC === '10000') return true;
-                    const apcValue = data[5].replace(/[^\d]/g, '');
-                    if (apcValue === '') return true;
-                    return parseInt(apcValue) <= parseInt(maxAPC);
-                }
-            );
             dataTable.draw();
             const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
             const distribution = calculateAPCDistribution(filteredData);
             renderHistogram(distribution);
-            $.fn.dataTable.ext.search.pop();
         }
     });
 
@@ -485,7 +480,22 @@ $(document).ready(function () {
             $('.business-model-button').removeClass('active');
             $('#allBusinessModels').addClass('active');
             $('#apcSlider').val(10000);
+            currentMaxAPC = '10000';
             $('#apcValue').text('All APC');
+
+            // Ensure APC search is registered once and applies to our table only
+            if (!apcSearchRegistered) {
+                $.fn.dataTable.ext.search.push(function (settings, data/*, dataIndex*/) {
+                    // Apply only to our main table
+                    if (!settings.nTable || settings.nTable.id !== 'journalTable') return true;
+                    if (currentMaxAPC === '10000') return true;
+                    const apcRaw = data && data[5] ? data[5] : '';
+                    const apcValue = apcRaw.replace(/[^\d]/g, '');
+                    if (apcValue === '') return false; // exclude non-numeric/missing APC when filter is applied
+                    return parseInt(apcValue, 10) <= parseInt(currentMaxAPC, 10);
+                });
+                apcSearchRegistered = true;
+            }
 
             // Show loading indicator
             $('#journalTable').parent().append('<p id="loading-indicator">Loading data...</p>');

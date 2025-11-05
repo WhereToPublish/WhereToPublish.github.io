@@ -4,121 +4,86 @@ function formatDomainName(domain) {
 }
 
 function parseCSV(csvText) {
+    // We know the exact column order in the CSV:
+    // 0: Journal, 1: Field, 2: Publisher, 3: Publisher type, 4: Business model,
+    // 5: Institution, 6: Institution type, 7: Country, 8: Website, 9: APC Euros,
+    // 10: Scimago Rank, 11: PCI partner
     const lines = csvText.split('\n');
     const data = [];
     const domains = new Set();
 
-    // Extract headers from the first line of the CSV
-    // Line 0: "Journal","Field","Publisher","Publisher type","Business model","Institution","Institution type","Website","APC Euros","Scimago Rank","PCI partner"
-    if (lines.length < 1) {
-        console.error("CSV does not have header line.");
-        return {data: [], domains: []};
-    }
+    if (!lines.length) return { data: [], domains: [] };
 
-    const rawHeaders = lines[0].split(',').map(header => {
-        // Remove quotes if present
-        return header.replace(/^"|"$/g, '').trim();
-    });
-
-    // Define the columns we want to display
+    // Render table headers (displayed columns only)
     const finalHeadersText = [
-        "Journal",
-        "Field", // This will be our domain column
-        "Publisher",
-        "Publisher type",
-        "Business model",
-        "APC (€)",
+        'Journal',
+        'Field',
+        'Publisher',
+        'Publisher type',
+        'Business model',
+        'APC (€)'
     ];
-
     const headerRow = $('#journalTable thead tr');
-    headerRow.empty(); // Clear existing/placeholder headers
-    finalHeadersText.forEach(headerText => {
-        // Capitalize and replace underscores with spaces
-        headerRow.append($('<th>').text(formatDomainName(headerText)));
-    });
+    headerRow.empty();
+    finalHeadersText.forEach(headerText => headerRow.append($('<th>').text(formatDomainName(headerText))));
 
-    // Find the indices of the columns we need
-    const journalIndex = rawHeaders.findIndex(h => h.includes("Journal"));
-    const fieldIndex = rawHeaders.findIndex(h => h.includes("Field"));
-    const publisherIndex = rawHeaders.findIndex(h => h.includes("Publisher") && !h.includes("type"));
-    const publisherTypeIndex = rawHeaders.findIndex(h => h.includes("Publisher type"));
-    const businessModelIndex = rawHeaders.findIndex(h => h.includes("Business model"));
-    const apcIndex = rawHeaders.findIndex(h => h.includes("APC"));
-    const countryIndex = rawHeaders.findIndex(h => h.includes("Country"));
-    const institutionIndex = rawHeaders.findIndex(h => h.includes("Institution") && !h.includes("type"));
-    const institutionTypeIndex = rawHeaders.findIndex(h => h.includes("Institution type"));
-    const websiteIndex = rawHeaders.findIndex(h => h.includes("Website"));
-    const scimagoRankIndex = rawHeaders.findIndex(h => h.includes("Scimago"));
-    const pciPartnerIndex = rawHeaders.findIndex(h => h.includes("PCI"));
-
-    // Process data rows (starting from the 2nd line, index 1)
-    for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-
-        // Skip empty lines
-        if (line === "") {
-            continue;
-        }
-
-        // Parse the CSV line
-        const row = [];
-        let currentField = '';
-        let inQuotedField = false;
-
-        for (let k = 0; k < line.length; k++) {
-            const char = line[k];
-
-            if (char === '"') {
-                if (inQuotedField && k + 1 < line.length && line[k + 1] === '"') {
-                    // Handle escaped quote "" inside a quoted field
-                    currentField += '"';
-                    k++; // Skip the second quote of the pair
+    // Helper to split a CSV line into fields, handling quotes and escaped quotes
+    function splitCSVLine(line) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') {
+                if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+                    current += '"';
+                    i++; // skip escaped quote
                 } else {
-                    inQuotedField = !inQuotedField;
+                    inQuotes = !inQuotes;
                 }
-            } else if (char === ',' && !inQuotedField) {
-                row.push(currentField.trim());
-                currentField = '';
+            } else if (ch === ',' && !inQuotes) {
+                result.push(current);
+                current = '';
             } else {
-                currentField += char;
+                current += ch;
             }
         }
-        row.push(currentField.trim()); // Add the last field
-
-        // Clean up the row data by removing quotes
-        const cleanRow = row.map(field => field.replace(/^"|"$/g, '').trim());
-
-        // If we have a valid row with a journal name
-        if (cleanRow.length > 0 && cleanRow[journalIndex] !== "") {
-            // Extract the domain/field and add it to our set of domains
-            if (cleanRow[fieldIndex]) {
-                domains.add(cleanRow[fieldIndex]);
-            }
-
-            // Create a new row with the columns we want to display
-            const newRow = [
-                cleanRow[journalIndex] || "", // Journal
-                cleanRow[fieldIndex] || "", // Field/Domain
-                cleanRow[publisherIndex] || "", // Publisher
-                cleanRow[publisherTypeIndex] || "", // Publisher type (status)
-                cleanRow[businessModelIndex] || "", // Business model
-                cleanRow[apcIndex] || "", // APC cost
-                cleanRow[countryIndex] || "", // Country
-                cleanRow[institutionIndex] || "", // Institution
-                cleanRow[institutionTypeIndex] || "", // Institution type
-                cleanRow[websiteIndex] || "", // Website
-                cleanRow[scimagoRankIndex] || "", // Scimago Rank
-                cleanRow[pciPartnerIndex] || "" // PCI partner
-            ];
-
-            data.push(newRow);
-        }
+        result.push(current);
+        // Trim and strip surrounding quotes
+        return result.map(f => f.trim().replace(/^"|"$/g, ''));
     }
 
-    return {
-        data: data,
-        domains: Array.from(domains).sort()
-    };
+    // Skip header line (assumed present) and parse rows
+    for (let i = 1; i < lines.length; i++) {
+        const raw = lines[i].trim();
+        if (!raw) continue; // skip empty lines
+
+        const cols = splitCSVLine(raw);
+        if (!cols.length || !cols[0]) continue; // need at least Journal
+
+        // Collect Field values for domain filters
+        if (cols[1]) domains.add(cols[1]);
+
+        // Build the row in the display order for DataTables (6 visible + extras kept for details)
+        const row = [
+            cols[0] || '', // Journal
+            cols[1] || '', // Field
+            cols[2] || '', // Publisher
+            cols[3] || '', // Publisher type
+            cols[4] || '', // Business model
+            cols[9] || '', // APC Euros -> displayed as APC (€)
+            cols[7] || '', // Country
+            cols[5] || '', // Institution
+            cols[6] || '', // Institution type
+            cols[8] || '', // Website
+            cols[10] || '', // Scimago Rank
+            cols[11] || ''  // PCI partner
+        ];
+
+        data.push(row);
+    }
+
+    return { data, domains: Array.from(domains).sort() };
 }
 
 $(document).ready(function () {
@@ -145,61 +110,61 @@ $(document).ready(function () {
     $('#allJournals').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('all_biology');
+        loadTable('data/all_biology.csv');
     });
 
     $('#generalist').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('generalist');
+        loadTable('data/generalist.csv');
     });
 
     $('#cancer').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('cancer');
+        loadTable('data/cancer.csv');
     });
 
     $('#development').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('development');
+        loadTable('data/development.csv');
     });
 
     $('#ecologyEvolution').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('ecology_evolution');
+        loadTable('data/ecology_evolution.csv');
     });
 
     $('#geneticsGenomics').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('genetics_genomics');
+        loadTable('data/genetics_genomics.csv');
     });
 
     $('#immunology').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('immunology');
+        loadTable('data/immunology.csv');
     });
 
     $('#molecularCellularBiology').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('molecular_cellular_biology');
+        loadTable('data/molecular_cellular_biology.csv');
     });
 
     $('#neurosciences').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('neurosciences');
+        loadTable('data/neurosciences.csv');
     });
 
     $('#plants').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('plants');
+        loadTable('data/plants.csv');
     });
 
     // Add event handlers for profit status filter buttons
@@ -436,65 +401,24 @@ $(document).ready(function () {
         }
     });
 
-    // Function to fetch CSV files based on the selected data source
-    async function fetchCSVFiles(dataSource = 'all') {
+    // Function to fetch CSV file (single database file)
+    async function fetchCSVFile(csvFile) {
         try {
-            let csvFiles = [];
-
-            // Determine which CSV files to load based on the data source
-            if (dataSource === 'all_biology') {
-                csvFiles = ['data/all_biology.csv']; // All journals
-            } else if (dataSource === 'ecology_evolution') {
-                csvFiles = ['data/ecology_evolution.csv']; // Ecology & Evolution
-            } else if (dataSource === 'neurosciences') {
-                csvFiles = ['data/neurosciences.csv']; // Neurosciences
-            } else if (dataSource === 'cancer') {
-                csvFiles = ['data/cancer.csv']; // Cancer
-            } else if (dataSource === 'generalist') {
-                csvFiles = ['data/generalist.csv']; // Generalist
-            } else if (dataSource === 'development') {
-                csvFiles = ['data/development.csv']; // Development
-            } else if (dataSource === 'genetics_genomics') {
-                csvFiles = ['data/genetics_genomics.csv']; // Genetics & Genomics
-            } else if (dataSource === 'immunology') {
-                csvFiles = ['data/immunology.csv']; // Immunology
-            } else if (dataSource === 'molecular_cellular_biology') {
-                csvFiles = ['data/molecular_cellular_biology.csv']; // Molecular & Cellular Biology
-            } else if (dataSource === 'plants') {
-                csvFiles = ['data/plants.csv']; // Plants
+            const response = await fetch(csvFile);
+            if (!response.ok) {
+                console.error(`Failed to fetch ${csvFile}: ${response.statusText}`);
+                return { data: [], domains: [] };
             }
-
-            // Fetch and parse the selected CSV files
-            const dataPromises = csvFiles.map(async (file) => {
-                try {
-                    const response = await fetch(file);
-                    if (!response.ok) {
-                        console.error(`Failed to fetch ${file}: ${response.statusText}`);
-                        return {data: [], domains: []};
-                    }
-                    const csvText = await response.text();
-                    return parseCSV(csvText);
-                } catch (error) {
-                    console.error(`Error processing ${file}:`, error);
-                    return {data: [], domains: []};
-                }
-            });
-
-            // Wait for all files to be fetched and parsed
-            const allData = await Promise.all(dataPromises);
-
-            // If only one file is loaded, return its data directly
-            console.assert(csvFiles.length === 1)
-            return allData[0];
-
+            const csvText = await response.text();
+            return parseCSV(csvText);
         } catch (error) {
-            console.error('Error fetching CSV files:', error);
-            return {data: [], domains: []};
+            console.error('Error fetching CSV file:', error);
+            return { data: [], domains: [] };
         }
     }
 
     // Function to load and initialize the table with data from the selected source
-    async function loadTable(dataSource = 'all_biology') {
+    async function loadTable(dataSource = 'data/all_biology.csv') {
         try {
             // Clear existing table if it exists
             if (dataTable) {
@@ -517,8 +441,8 @@ $(document).ready(function () {
             // Show loading indicator
             $('#journalTable').parent().append('<p id="loading-indicator">Loading data...</p>');
 
-            // Fetch data from the selected source
-            const {data: tableData, domains} = await fetchCSVFiles(dataSource);
+            // Fetch data from the selected source (single file)
+            const {data: tableData, domains} = await fetchCSVFile(dataSource);
 
             // Remove loading indicator
             $('#loading-indicator').remove();
@@ -840,5 +764,5 @@ $(document).ready(function () {
             });
     });
     // Load the table with all journals by default
-    loadTable('generalist');
+    loadTable('data/generalist.csv');
 });

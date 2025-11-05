@@ -9,6 +9,13 @@ SCIMAGO_FILE = os.path.join("data_extraction", "scimagojr.csv")
 FILES_TO_SKIP = ["dafnee.csv"]
 
 
+def remove_unused_characters(name: str) -> str:
+    """Remove unused characters from journal names for normalization."""
+    if name is None:
+        return ""
+    return str(name).replace("the ", "").replace("-", " ").replace("_", " ").strip()
+
+
 def main():
     """
     Main function to update Scimago Rank and Publisher information in CSV files,
@@ -21,10 +28,12 @@ def main():
 
     # Load Scimago data
     scimago_df = pl.read_csv(SCIMAGO_FILE, separator=';')
-    scimago_df = scimago_df.rename({"Title": "Journal_scimago", "SJR": "Scimago Rank_scimago", "Publisher": "Publisher_scimago"})
+    scimago_df = scimago_df.rename(
+        {"Title": "Journal_scimago", "SJR": "Scimago Rank_scimago", "Publisher": "Publisher_scimago"})
 
     scimago_df = scimago_df.with_columns(
-        pl.col("Journal_scimago").str.to_lowercase().alias("norm_journal_scimago")
+        pl.col("Journal_scimago").str.to_lowercase().map_elements(remove_unused_characters, return_dtype=pl.Utf8).alias(
+            "norm_journal_scimago")
     )
 
     # Keep only the necessary columns and remove duplicates
@@ -51,7 +60,8 @@ def main():
         original_cols = target_df.columns.copy()
 
         target_df = target_df.with_columns(
-            pl.col("Journal").str.to_lowercase().alias("norm_journal")
+            pl.col("Journal").str.to_lowercase().map_elements(remove_unused_characters, return_dtype=pl.Utf8).alias(
+                "norm_journal")
         )
 
         # Join with scimago data

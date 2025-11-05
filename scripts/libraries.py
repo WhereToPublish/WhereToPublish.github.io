@@ -145,15 +145,6 @@ def normalize_publisher(name: str) -> str:
     return str(clean_string(name))
 
 
-def normalize_institution(name: str) -> str:
-    """ Normalize institution names by stripping leading/trailing spaces.
-    Return empty string if name is None.
-    """
-    if name is None:
-        return ""
-    return str(clean_string(name))
-
-
 def derive_country_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
     """ Derive 'Country' from known 'Publisher' names when 'Country' is missing/empty.
     """
@@ -187,32 +178,6 @@ def derive_country_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def normalize_publisher_type(name: str) -> str:
-    """ Normalize publisher type values.
-    """
-    if name is None or str(name).strip() == "":
-        return ""
-    s = str(name).strip().lower()
-
-    if "for-profit" in s and "society" in s:
-        return "For-profit on behalf of a society"
-    elif "for-profit" in s and "behalf" in s:
-        return name.strip()
-    elif "for-profit" in s:
-        return "For-profit"
-    elif "university press" in s and "society" in s:
-        return "University Press on behalf of a society"
-    elif "university press" in s and "behalf" in s:
-        return name.strip()
-    elif "university press" in s:
-        return "University Press"
-    elif s == "non-profit":
-        return "Non-profit"
-    else:
-        print(f"Unknown publisher type: '{name}'")
-        return s
-
-
 def normalize_business_model(name: str) -> str:
     """Normalize business model values.
     "oa" -> "OA"
@@ -239,6 +204,96 @@ def normalize_business_model(name: str) -> str:
         return name.strip()
 
 
+def normalize_institution(name: str) -> str:
+    """ Normalize institution names by stripping leading/trailing spaces.
+    Return empty string if name is None.
+    """
+    if name is None:
+        return ""
+    return str(clean_string(name))
+
+
+# New inference and annotation helpers
+
+def infer_institution_type(df: pl.DataFrame) -> pl.DataFrame:
+    """Infer 'Institution type' as 'Society' when Institution name suggests a society and Institution type is empty/null."""
+    pattern = r"\b(society|société|societe|sociedad|società|sociedade|gesellschaft|association|associación|associação|vereniging|genootschap)\b"
+    df = df.with_columns(inst_lower=pl.col("Institution").cast(pl.Utf8).str.to_lowercase())
+    df = df.with_columns(
+        pl.when(
+            (pl.col("Institution type").is_null() | (pl.col("Institution type").cast(pl.Utf8).str.strip_chars() == ""))
+            & pl.col("inst_lower").str.contains(pattern)
+        )
+        .then(pl.lit("Society"))
+        .otherwise(pl.col("Institution type"))
+        .alias("Institution type")
+    ).drop("inst_lower")
+    return df
+
+
+def infer_publisher_type_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
+    """Infer 'Publisher type' from known publisher names when Publisher type is empty/null.
+    - Recognized for-profit: set to 'For-profit'.
+    - Recognized university presses: set to 'University Press'.
+    """
+    for_profit = {
+        "Elsevier",
+        "Elsevier (Cell Press)",
+        "Taylor & Francis Group",
+        "Springer Nature",
+        "John Wiley & Sons",
+        "Sage Publishing",
+        "Frontiers Media SA",
+        "MDPI",
+    }
+    df = df.with_columns(pub_lower=pl.col("Publisher").cast(pl.Utf8))
+    empty_pubtype = pl.col("Publisher type").is_null() | (pl.col("Publisher type").cast(pl.Utf8).str.strip_chars() == "")
+    is_forprofit = pl.col("pub_lower").is_in(list(for_profit))
+    is_unipress = pl.col("pub_lower").cast(pl.Utf8).str.contains(r"University Press")
+
+    df = df.with_columns(
+        pl.when(empty_pubtype & is_forprofit)
+        .then(pl.lit("For-profit"))
+        .otherwise(
+            pl.when(empty_pubtype & is_unipress)
+            .then(pl.lit("University Press"))
+            .otherwise(pl.col("Publisher type"))
+        )
+        .alias("Publisher type")
+    ).drop("pub_lower")
+    return df
+
+
+def annotate_publisher_type_from_institution_type(df: pl.DataFrame) -> pl.DataFrame:
+    """Annotate 'Publisher type' with Society-Run based on 'Institution type'.
+    Rules:
+    - If Publisher type is 'For-profit' and Institution type is 'Society' => 'For-profit Society-Run'
+    - If Publisher type is 'University Press' and Institution type is 'Society' => 'University Press Society-Run'
+    Log each change with journal, previous publisher type, institution, institution type, and new publisher type.
+    """
+    new_type_expr = (
+        pl.when((pl.col("Publisher type") == "For-profit") & (pl.col("Institution type") == "Society"))
+        .then(pl.lit("For-profit Society-Run"))
+        .otherwise(
+            pl.when((pl.col("Publisher type") == "University Press") & (pl.col("Institution type") == "Society"))
+            .then(pl.lit("University Press Society-Run"))
+            .otherwise(pl.col("Publisher type"))
+        )
+    )
+
+    df_temp = df.with_columns(new_publisher_type=new_type_expr)
+    changes = df_temp.filter(pl.col("new_publisher_type") != pl.col("Publisher type"))
+    if changes.height > 0:
+        for row in changes.select(["Journal", "Publisher type", "Institution", "Institution type", "new_publisher_type"]).to_dicts():
+            print(
+                "[annotate_publisher_type_from_institution_type] Journal='{}', prev_publisher_type='{}', institution='{}', institution_type='{}', new_publisher_type='{}'".format(
+                    row.get("Journal"), row.get("Publisher type"), row.get("Institution"), row.get("Institution type"), row.get("new_publisher_type")
+                )
+            )
+    df_temp = df_temp.with_columns(pl.col("new_publisher_type").alias("Publisher type")).drop("new_publisher_type")
+    return df_temp
+
+
 def format_table(df: pl.DataFrame) -> pl.DataFrame:
     # Format numeric columns
     df = format_APC_Euros(df)
@@ -262,7 +317,41 @@ def format_table(df: pl.DataFrame) -> pl.DataFrame:
 
     # Derive Country from Publisher when missing/empty
     df = derive_country_from_publisher(df)
+
+    # Ensure required columns exist for inference
+    df = ensure_columns(df)
+
+    # Infer types and annotate publisher type based on institution type
+    df = infer_institution_type(df)
+    df = infer_publisher_type_from_publisher(df)
+    df = annotate_publisher_type_from_institution_type(df)
     return df
+
+
+def normalize_publisher_type(name: str) -> str:
+    """ Normalize publisher type values.
+    """
+    if name is None or str(name).strip() == "":
+        return ""
+    s = str(name).strip().lower()
+
+    if "for-profit" in s and "society" in s:
+        return "For-profit on behalf of a society"
+    elif "for-profit" in s and "behalf" in s:
+        return name.strip()
+    elif "for-profit" in s:
+        return "For-profit"
+    elif "university press" in s and "society" in s:
+        return "University Press on behalf of a society"
+    elif "university press" in s and "behalf" in s:
+        return name.strip()
+    elif "university press" in s:
+        return "University Press"
+    elif s == "non-profit":
+        return "Non-profit"
+    else:
+        print(f"Unknown publisher type: '{name}'")
+        return s
 
 
 def ensure_columns(df: pl.DataFrame) -> pl.DataFrame:

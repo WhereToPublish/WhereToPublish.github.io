@@ -22,3 +22,6 @@ wget -O ./data_extracted/immunology.csv "${URL}?gid=${GID_IMMUNOLOGY}&single=tru
 wget -O ./data_extracted/molecular_cellular_biology.csv "${URL}?gid=${GID_MOLECULAR_CELLULAR_BIOLOGY}&single=true&output=csv"
 wget -O ./data_extracted/neurosciences.csv "${URL}?gid=${GID_NEUROSCIENCES}&single=true&output=csv"
 wget -O ./data_extracted/plants.csv "${URL}?gid=${GID_PLANTS}&single=true&output=csv"
+URL_PCI="https://docs.google.com/spreadsheets/d/1UF3z_brMq-cJt0nbVactbcNPm5U8YsC6vx1GdmzBfxU"
+mkdir -p ./data_extraction
+wget -O ./data_extraction/PCI_friendly.csv "${URL_PCI}/export?format=csv"

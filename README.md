@@ -46,16 +46,16 @@ The main files are:
 - data/: A directory that contains the processed CSV files used by the JS code to display journal information.
 - img/: A directory that contains images used in the webpage (e.g., logo).
 
-In the column "Field", changes values:
-"General" -> "Generalist"
-In the column "Publisher type", changes values:
-"for-profit" -> "For-profit"
-"university press" -> "University press"
-"non-profit" -> "Non-profit"
-In the column "Business model", changes values:
-"oa" -> "OA"
-"gold_OA" -> "Gold OA"
-"diamond_OA" -> "Diamond OA"
-"hybrid" -> "Hybrid"
-"subscription" -> "Subscription"
-
+The columns in each CSV file are as follows in this order:
+    "Journal",
+    "Field",
+    "Publisher",
+    "Publisher type",
+    "Business model",
+    "Institution",
+    "Institution type",
+    "Country",
+    "Website",
+    "APC Euros",
+    "Scimago Rank",
+    "PCI partner"

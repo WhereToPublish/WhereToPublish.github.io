@@ -2,7 +2,8 @@
 # Create one more csv file in the 'data' directory: all_biology.csv containing all entries (deduplicated if necessary).
 import os
 from glob import glob
-from libraries import *
+import polars as pl
+from libraries import load_pci_friendly_set, mark_pci_friendly, format_table, normalize_publisher_type
 
 INPUT_DIR = "data_merged"
 OUTPUT_DIR = "data"
@@ -36,30 +37,6 @@ def ensure_columns_and_order(df: pl.DataFrame) -> pl.DataFrame:
     # Select only the expected columns in the exact order
     df = df.select(EXPECTED_COLUMNS)
     return df
-
-
-def format_APC_Euros(df: pl.DataFrame) -> pl.DataFrame:
-    """Format the 'APC Euros' column to be integer, extracting only the part before any comma or period, then removing non-digit characters."""
-    return df.with_columns(
-        pl.col("APC Euros")
-        .cast(pl.Utf8)
-        .str.replace_all(r"[,.].*", "")  # Remove comma/period and everything after
-        .str.replace_all(r"[^\d]", "")  # Remove remaining non-digits
-        .cast(pl.Int64, strict=False)
-        .alias("APC Euros")
-    )
-
-
-def format_Scimago_Rank(df: pl.DataFrame) -> pl.DataFrame:
-    """Format the 'Scimago Rank' column to be a float, removing non-numeric characters."""
-    return df.with_columns(
-        pl.col("Scimago Rank")
-        .cast(pl.Utf8)
-        .str.replace_all(",", ".")  # Replace commas with periods
-        .str.replace_all(r"[^\d.]", "")  # Remove non-digit and non-period characters
-        .cast(pl.Float64, strict=False)
-        .alias("Scimago Rank")
-    )
 
 
 def drop_empty_journals(df: pl.DataFrame, source_name: str) -> pl.DataFrame:
@@ -117,47 +94,6 @@ def normalize_field(df_in: pl.DataFrame) -> pl.DataFrame:
     return df_in.with_columns(Field=pl.col("Field").cast(pl.Utf8).str.replace_all("_", " ").str.to_titlecase())
 
 
-def load_pci_friendly_set() -> set[str]:
-    """Load the set of normalized (lowercase, trimmed) journal names that are PCI-friendly.
-    """
-    PCI_FRIENDLY_PATH = os.path.join("data_extraction", "PCI_friendly.csv")
-    df = pl.read_csv(PCI_FRIENDLY_PATH)
-    journals = [clean_string(j) for j in df["Journal"].to_list()]
-    return {str(j).lower().strip() for j in journals if j is not None}
-
-
-def normalize_pci_friendly(entry: str) -> str:
-    """Normalize a journal name for PCI-friendly comparison: lowercase and trim."""
-    if entry is None:
-        return ""
-    name = entry.strip().lower()
-    if name == "none":
-        return ""
-    elif name == "pci friendly":
-        return "PCI friendly"
-    elif name == "pci":
-        return "PCI"
-    else:
-        return ""
-
-
-def mark_pci_friendly(df: pl.DataFrame, friendly_set: set[str]) -> pl.DataFrame:
-    """Set 'PCI partner' to 'PCI friendly' when journal is in friendly_set.
-    """
-    df = df.with_columns(
-        pl.col("PCI partner").map_elements(normalize_pci_friendly, return_dtype=pl.Utf8).alias(
-            "PCI partner")
-    )
-    return df.with_columns(
-        pl.when(
-            pl.col("Journal").cast(pl.Utf8).str.to_lowercase().str.strip_chars().is_in(list(friendly_set))
-        )
-        .then(pl.lit("PCI friendly"))
-        .otherwise(pl.col("PCI partner"))
-        .alias("PCI partner")
-    )
-
-
 def main():
     processed_frames: list[pl.DataFrame] = []
 
@@ -168,53 +104,30 @@ def main():
     for csv_path in sorted(glob(os.path.join(INPUT_DIR, "*.csv"))):
         print(f"Processing file: {csv_path}")
         df = pl.read_csv(csv_path)
+        # Drop rows with empty/null Journal
+        df = drop_empty_journals(df, os.path.basename(csv_path))
 
         # Backfill Field from "Journal's MAIN field" when empty/missing
         df = normalize_field(fill_field_from_main_field(df))
 
-        # Format APC Euros to be numeric
-        df = format_APC_Euros(df)
-        # Format Scimago Rank to be numeric
-        df = format_Scimago_Rank(df)
-
-        # Ensure required columns and order
-        df = ensure_columns_and_order(df)
-
-        # Update PCI partner using PCI_friendly.csv list
-        df = mark_pci_friendly(df, pci_friendly_set)
-
-        # Format names
-        df = df.with_columns(
-            pl.col("Journal").map_elements(clean_string, return_dtype=pl.Utf8)
-            .alias("Journal")
-        )
-        df = df.with_columns(
-            pl.col("Publisher").map_elements(normalize_publisher, return_dtype=pl.Utf8)
-            .alias("Publisher")
-        )
+        # Format table:
+        df = format_table(df)
         df = df.with_columns(
             pl.col("Publisher type").map_elements(normalize_publisher_type, return_dtype=pl.Utf8)
             .alias("Publisher type")
         )
-        df = df.with_columns(
-            pl.col("Business model").map_elements(normalize_business_model, return_dtype=pl.Utf8)
-            .alias("Business model")
-        )
-        df = df.with_columns(
-            pl.col("Institution").map_elements(normalize_institution, return_dtype=pl.Utf8)
-            .alias("Institution")
-        )
-        # Derive Country from Publisher when missing/empty
-        df = derive_country_from_publisher(df)
 
-        # Drop rows with empty/null Journal
-        df = drop_empty_journals(df, os.path.basename(csv_path))
+        # Update PCI partner using PCI_friendly.csv list
+        df = mark_pci_friendly(df, pci_friendly_set)
 
         # Deduplicate by Journal (case-insensitive, trimmed)
         df = dedupe_by_journal(df, os.path.basename(csv_path))
 
         # Sort alphabetically by Journal
         df = df.sort(by=["Journal"], descending=[False])
+
+        # Ensure expected columns and order
+        df = ensure_columns_and_order(df)
 
         # Write to output directory using same filename
         out_path = os.path.join(OUTPUT_DIR, os.path.basename(csv_path))

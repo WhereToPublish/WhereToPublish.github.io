@@ -50,6 +50,16 @@ def format_APC_Euros(df: pl.DataFrame) -> pl.DataFrame:
         .alias("APC Euros")
     )
 
+def format_Scimago_Rank(df: pl.DataFrame) -> pl.DataFrame:
+    """Format the 'Scimago Rank' column to be a float, removing non-numeric characters."""
+    return df.with_columns(
+        pl.col("Scimago Rank")
+        .cast(pl.Utf8)
+        .str.replace_all(",", ".") # Replace commas with periods
+        .str.replace_all(r"[^\d.]", "")  # Remove non-digit and non-period characters
+        .cast(pl.Float64, strict=False)
+        .alias("Scimago Rank")
+    )
 
 def drop_empty_journals(df: pl.DataFrame, source_name: str) -> pl.DataFrame:
     """Drop rows where Journal is null or empty after trimming."""
@@ -120,6 +130,8 @@ def main():
 
         # Format APC Euros to be numeric
         df = format_APC_Euros(df)
+        # Format Scimago Rank to be numeric
+        df = format_Scimago_Rank(df)
 
         # Ensure required columns and order
         df = ensure_columns_and_order(df)

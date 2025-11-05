@@ -18,6 +18,18 @@ FINAL_COLUMNS = [
 ]
 
 
+def clean_string(name: str) -> str:
+    if "¬†" in name:
+        name = name.replace("¬†", " ")
+    if "√°√±" in name:
+        name = name.replace("b√°√±", "an")
+    if "√º" in name:
+        name = name.replace("√º", "u")
+    if "√ß" in name:
+        name = name.replace("√ß", "ç")
+    return str(name).strip()
+
+
 def normalize_publisher(name: str) -> str:
     """
     Normalize publisher names to standard forms.
@@ -60,10 +72,17 @@ def normalize_publisher(name: str) -> str:
         return "Public Library of Science (PLoS)"
     if " Inc." in name:
         name = name.replace(" Inc.", "")
-    if "¬†" in name:
-        name = name.replace("¬†", " ")
-    if "T√ºbingen" in name:
-        name = name.replace("T√ºbingen", "Tubingen")
+    name = clean_string(name)
+    return str(name).strip()
+
+
+def normalize_institution(name: str) -> str:
+    """ Normalize institution names by stripping leading/trailing spaces.
+    Return empty string if name is None.
+    """
+    if name is None:
+        return ""
+    name = clean_string(name)
     return str(name).strip()
 
 

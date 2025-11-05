@@ -2,8 +2,7 @@
 # Create one more csv file in the 'data' directory: all_biology.csv containing all entries (deduplicated if necessary).
 import os
 from glob import glob
-import polars as pl
-from libraries import normalize_publisher, normalize_publisher_type, normalize_business_model, derive_country_from_publisher
+from libraries import *
 
 INPUT_DIR = "data_merged"
 OUTPUT_DIR = "data"
@@ -148,6 +147,10 @@ def main():
         df = df.with_columns(
             pl.col("Business model").map_elements(normalize_business_model, return_dtype=pl.Utf8)
             .alias("Business model")
+        )
+        df = df.with_columns(
+            pl.col("Institution").map_elements(normalize_institution, return_dtype=pl.Utf8)
+            .alias("Institution")
         )
         # Derive Country from Publisher when missing/empty
         df = derive_country_from_publisher(df)

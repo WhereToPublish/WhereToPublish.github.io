@@ -585,10 +585,8 @@ $(document).ready(function () {
                         // Compute counts for buttons
                         const publisherTypeCounts = {
                             'For-profit': 0,
-                            'For-profit on behalf of a society': 0,
                             'Non-profit': 0,
                             'University Press': 0,
-                            'University Press on behalf of a society': 0
                         };
                         const businessModelCounts = {
                             'Diamond OA': 0,
@@ -600,15 +598,17 @@ $(document).ready(function () {
                         allData.forEach(row => {
                             const publisherType = row[3];
                             const businessModel = row[4];
-                            if (publisherType in publisherTypeCounts) publisherTypeCounts[publisherType]++;
+                            if (publisherType === 'Non-profit') publisherTypeCounts["Non-profit"]++;
+                            else if (publisherType.indexOf('For-profit') === 0) publisherTypeCounts["For-profit"]++;
+                            else if (publisherType.indexOf('University Press') === 0) publisherTypeCounts["University Press"]++;
                             if (businessModel in businessModelCounts) businessModelCounts[businessModel]++;
                         });
 
                         // Update buttons with counts
                         $('#allPublishers').text('All Publishers (' + allData.length + ')');
-                        $('#forProfitPublishers').text('For-profit (' + (publisherTypeCounts['For-profit'] + publisherTypeCounts['For-profit on behalf of a society']) + ')');
+                        $('#forProfitPublishers').text('For-profit (' + publisherTypeCounts['For-profit'] + ')');
                         $('#nonProfitPublishers').text('Non-profit (' + publisherTypeCounts['Non-profit'] + ')');
-                        $('#universityPressPublishers').text('University Press (' + (publisherTypeCounts['University Press'] + publisherTypeCounts['University Press on behalf of a society']) + ')');
+                        $('#universityPressPublishers').text('University Press (' + publisherTypeCounts['University Press'] + ')');
 
                         $('#allBusinessModels').text('All Business Models (' + allData.length + ')');
                         if (businessModelCounts['Diamond OA'] === 0) {

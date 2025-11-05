@@ -19,16 +19,30 @@ def normalize_field(name: str) -> str:
     return str(name).strip()
 
 
-def normalize_dafnee_publisher_type(name: str) -> str:
-    """Normalize publisher type specifically for dafnee.csv entries."""
-    if name is None:
-        return ""
-    name_lower = name.lower().strip()
-    if name_lower == "for-profit":
-        return "For-profit Society-run"
-    if name_lower == "university press":
-        return "University Press Society-run"
-    return str(name).strip()
+def derive_publisher_type_from_publisher_and_institution(df: pl.DataFrame) -> pl.DataFrame:
+    """Derive 'Publisher type' from 'Publisher' and 'Institution' columns.
+    Institution can be "", "other", "Society", "Uni/Gov", "Museum", "Non-profit".
+    When Institution is non-empty and not "other", Publisher type is
+    "{Publisher} on behalf of a {Institution}". Otherwise, it's just Publisher.
+    """
+
+    def derive_type(publisher_type: str, institution_type: str) -> str:
+        if publisher_type is None:
+            return ""
+        if publisher_type.lower() == "non-profit":
+            return "Non-profit"
+        if institution_type.lower() == "uni/gov":
+            return f"{publisher_type} on behalf of a university or government institution"
+        elif institution_type.lower() in ["non-profit", "society", "museum"]:
+            return f"{publisher_type} on behalf of a {institution_type.lower()}"
+        else:
+            return publisher_type
+
+    return df.with_columns(
+        pl.struct(["Publisher type", "Institution type"])
+        .map_elements(lambda row: derive_type(row["Publisher type"], row["Institution type"]), return_dtype=pl.Utf8)
+        .alias("Publisher type")
+    )
 
 
 def main():
@@ -41,11 +55,7 @@ def main():
         # Project to final string schema for safe concatenation later
         ddf = project_to_final_string_schema(ddf)
         # Normalize Publisher type for dafnee rows
-        ddf = ddf.with_columns(
-            pl.col("Publisher type")
-            .map_elements(normalize_dafnee_publisher_type, return_dtype=pl.Utf8)
-            .alias("Publisher type")
-        )
+        ddf = derive_publisher_type_from_publisher_and_institution(ddf)
         # Split by Field == 'general' (case-insensitive, strip)
         field_norm = (
             pl.col("Field")

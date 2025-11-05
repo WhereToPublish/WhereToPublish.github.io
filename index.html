@@ -65,8 +65,8 @@
             <div id="apcSliderContainer" style="text-align: center; margin: 0 auto;">
                 <p class="apc-value-label"><span id="apcValue">All</span></p>
                 <div id="apcHistogram"></div>
-                <input type="range" id="apcSlider" min="0" max="10000" value="10000">
-                <div class="apc-range-labels">
+                <input type="range" id="apcSlider" min="0" max="10000" value="10000" aria-label="Filter maximum APC in Euros">
+                <div class="apc-range-labels" aria-hidden="true">
                     <span>0 €</span>
                     <span>2.5k €</span>
                     <span>5k €</span>
@@ -80,6 +80,16 @@
 
     <div style="position: relative; margin-bottom: 30px;">
         <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 80px; height: 3px; background: linear-gradient(90deg, #3182ce, #63b3ed); border-radius: 3px;"></div>
+    </div>
+
+    <!-- Table controls: column visibility dropdown -->
+    <div class="table-controls">
+        <div class="column-visibility">
+            <button id="columnToggleButton" class="column-toggle-button" aria-haspopup="true" aria-expanded="false">Columns ▾</button>
+            <div id="columnToggleMenu" class="column-toggle-menu" role="menu" aria-label="Toggle columns visibility">
+                <!-- Checkboxes will be populated by JavaScript -->
+            </div>
+        </div>
     </div>
 
     <table id="journalTable" class="display" style="width:100%; margin-top: 0;">

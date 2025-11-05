@@ -895,3 +895,61 @@ p.modal-trigger:after {
 .hidden {
     display: none !important;
 }
+
+/* Column visibility toggle */
+.table-controls {
+    display: flex;
+    justify-content: flex-end;
+    margin: 10px 0 5px 0;
+}
+
+.column-visibility {
+    position: relative;
+}
+
+.column-toggle-button {
+    padding: 6px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #f8fafc;
+    cursor: pointer;
+    font-size: 13px;
+    color: #4a5568;
+    transition: all 0.2s ease;
+}
+
+.column-toggle-button:hover {
+    background: #ebf8ff;
+    border-color: #bee3f8;
+}
+
+.column-toggle-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 4px);
+    width: 220px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    padding: 8px;
+    display: none;
+    z-index: 10;
+}
+
+.column-toggle-menu.open {
+    display: block;
+}
+
+.column-toggle-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px;
+    font-size: 13px;
+    color: #2d3748;
+}
+
+.column-toggle-item input[type="checkbox"] {
+    accent-color: #3182ce;
+}

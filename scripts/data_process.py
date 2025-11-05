@@ -3,7 +3,7 @@
 import os
 from glob import glob
 import polars as pl
-from libraries import normalize_publisher, normalize_publisher_type, normalize_business_model
+from libraries import normalize_publisher, normalize_publisher_type, normalize_business_model, derive_country_from_publisher
 
 INPUT_DIR = "data_merged"
 OUTPUT_DIR = "data"
@@ -75,24 +75,24 @@ def drop_empty_journals(df: pl.DataFrame, source_name: str) -> pl.DataFrame:
 
 def dedupe_by_journal(df: pl.DataFrame, source_name: str) -> pl.DataFrame:
     """Deduplicate by Journal (case-insensitive, trimmed). Keep first occurrence and log a warning if any were removed."""
-    df_norm = df.with_columns(
+    df_dup_norm = df.with_columns(
         norm_journal=pl.col("Journal").cast(pl.Utf8).str.to_lowercase().str.strip_chars()
     )
-    before = df_norm.height
-    df_norm = df_norm.unique(subset=["norm_journal"], keep="first")
+    before = df_dup_norm.height
+    df_norm = df_dup_norm.unique(subset=["norm_journal"], keep="first")
     after = df_norm.height
     if after < before:
         removed = before - after
-        # Show up to 5 example duplicate journal names to keep logs concise
-        dup_names = (
-            df_norm.select(pl.col("Journal").cast(pl.Utf8).fill_null("")).head(5).get_column("Journal").to_list()
-        )
-        sample = ", ".join(
-            [name for name in dup_names if isinstance(name, str) and name != ""]) or "(no non-empty Journal names)"
-        print(
-            f"Warning: removed {removed} duplicate Journal entrie(s) in {source_name}. "
-            f"Sample Journals kept: {sample}"
-        )
+        seen = set()
+        dupes = set()
+        for x in df_dup_norm["norm_journal"]:
+            if x in seen:
+                dupes.add(x)
+            else:
+                seen.add(x)
+        print(f"Warning: removed {removed} duplicate Journal(s) in {source_name}: {', '.join(sorted(dupes))}")
+
+
     return df_norm.drop(["norm_journal"]) if "norm_journal" in df_norm.columns else df_norm
 
 
@@ -149,6 +149,8 @@ def main():
             pl.col("Business model").map_elements(normalize_business_model, return_dtype=pl.Utf8)
             .alias("Business model")
         )
+        # Derive Country from Publisher when missing/empty
+        df = derive_country_from_publisher(df)
 
         # Drop rows with empty/null Journal
         df = drop_empty_journals(df, os.path.basename(csv_path))

@@ -67,6 +67,37 @@ def normalize_publisher(name: str) -> str:
     return str(name).strip()
 
 
+def derive_country_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
+    """ Derive 'Country' from known 'Publisher' names when 'Country' is missing/empty.
+    """
+    country_map = {
+        "Oxford University Press": "UK",
+        "Cambridge University Press": "UK",
+        "BMJ Group": "UK",
+        "Springer Nature": "Germany/UK",
+        "Frontiers Media SA": "Switzerland",
+        "Elsevier": "Netherlands",
+        "Elsevier (Cell Press)": "USA",
+        "John Wiley & Sons": "USA",
+        "Taylor & Francis Group": "USA",
+        "Sage Publishing": "USA",
+        "Public Library of Science (PLoS)": "USA",
+        "American Association for the Advancement of Science": "USA",
+        "American Psychological Association": "USA",
+        "American Medical Association": "USA",
+    }
+    return df.with_columns(
+        pl.when(
+            (pl.col("Country").is_null() | (pl.col("Country").cast(pl.Utf8).str.strip_chars() == ""))
+            & pl.col("Publisher").is_not_null()
+            & pl.col("Publisher").is_in(list(country_map.keys()))
+        )
+        .then(pl.col("Publisher").map_dict(country_map).alias("Country"))
+        .otherwise(pl.col("Country"))
+        .alias("Country")
+    )
+
+
 def normalize_publisher_type(name: str) -> str:
     """ Normalize publisher type values.
     """

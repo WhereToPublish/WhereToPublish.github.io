@@ -19,6 +19,18 @@ def normalize_field(name: str) -> str:
     return str(name).strip()
 
 
+def normalize_dafnee_publisher_type(name: str) -> str:
+    """Normalize publisher type specifically for dafnee.csv entries."""
+    if name is None:
+        return ""
+    name_lower = name.lower().strip()
+    if name_lower == "for-profit":
+        return "For-profit Society-run"
+    if name_lower == "university press":
+        return "University Press Society-run"
+    return str(name).strip()
+
+
 def main():
     # Detect if dafnee.csv exists and load/split for later merging
     dafnee_path = os.path.join(INPUT_DIR, "dafnee.csv")
@@ -28,6 +40,12 @@ def main():
         ddf = load_csv(dafnee_path)
         # Project to final string schema for safe concatenation later
         ddf = project_to_final_string_schema(ddf)
+        # Normalize Publisher type for dafnee rows
+        ddf = ddf.with_columns(
+            pl.col("Publisher type")
+            .map_elements(normalize_dafnee_publisher_type, return_dtype=pl.Utf8)
+            .alias("Publisher type")
+        )
         # Split by Field == 'general' (case-insensitive, strip)
         field_norm = (
             pl.col("Field")

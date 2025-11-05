@@ -27,6 +27,8 @@ def clean_string(name: str) -> str:
         name = name.replace("√º", "u")
     if "√ß" in name:
         name = name.replace("√ß", "ç")
+    if "‚Äô" in name:
+        name = name.replace("‚Äô", "'")
     return str(name).strip()
 
 
@@ -70,6 +72,8 @@ def normalize_publisher(name: str) -> str:
         return "American Association for the Advancement of Science"
     if "public library of science" in name_lower or "plos" in name_lower:
         return "Public Library of Science (PLoS)"
+    if "PCI" in name:
+        return "Peer Community In"
     if " Inc." in name:
         name = name.replace(" Inc.", "")
     name = clean_string(name)
@@ -95,10 +99,12 @@ def derive_country_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
         "BMJ Group": "UK",
         "Springer Nature": "Germany/UK",
         "Frontiers Media SA": "Switzerland",
+        "Peer Community In": "France",
         "Elsevier": "Netherlands",
         "Elsevier (Cell Press)": "USA",
         "John Wiley & Sons": "USA",
         "Taylor & Francis Group": "USA",
+        "BioOne": "USA",
         "Sage Publishing": "USA",
         "Public Library of Science (PLoS)": "USA",
         "American Association for the Advancement of Science": "USA",
@@ -120,7 +126,7 @@ def derive_country_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
 def normalize_publisher_type(name: str) -> str:
     """ Normalize publisher type values.
     """
-    if name is None:
+    if name is None or str(name).strip() == "":
         return ""
     s = str(name).strip().lower()
 

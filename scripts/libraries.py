@@ -26,9 +26,11 @@ def clean_string(name: str) -> str:
     if "¬†" in name:
         name = name.replace("¬†", " ")
     if "√°√±" in name:
-        name = name.replace("b√°√±", "an")
+        name = name.replace("√°√±", "an")
     if "√º" in name:
         name = name.replace("√º", "u")
+    if "√§" in name:
+        name = name.replace("√§", "a")
     if "√ß" in name:
         name = name.replace("√ß", "ç")
     if "‚Äô" in name:

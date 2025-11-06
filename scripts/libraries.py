@@ -153,6 +153,8 @@ def derive_country_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
         "Cambridge University Press": "UK",
         "BMJ Group": "UK",
         "Springer Nature": "Germany/UK",
+        "The Royal Society": "UK",
+        "MDPI": "Switzerland",
         "Frontiers Media SA": "Switzerland",
         "Peer Community In": "France",
         "Elsevier": "Netherlands",

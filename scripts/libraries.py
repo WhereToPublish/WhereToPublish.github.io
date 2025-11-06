@@ -176,7 +176,7 @@ def derive_country_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
             & pl.col("Publisher").is_not_null()
             & pl.col("Publisher").is_in(list(country_map.keys()))
         )
-        .then(pl.col("Publisher").map_dict(country_map).alias("Country"))
+        .then(pl.col("Publisher").replace(country_map).alias("Country"))
         .otherwise(pl.col("Country"))
         .alias("Country")
     )

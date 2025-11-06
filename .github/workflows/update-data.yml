@@ -15,16 +15,28 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Download data.csv from Google Sheets
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
         run: |
-          curl -L "https://docs.google.com/spreadsheets/d/e/2PACX-1vTw97FS3eOFbYlqY8j7wWrBd3yrDaG6hqPclYJdPrnvd7t9U2DNz5xXNK4F0iesyHIKEkx9weLz-69a/pub?gid=1775942038&single=true&output=csv" -o data/test.csv
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Download data
+        run: bash ./scripts/download_csv.sh
+
+      - name: Process data
+        run: bash ./scripts/run.sh
 
       - name: Commit and push if changed
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add data/test.csv
-          git diff --cached --quiet || git commit -m "Update data.csv from Google Sheets"
+          git add data/
+          git diff --cached --quiet || git commit -m "Update data from Google Sheets"
 
       - name: Push changes
         uses: ad-m/github-push-action@master

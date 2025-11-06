@@ -95,11 +95,18 @@ function parseCSV(csvText) {
     return {data, domains: Array.from(domains).sort(), allHeadersText, defaultVisibleHeaders, mandatoryHeaders};
 }
 
+// Escape a string for use inside a RegExp
+function escapeRegExp(string) {
+    return String(string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 $(document).ready(function () {
     let dataTable; // Variable to store the DataTable instance
 
     // Track APC slider state for persistent filtering
     let currentMaxAPC = '10000';
+    // Track selected Field (domain) for counts logic
+    let selectedField = '';
     let apcSearchRegistered = false;
 
     // Batch expensive adjust/recalc to the next animation frame
@@ -115,6 +122,20 @@ $(document).ready(function () {
                 adjustScheduled = false;
             }
         });
+    }
+
+    // Helper: whether a row passes current APC and Field selection only
+    function rowPassesApcAndField(row) {
+        // Field check (row[1] is Field)
+        if (selectedField && String(row[1]) !== String(selectedField)) return false;
+        // APC check (row[5] is APC (€))
+        if (currentMaxAPC !== '10000') {
+            const apcRaw = (row && row[5]) ? String(row[5]) : '';
+            const apcValue = apcRaw.replace(/[^\d]/g, '');
+            if (apcValue === '') return false; // mimic table filter: exclude missing APC when filtering applied
+            if (parseInt(apcValue, 10) > parseInt(currentMaxAPC, 10)) return false;
+        }
+        return true;
     }
 
     // Add click handler for expandable rows
@@ -192,9 +213,7 @@ $(document).ready(function () {
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(3).search('').draw();
-            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
-            const distribution = calculateAPCDistribution(filteredData);
-            renderHistogram(distribution);
+            refreshHistogramFromTable(dataTable); // counts should NOT change here
         }
     });
     $('#forProfitPublishers').on('click', function () {
@@ -202,9 +221,7 @@ $(document).ready(function () {
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(3).search('For-profit', false, false).draw();
-            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
-            const distribution = calculateAPCDistribution(filteredData);
-            renderHistogram(distribution);
+            refreshHistogramFromTable(dataTable); // counts should NOT change here
         }
     });
     $('#universityPressPublishers').on('click', function () {
@@ -212,9 +229,7 @@ $(document).ready(function () {
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(3).search('University Press', false, false).draw();
-            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
-            const distribution = calculateAPCDistribution(filteredData);
-            renderHistogram(distribution);
+            refreshHistogramFromTable(dataTable); // counts should NOT change here
         }
     });
     $('#nonProfitPublishers').on('click', function () {
@@ -222,9 +237,7 @@ $(document).ready(function () {
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(3).search('Non-profit', false, false).draw();
-            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
-            const distribution = calculateAPCDistribution(filteredData);
-            renderHistogram(distribution);
+            refreshHistogramFromTable(dataTable); // counts should NOT change here
         }
     });
 
@@ -234,9 +247,7 @@ $(document).ready(function () {
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(4).search('').draw();
-            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
-            const distribution = calculateAPCDistribution(filteredData);
-            renderHistogram(distribution);
+            refreshHistogramFromTable(dataTable); // counts should NOT change here
         }
     });
     $('#diamondOABusinessModel').on('click', function () {
@@ -244,9 +255,7 @@ $(document).ready(function () {
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(4).search('Diamond OA', false, false).draw();
-            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
-            const distribution = calculateAPCDistribution(filteredData);
-            renderHistogram(distribution);
+            refreshHistogramFromTable(dataTable); // counts should NOT change here
         }
     });
     $('#goldOABusinessModel').on('click', function () {
@@ -254,9 +263,7 @@ $(document).ready(function () {
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(4).search('Gold OA', false, false).draw();
-            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
-            const distribution = calculateAPCDistribution(filteredData);
-            renderHistogram(distribution);
+            refreshHistogramFromTable(dataTable); // counts should NOT change here
         }
     });
     $('#oaBusinessModel').on('click', function () {
@@ -264,9 +271,7 @@ $(document).ready(function () {
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(4).search('^OA$', true, false).draw();
-            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
-            const distribution = calculateAPCDistribution(filteredData);
-            renderHistogram(distribution);
+            refreshHistogramFromTable(dataTable); // counts should NOT change here
         }
     });
     $('#hybridBusinessModel').on('click', function () {
@@ -274,9 +279,7 @@ $(document).ready(function () {
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(4).search('^Hybrid$', true, false).draw();
-            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
-            const distribution = calculateAPCDistribution(filteredData);
-            renderHistogram(distribution);
+            refreshHistogramFromTable(dataTable); // counts should NOT change here
         }
     });
     $('#subscriptionBusinessModel').on('click', function () {
@@ -284,9 +287,7 @@ $(document).ready(function () {
         $(this).addClass('active');
         if (dataTable) {
             dataTable.column(4).search('^Subscription$', true, false).draw();
-            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
-            const distribution = calculateAPCDistribution(filteredData);
-            renderHistogram(distribution);
+            refreshHistogramFromTable(dataTable); // counts should NOT change here
         }
     });
 
@@ -346,15 +347,99 @@ $(document).ready(function () {
         }
     }
 
+    // Recompute only histogram based on current filtered rows
+    function refreshHistogramFromTable(tableApi) {
+        const filteredData = tableApi.rows({search: 'applied'}).data().toArray();
+        const distribution = calculateAPCDistribution(filteredData);
+        renderHistogram(distribution);
+    }
+
+    // Recompute and update counts for publisher type and business model buttons
+    function refreshCountsFromTable(tableApi) {
+        const allRows = tableApi.rows().data().toArray();
+        let consideredCount = 0;
+
+        const publisherTypeCounts = { 'For-profit': 0, 'Non-profit': 0, 'University Press': 0 };
+        const businessModelCounts = { 'Diamond OA': 0, 'Gold OA': 0, 'OA': 0, 'Hybrid': 0, 'Subscription': 0 };
+
+        // Capture previously active business model button id (if any)
+        const previouslyActiveId = $('.business-model-button.active').attr('id') || null;
+        const idToModel = {
+            'diamondOABusinessModel': 'Diamond OA',
+            'goldOABusinessModel': 'Gold OA',
+            'oaBusinessModel': 'OA',
+            'hybridBusinessModel': 'Hybrid',
+            'subscriptionBusinessModel': 'Subscription'
+        };
+
+        allRows.forEach((row) => {
+            if (!rowPassesApcAndField(row)) return;
+            consideredCount++;
+            const publisherType = (row && row[3]) ? String(row[3]) : '';
+            const businessModel = (row && row[4]) ? String(row[4]) : '';
+
+            if (publisherType === 'Non-profit') publisherTypeCounts['Non-profit']++;
+            else if (publisherType.indexOf('For-profit') === 0) publisherTypeCounts['For-profit']++;
+            else if (publisherType.indexOf('University Press') === 0) publisherTypeCounts['University Press']++;
+
+            if (Object.prototype.hasOwnProperty.call(businessModelCounts, businessModel)) {
+                businessModelCounts[businessModel]++;
+            }
+        });
+
+        // Update publisher buttons text using consideredCount
+        $('#allPublishers').text('All Publishers (' + consideredCount + ')');
+        $('#forProfitPublishers').text('For-profit (' + (publisherTypeCounts['For-profit'] || 0) + ')');
+        $('#nonProfitPublishers').text('Non-profit (' + (publisherTypeCounts['Non-profit'] || 0) + ')');
+        $('#universityPressPublishers').text('University Press (' + (publisherTypeCounts['University Press'] || 0) + ')');
+
+        // Update business model buttons text + dynamic hide/show for zero-count
+        $('#allBusinessModels').text('All Business Models (' + consideredCount + ')');
+        const modelToSelector = {
+            'Diamond OA': '#diamondOABusinessModel',
+            'Gold OA': '#goldOABusinessModel',
+            'OA': '#oaBusinessModel',
+            'Hybrid': '#hybridBusinessModel',
+            'Subscription': '#subscriptionBusinessModel'
+        };
+        Object.keys(modelToSelector).forEach((model) => {
+            const sel = modelToSelector[model];
+            const count = businessModelCounts[model] || 0;
+            const $btn = $(sel);
+            $btn.text(model + ' (' + count + ')');
+            if (count === 0) {
+                $btn.addClass('hidden').removeClass('active');
+            } else {
+                $btn.removeClass('hidden');
+            }
+        });
+
+        // If the previously active business-model now has zero items, reset to All Business Models and clear the filter
+        if (previouslyActiveId && previouslyActiveId !== 'allBusinessModels') {
+            const previouslyActiveModel = idToModel[previouslyActiveId];
+            const prevCount = businessModelCounts[previouslyActiveModel] || 0;
+            if (prevCount === 0) {
+                $('.business-model-button').removeClass('active');
+                $('#allBusinessModels').addClass('active');
+                tableApi.column(4).search('').draw();
+                refreshHistogramFromTable(tableApi);
+            }
+        }
+
+        // Ensure there's always an active business-model button
+        if ($('.business-model-button.active').length === 0) {
+            $('#allBusinessModels').addClass('active');
+        }
+    }
+
     // APC slider filter
     $('#apcSlider').on('input', function () {
         currentMaxAPC = $(this).val();
         $('#apcValue').text(currentMaxAPC === '10000' ? 'All APC' : '≤ ' + currentMaxAPC + ' €');
         if (dataTable) {
             dataTable.draw();
-            const filteredData = dataTable.rows({search: 'applied'}).data().toArray();
-            const distribution = calculateAPCDistribution(filteredData);
-            renderHistogram(distribution);
+            refreshHistogramFromTable(dataTable);
+            refreshCountsFromTable(dataTable); // counts should change with APC
         }
     });
 
@@ -481,6 +566,7 @@ $(document).ready(function () {
             $('#allBusinessModels').addClass('active');
             $('#apcSlider').val(10000);
             currentMaxAPC = '10000';
+            selectedField = '';
             $('#apcValue').text('All APC');
 
             // Ensure APC search is registered once and applies to our table only
@@ -580,11 +666,9 @@ $(document).ready(function () {
                             saveVisibleColumns(table, allHeadersText, mandatoryHeaders);
                         }
 
-                        // Search box updates histogram
+                        // Search box updates only histogram
                         $('.dataTables_filter input').on('keyup', function () {
-                            const filteredData = table.rows({search: 'applied'}).data().toArray();
-                            const distribution = calculateAPCDistribution(filteredData);
-                            renderHistogram(distribution);
+                            refreshHistogramFromTable(table);
                         });
 
                         // Initialize histogram
@@ -652,40 +736,73 @@ $(document).ready(function () {
                             d.removeClass('hidden').text('Subscription (' + businessModelCounts['Subscription'] + ')');
                         }
 
-                        // Show all button
-                        var showAllButton = $('<button class="domain-filter-button">SHOW ALL</button>')
-                            .on('click', function () {
-                                table.column(1).search('');
-                                table.draw();
-                                domainFiltersContainer.find('.domain-filter-button').removeClass('active');
-                                $(this).addClass('active');
-                                const filteredData = table.rows({search: 'applied'}).data().toArray();
-                                const distribution = calculateAPCDistribution(filteredData);
-                                renderHistogram(distribution);
+                        // Render domain filter as dropdown if too many domains, else as buttons
+                        const tooManyDomains = Array.isArray(domains) && domains.length > 15;
+                        domainFiltersContainer.empty();
+                        if (tooManyDomains) {
+                            // Dropdown select to save vertical space
+                            const select = $('<select class="domain-filter-select" aria-label="Filter by field"></select>');
+                            // Default option: show all
+                            select.append($('<option value="">Show all fields</option>'));
+                            domains.forEach(function (domainName) {
+                                select.append($('<option></option>').val(domainName).text(domainName));
                             });
-                        domainFiltersContainer.append(showAllButton);
 
-                        // Domain filter buttons
-                        domains.forEach(function (domainName) {
-                            var button = $('<button class="domain-filter-button">' + domainName + '</button>')
-                                .on('click', function () {
-                                    var isActive = $(this).hasClass('active');
+                            select.on('change', function () {
+                                const val = $(this).val();
+                                if (!val) {
+                                    selectedField = '';
                                     table.column(1).search('');
-                                    domainFiltersContainer.find('.domain-filter-button').removeClass('active');
-                                    if (isActive) {
-                                        showAllButton.addClass('active');
-                                    } else {
-                                        table.column(1).search('^' + domainName + '$', true, false);
-                                        $(this).addClass('active');
-                                    }
+                                } else {
+                                    selectedField = val;
+                                    const pattern = '^' + escapeRegExp(val) + '$';
+                                    table.column(1).search(pattern, true, false);
+                                }
+                                table.draw();
+                                refreshHistogramFromTable(table);
+                                refreshCountsFromTable(table); // counts should change with Field
+                            });
+
+                            domainFiltersContainer.removeClass('compact').append(select);
+                        } else {
+                            // Fewer domains: render as clickable buttons
+                            domainFiltersContainer.toggleClass('compact', false);
+
+                            var showAllButton = $('<button class="domain-filter-button">SHOW ALL</button>')
+                                .on('click', function () {
+                                    selectedField = '';
+                                    table.column(1).search('');
                                     table.draw();
-                                    const filteredData = table.rows({search: 'applied'}).data().toArray();
-                                    const distribution = calculateAPCDistribution(filteredData);
-                                    renderHistogram(distribution);
+                                    domainFiltersContainer.find('.domain-filter-button').removeClass('active');
+                                    $(this).addClass('active');
+                                    refreshHistogramFromTable(table);
+                                    refreshCountsFromTable(table); // counts should change with Field
                                 });
-                            domainFiltersContainer.append(button);
-                        });
-                        showAllButton.addClass('active');
+                            domainFiltersContainer.append(showAllButton);
+
+                            domains.forEach(function (domainName) {
+                                var button = $('<button class="domain-filter-button">' + domainName + '</button>')
+                                    .on('click', function () {
+                                        var isActive = $(this).hasClass('active');
+                                        table.column(1).search('');
+                                        domainFiltersContainer.find('.domain-filter-button').removeClass('active');
+                                        if (isActive) {
+                                            selectedField = '';
+                                            showAllButton.addClass('active');
+                                        } else {
+                                            selectedField = domainName;
+                                            const pattern = '^' + escapeRegExp(domainName) + '$';
+                                            table.column(1).search(pattern, true, false);
+                                            $(this).addClass('active');
+                                        }
+                                        table.draw();
+                                        refreshHistogramFromTable(table);
+                                        refreshCountsFromTable(table); // counts should change with Field
+                                    });
+                                domainFiltersContainer.append(button);
+                            });
+                            showAllButton.addClass('active');
+                        }
                     }
                 });
             } else if (tableData) {

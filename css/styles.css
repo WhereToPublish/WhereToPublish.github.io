@@ -470,6 +470,14 @@ tr.shown td.details-control:before {
     box-shadow: 0 2px 5px rgba(49, 130, 206, 0.2);
 }
 
+/* Compact variant when many domain filter buttons exist */
+#domainFilters.compact .domain-filter-button {
+    margin: 0 2px 2px 0;
+    padding: 2px 6px;
+    font-size: 11px;
+    border-radius: 4px;
+}
+
 /* Data source filter buttons styles */
 .data-source-button {
     margin: 0 6px 8px 0;
@@ -952,4 +960,30 @@ p.modal-trigger:after {
 
 .column-toggle-item input[type="checkbox"] {
     accent-color: #3182ce;
+}
+
+/* Domain filter dropdown (used when too many fields) */
+.domain-filter-select {
+    display: inline-block;
+    min-width: 220px;
+    max-width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #2d3748;
+    font-size: 13px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.domain-filter-select:focus {
+    outline: none;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 3px rgba(66,153,225,0.2);
+}
+@media (max-width: 480px) {
+    .domain-filter-select {
+        width: 100%;
+        min-width: 0;
+        font-size: 14px;
+    }
 }

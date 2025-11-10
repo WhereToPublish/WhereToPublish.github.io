@@ -14,6 +14,8 @@ FINAL_COLUMNS = [
     "Business model",
     "APC Euros",
     "Scimago Rank",
+    "Scimago Quartile",
+    "H index",
     "PCI partner",
 ]
 

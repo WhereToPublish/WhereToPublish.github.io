@@ -24,6 +24,8 @@ EXPECTED_COLUMNS = [
     "Website",
     "APC Euros",
     "Scimago Rank",
+    "Scimago Quartile",
+    "H index",
     "PCI partner",
 ]
 

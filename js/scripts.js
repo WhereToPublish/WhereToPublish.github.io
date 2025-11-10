@@ -2,7 +2,7 @@ function parseCSV(csvText) {
     // We know the exact column order in the CSV:
     // 0: Journal, 1: Field, 2: Publisher, 3: Publisher type, 4: Business model,
     // 5: Institution, 6: Institution type, 7: Country, 8: Website, 9: APC Euros,
-    // 10: Scimago Rank, 11: PCI partner
+    // 10: Scimago Rank, 11: Scimago Quartile, 12: Impact Factor, 13: PCI partner
     const lines = csvText.split('\n');
     const data = [];
     const domains = new Set();
@@ -22,7 +22,9 @@ function parseCSV(csvText) {
         'Institution type',   // 8
         'Website',            // 9
         'Scimago Rank',       // 10
-        'PCI partner'         // 11
+        'Scimago Quartile',   // 11
+        'Impact Factor',      // 12
+        'PCI partner'         // 13
     ];
 
     // Mandatory columns that cannot be hidden
@@ -86,7 +88,9 @@ function parseCSV(csvText) {
             cols[6] || '', // Institution type
             cols[8] || '', // Website
             cols[10] || '', // Scimago Rank
-            cols[11] || ''  // PCI partner
+            cols[11] || '', // Scimago Quartile
+            cols[12] || '', // Impact Factor
+            cols[13] || ''  // PCI partner
         ];
 
         data.push(row);

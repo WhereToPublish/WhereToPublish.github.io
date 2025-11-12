@@ -54,14 +54,143 @@ def drop_empty_journals(df: pl.DataFrame, source_name: str) -> pl.DataFrame:
     return df
 
 
-def dedupe_by_journal_and_website(df: pl.DataFrame, source_name: str) -> pl.DataFrame:
-    """Deduplicate entries using OR logic in a simple single pass.
-    Rules:
-    - Normalize Journal with norm_name and Website with norm_url.
-    - Keep the first row in original order.
-    - A row is a duplicate if (normalized website is non-empty AND already seen) OR (normalized journal already seen).
-    - Prefer URL reason if both match; otherwise Name.
+def is_valid_value(val) -> bool:
+    """Check if a value is valid (not None, not empty, not 'nan')."""
+    return val is not None and str(val).strip() != "" and str(val).lower() != "nan"
 
+
+def collect_valid_values(entries: list[dict], field: str) -> list:
+    """Collect all valid values for a field from entries."""
+    return [entry.get(field) for entry in entries if is_valid_value(entry.get(field))]
+
+
+def merge_numeric_field(values: list, field: str) -> tuple[any, str | None]:
+    """Merge numeric field by keeping highest value. Returns (best_value, conflict_msg or None)."""
+    numeric_values = []
+    for v in values:
+        try:
+            numeric_values.append((float(v), v))
+        except (ValueError, TypeError):
+            pass
+
+    if not numeric_values:
+        return values[0], None
+
+    numeric_values.sort(key=lambda x: x[0], reverse=True)
+    best_val = numeric_values[0][1]
+
+    # Check for conflicts
+    unique_nums = set(nv[0] for nv in numeric_values)
+    conflict = None
+    if len(unique_nums) > 1:
+        conflict = f"{field}: kept={best_val} from options={[nv[1] for nv in numeric_values]}"
+
+    return best_val, conflict
+
+
+def merge_text_field(values: list, field: str) -> tuple[str, str | None]:
+    """Merge text field by keeping longest value. Returns (best_value, conflict_msg or None)."""
+    str_values = [(len(str(v)), str(v)) for v in values]
+    str_values.sort(key=lambda x: x[0], reverse=True)
+    best_val = str_values[0][1]
+
+    # Check for conflicts
+    unique_vals = set(sv[1] for sv in str_values if sv[1])
+    conflict = None
+    if len(unique_vals) > 1:
+        conflict = f"{field}: kept='{best_val}' from options={list(unique_vals)}"
+
+    return best_val, conflict
+
+
+def merge_duplicates(entries: list[dict]) -> dict:
+    """Merge duplicate entries by keeping the best information from all duplicates.
+    Args:
+        entries: List of dictionaries representing duplicate rows
+    Returns:
+        Merged dictionary with the best values from all entries
+    """
+    if not entries:
+        return {}
+
+    if len(entries) == 1:
+        return entries[0]
+
+    numeric_max_fields = {"APC Euros", "H index", "Scimago Rank"}
+    merged = {}
+    conflicts = []
+
+    # Process each field across all entries
+    for field in EXPECTED_COLUMNS:
+        values = collect_valid_values(entries, field)
+
+        if not values:
+            merged[field] = None
+        elif len(values) == 1:
+            merged[field] = values[0]
+        elif field in numeric_max_fields:
+            best_val, conflict = merge_numeric_field(values, field)
+            merged[field] = best_val
+            if conflict:
+                conflicts.append(conflict)
+        else:
+            best_val, conflict = merge_text_field(values, field)
+            merged[field] = best_val
+            if conflict:
+                conflicts.append(conflict)
+
+    # Log conflicts if any
+    if conflicts:
+        journal_name = merged.get("Journal", "Unknown")
+        print(f"\t[merge_duplicates] WARNING: Conflicts for Journal='{journal_name}':")
+        for conflict in conflicts:
+            print(f"\t\t{conflict}")
+
+    return merged
+
+
+def identify_duplicate_groups(df_norm: pl.DataFrame, source_name: str) -> tuple[dict, dict, int, int]:
+    """Identify duplicate groups by URL and Name. Returns (url_groups, name_groups, url_count, name_count)."""
+    duplicate_groups_by_url = {}
+    duplicate_groups_by_name = {}
+    seen_names = set()
+    seen_urls = set()
+    url_removed_count = 0
+    name_removed_count = 0
+
+    for row in df_norm.select(["row_idx", "norm_journal", "norm_website", "Journal", "Website"]).iter_rows(named=True):
+        idx = row["row_idx"]
+        nj = row["norm_journal"] or ""
+        nw = row["norm_website"] or ""
+
+        # URL duplicate has priority when website is non-empty and already seen
+        if nw and nw in seen_urls:
+            duplicate_groups_by_url.setdefault(nw, []).append(idx)
+            url_removed_count += 1
+            print(f"\t[dedupe:{source_name}] Duplicate (URL) norm_website='{nw}'"
+                  f"\n\t\tJournal='{row['Journal']}', Website='{row['Website']}'")
+            continue
+
+        # Name duplicate fallback
+        if nj in seen_names:
+            duplicate_groups_by_name.setdefault(nj, []).append(idx)
+            name_removed_count += 1
+            print(f"\t[dedupe:{source_name}] Duplicate (Name) norm_journal='{nj}'"
+                  f"\n\t\tJournal='{row['Journal']}', Website='{row['Website']}'")
+            continue
+
+        # Keep this row; register as seen and record as first in its group
+        seen_names.add(nj)
+        duplicate_groups_by_name.setdefault(nj, []).append(idx)
+        if nw:
+            seen_urls.add(nw)
+            duplicate_groups_by_url.setdefault(nw, []).append(idx)
+
+    return duplicate_groups_by_url, duplicate_groups_by_name, url_removed_count, name_removed_count
+
+
+def dedupe_by_journal_and_website(df: pl.DataFrame, source_name: str) -> pl.DataFrame:
+    """Deduplicate entries using OR logic and merge duplicate information.
     Logging:
     - Print one line per removed row: reason (URL/Name), normalized key, kept row (Journal/Website), removed row (Journal/Website).
     - Print a summary with URL and Name counts (sum equals total removed by construction).
@@ -74,68 +203,46 @@ def dedupe_by_journal_and_website(df: pl.DataFrame, source_name: str) -> pl.Data
         .with_row_index("row_idx")
     )
 
-    seen_names: set[str] = set()
-    seen_urls: set[str] = set()
-    kept_by_name: dict[str, tuple[str, str]] = {}
-    kept_by_url: dict[str, tuple[str, str]] = {}
+    # Identify duplicate groups
+    url_groups, name_groups, url_count, name_count = identify_duplicate_groups(df_norm, source_name)
 
-    removed_row_idxs: list[int] = []
-    url_removed_count = 0
-    name_removed_count = 0
-
-    # Iterate in current order (row_idx reflects original order at this point)
-    for row in df_norm.select(["row_idx", "norm_journal", "norm_website", "Journal", "Website"]).iter_rows(named=True):
-        idx = row["row_idx"]
-        nj = row["norm_journal"] or ""
-        nw = row["norm_website"] or ""
-        j = row["Journal"] or ""
-        w = row["Website"] or ""
-
-        # URL duplicate has priority when website is non-empty and already seen
-        if nw and nw in seen_urls:
-            kept_j, kept_w = kept_by_url.get(nw, ("", ""))
-            print(
-                f"\t[dedupe:{source_name}] Remove (URL) norm_website='{nw}'"
-                f"\n\t\tkept=[Journal='{kept_j}', Website='{kept_w}']\n\t\tremoved=[Journal='{j}', Website='{w}']"
-            )
-            removed_row_idxs.append(idx)
-            url_removed_count += 1
-            continue
-
-        # Name duplicate fallback
-        if nj in seen_names:
-            kept_j, kept_w = kept_by_name.get(nj, ("", ""))
-            print(
-                f"\t[dedupe:{source_name}] Remove (Name) norm_journal='{nj}'"
-                f"\n\t\tkept=[Journal='{kept_j}', Website='{kept_w}']\n\t\tremoved=[Journal='{j}', Website='{w}']"
-            )
-            removed_row_idxs.append(idx)
-            name_removed_count += 1
-            continue
-
-        # Keep this row; register as seen and record kept mappings
-        seen_names.add(nj)
-        kept_by_name.setdefault(nj, (j, w))
-        if nw:
-            seen_urls.add(nw)
-            kept_by_url.setdefault(nw, (j, w))
-
-    total_removed = url_removed_count + name_removed_count
+    total_removed = url_count + name_count
     if total_removed > 0:
-        print(f"\t[dedupe:{source_name}] Summary: removed {total_removed} row(s): "
-              f"\n\t{url_removed_count} by URL, {name_removed_count} by Name.")
+        print(f"\t[dedupe:{source_name}] Summary: found {total_removed} duplicate(s): "
+              f"\n\t{url_count} by URL, {name_count} by Name.")
+    else:
+        # No duplicates found, return early
+        return df_norm.drop([c for c in ("norm_journal", "norm_website", "row_idx") if c in df_norm.columns])
 
-    if not removed_row_idxs:
-        return df
+    # Convert dataframe to list of dicts for easier manipulation
+    all_rows = df_norm.drop([c for c in ("norm_journal", "norm_website", "row_idx") if c in df_norm.columns]).to_dicts()
 
-    # Build the result by filtering out removed row indices
-    removed_set = set(removed_row_idxs)
-    result = (
-        df_norm
-        .filter(~pl.col("row_idx").is_in(list(removed_set)))
-        .drop([c for c in ("norm_journal", "norm_website", "row_idx") if c in df_norm.columns])
-    )
-    return result
+    # Merge duplicate groups and track which indices to keep
+    processed_indices = set()
+    kept_indices = []
+
+    # Process URL groups first (higher priority), then Name groups
+    for groups in [url_groups, name_groups]:
+        for indices in groups.values():
+            if len(indices) > 1 and not any(idx in processed_indices for idx in indices):
+                entries = [all_rows[idx] for idx in indices]
+                merged = merge_duplicates(entries)
+                first_idx = min(indices)
+                all_rows[first_idx] = merged
+                kept_indices.append(first_idx)
+                processed_indices.update(indices)
+
+    # Keep non-duplicate rows as-is
+    for idx in range(len(all_rows)):
+        if idx not in processed_indices:
+            kept_indices.append(idx)
+
+    # Build result by selecting kept rows in order
+    kept_indices.sort()
+    result_rows = [all_rows[idx] for idx in kept_indices]
+
+    # Convert back to DataFrame
+    return pl.DataFrame(result_rows, schema_overrides={col: pl.Utf8 for col in EXPECTED_COLUMNS})
 
 
 def fill_field_from_main_field(df_in: pl.DataFrame) -> pl.DataFrame:

@@ -110,15 +110,15 @@ def format_APC_Euros(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def format_Scimago_Rank(df: pl.DataFrame) -> pl.DataFrame:
+def format_Scimago_Rank(df: pl.DataFrame, col: str = "Scimago Rank") -> pl.DataFrame:
     """Format the 'Scimago Rank' column to be a float, removing non-numeric characters."""
     return df.with_columns(
-        pl.col("Scimago Rank")
+        pl.col(col)
         .cast(pl.Utf8)
         .str.replace_all(",", ".")
         .str.replace_all(r"[^\d.]", "")
         .cast(pl.Float64, strict=False)
-        .alias("Scimago Rank")
+        .alias(col)
     )
 
 

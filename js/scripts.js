@@ -615,9 +615,7 @@ $(document).ready(function () {
                             targets: 0,
                             render: function (data, type, row) {
                                 if ((type === 'display' || type === 'filter') && row && row[9]) {
-                                    const website = row[9];
-                                    const url = website.startsWith('http') ? website : `https://${website}`;
-                                    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${data}</a>`;
+                                    return `<a href="${row[9]}" target="_blank" rel="noopener noreferrer">${data}</a>`;
                                 }
                                 return data;
                             }
@@ -626,9 +624,7 @@ $(document).ready(function () {
                             targets: 9,
                             render: function (data, type, row) {
                                 if ((type === 'display' || type === 'filter') && row && row[9]) {
-                                    const website = row[9];
-                                    const url = website.startsWith('http') ? website : `https://${website}`;
-                                    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${website}</a>`;
+                                    return `<a href="${row[9]}" target="_blank" rel="noopener noreferrer">${row[9]}</a>`;
                                 }
                                 return data;
                             },

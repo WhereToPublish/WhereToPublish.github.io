@@ -622,15 +622,29 @@ $(document).ready(function () {
                     },
                     columnDefs: [
                         {
-                            targets: 9,
-                            render: function (data, type) {
-                                if ((type === 'display' || type === 'filter') && data) {
-                                    const url = data.startsWith('http') ? data : `https://${data}`;
-                                    return `<a href="${url}" target="_blank" rel="noopener">${data}</a>`;
+                            targets: 0,
+                            render: function (data, type, row) {
+                                if ((type === 'display' || type === 'filter') && row && row[9]) {
+                                    const website = row[9];
+                                    const url = website.startsWith('http') ? website : `https://${website}`;
+                                    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${data}</a>`;
                                 }
                                 return data;
                             }
                         },
+                        {
+                            targets: 9,
+                            render: function (data, type, row) {
+                                if ((type === 'display' || type === 'filter') && row && row[9]) {
+                                    const website = row[9];
+                                    const url = website.startsWith('http') ? website : `https://${website}`;
+                                    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${website}</a>`;
+                                }
+                                return data;
+                            },
+                            searchable: false
+                        },
+                        { targets: 9, visible: false,  },
                         ...(toHide.length ? [{targets: toHide, visible: false}] : [])
                     ],
                     language: {

@@ -89,16 +89,19 @@ def format_scimago_quartile_from_categories(categories_str: str | None, best_qua
     # Extract (clean_name, 'Qn' or None)
     extracted: list[tuple[str, str | None]] = []
     q_pat = re.compile(r"\(Q([1-4])\)")
+    set_extracted = set()
     for item in raw_items:
         # Find quartile tag, typically at the end
         m = q_pat.search(item)
         q = f"Q{m.group(1)}" if m else None
         # Remove the quartile tag and '(miscellaneous)' tag from the name
         name = q_pat.sub("", item)
-        name = name.replace(" (miscellaneous)", "")
+        # Remove anything between parentheses at the end (e.g., miscellaneous)
+        name = re.sub(r"\s*\(.*?\)\s*$", "", name)
         name = name.strip()
         # Guard against empty after cleaning
-        if name:
+        if name and name not in set_extracted:
+            set_extracted.add(name)
             extracted.append((name, q))
 
     # Keep only categories with that best quartile

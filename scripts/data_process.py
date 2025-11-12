@@ -3,7 +3,8 @@
 import os
 from glob import glob
 import polars as pl
-from libraries import load_pci_friendly_set, mark_pci_friendly, format_table, normalize_publisher_type
+from libraries import load_pci_friendly_set, mark_pci_friendly, format_table, normalize_publisher_type, norm_name, \
+    norm_url
 
 INPUT_DIR = "data_merged"
 OUTPUT_DIR = "data"
@@ -53,26 +54,88 @@ def drop_empty_journals(df: pl.DataFrame, source_name: str) -> pl.DataFrame:
     return df
 
 
-def dedupe_by_journal(df: pl.DataFrame, source_name: str) -> pl.DataFrame:
-    """Deduplicate by Journal (case-insensitive, trimmed). Keep first occurrence and log a warning if any were removed."""
-    df_dup_norm = df.with_columns(
-        norm_journal=pl.col("Journal").cast(pl.Utf8).str.to_lowercase().str.strip_chars()
-    )
-    before = df_dup_norm.height
-    df_norm = df_dup_norm.unique(subset=["norm_journal"], keep="first")
-    after = df_norm.height
-    if after < before:
-        removed = before - after
-        seen = set()
-        dupes = set()
-        for x in df_dup_norm["norm_journal"]:
-            if x in seen:
-                dupes.add(x)
-            else:
-                seen.add(x)
-        print(f"Warning: removed {removed} duplicate Journal(s) in {source_name}: {', '.join(sorted(dupes))}")
+def dedupe_by_journal_and_website(df: pl.DataFrame, source_name: str) -> pl.DataFrame:
+    """Deduplicate entries using OR logic in a simple single pass.
+    Rules:
+    - Normalize Journal with norm_name and Website with norm_url.
+    - Keep the first row in original order.
+    - A row is a duplicate if (normalized website is non-empty AND already seen) OR (normalized journal already seen).
+    - Prefer URL reason if both match; otherwise Name.
 
-    return df_norm.drop(["norm_journal"]) if "norm_journal" in df_norm.columns else df_norm
+    Logging:
+    - Print one line per removed row: reason (URL/Name), normalized key, kept row (Journal/Website), removed row (Journal/Website).
+    - Print a summary with URL and Name counts (sum equals total removed by construction).
+    """
+    df_norm = (
+        df.with_columns(
+            norm_journal=pl.col("Journal").map_elements(norm_name, return_dtype=pl.Utf8),
+            norm_website=pl.col("Website").map_elements(norm_url, return_dtype=pl.Utf8),
+        )
+        .with_row_index("row_idx")
+    )
+
+    seen_names: set[str] = set()
+    seen_urls: set[str] = set()
+    kept_by_name: dict[str, tuple[str, str]] = {}
+    kept_by_url: dict[str, tuple[str, str]] = {}
+
+    removed_row_idxs: list[int] = []
+    url_removed_count = 0
+    name_removed_count = 0
+
+    # Iterate in current order (row_idx reflects original order at this point)
+    for row in df_norm.select(["row_idx", "norm_journal", "norm_website", "Journal", "Website"]).iter_rows(named=True):
+        idx = row["row_idx"]
+        nj = row["norm_journal"] or ""
+        nw = row["norm_website"] or ""
+        j = row["Journal"] or ""
+        w = row["Website"] or ""
+
+        # URL duplicate has priority when website is non-empty and already seen
+        if nw and nw in seen_urls:
+            kept_j, kept_w = kept_by_url.get(nw, ("", ""))
+            print(
+                f"\t[dedupe:{source_name}] Remove (URL) norm_website='{nw}'"
+                f"\n\t\tkept=[Journal='{kept_j}', Website='{kept_w}']\n\t\tremoved=[Journal='{j}', Website='{w}']"
+            )
+            removed_row_idxs.append(idx)
+            url_removed_count += 1
+            continue
+
+        # Name duplicate fallback
+        if nj in seen_names:
+            kept_j, kept_w = kept_by_name.get(nj, ("", ""))
+            print(
+                f"\t[dedupe:{source_name}] Remove (Name) norm_journal='{nj}'"
+                f"\n\t\tkept=[Journal='{kept_j}', Website='{kept_w}']\n\t\tremoved=[Journal='{j}', Website='{w}']"
+            )
+            removed_row_idxs.append(idx)
+            name_removed_count += 1
+            continue
+
+        # Keep this row; register as seen and record kept mappings
+        seen_names.add(nj)
+        kept_by_name.setdefault(nj, (j, w))
+        if nw:
+            seen_urls.add(nw)
+            kept_by_url.setdefault(nw, (j, w))
+
+    total_removed = url_removed_count + name_removed_count
+    if total_removed > 0:
+        print(f"\t[dedupe:{source_name}] Summary: removed {total_removed} row(s): "
+              f"\n\t{url_removed_count} by URL, {name_removed_count} by Name.")
+
+    if not removed_row_idxs:
+        return df
+
+    # Build the result by filtering out removed row indices
+    removed_set = set(removed_row_idxs)
+    result = (
+        df_norm
+        .filter(~pl.col("row_idx").is_in(list(removed_set)))
+        .drop([c for c in ("norm_journal", "norm_website", "row_idx") if c in df_norm.columns])
+    )
+    return result
 
 
 def fill_field_from_main_field(df_in: pl.DataFrame) -> pl.DataFrame:
@@ -123,7 +186,7 @@ def main():
         df = mark_pci_friendly(df, pci_friendly_set)
 
         # Deduplicate by Journal (case-insensitive, trimmed)
-        df = dedupe_by_journal(df, os.path.basename(csv_path))
+        df = dedupe_by_journal_and_website(df, os.path.basename(csv_path))
 
         # Sort alphabetically by Journal
         df = df.sort(by=["Journal"], descending=[False])
@@ -142,11 +205,8 @@ def main():
     # Create all_biology.csv as the concatenation of all processed frames, deduplicated by Journal
     if processed_frames:
         all_df = pl.concat(processed_frames, how="vertical_relaxed")
-        # Deduplicate by normalized Journal to be safe across files
-        all_df = all_df.with_columns(
-            norm_journal=pl.col("Journal").cast(pl.Utf8).str.to_lowercase().str.strip_chars()
-        )
-        all_df = all_df.unique(subset=["norm_journal"], keep="first").drop(["norm_journal"]).sort("Journal")
+        # Deduplicate using OR logic (same normalized journal OR same normalized website)
+        all_df = dedupe_by_journal_and_website(all_df, "all_biology.csv").sort("Journal")
 
         all_out_path = os.path.join(OUTPUT_DIR, "all_biology.csv")
         all_df.write_csv(all_out_path, quote_char='"', quote_style="always")

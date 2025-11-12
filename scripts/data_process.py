@@ -181,7 +181,6 @@ def main():
             pl.col("Publisher type").map_elements(normalize_publisher_type, return_dtype=pl.Utf8)
             .alias("Publisher type")
         )
-
         # Update PCI partner using PCI_friendly.csv list
         df = mark_pci_friendly(df, pci_friendly_set)
 

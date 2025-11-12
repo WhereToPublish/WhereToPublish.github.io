@@ -26,12 +26,28 @@ def load_csv(path: str) -> pl.DataFrame:
     return pl.read_csv(path, ignore_errors=True)
 
 
+def ascii_fallbacks(s: str) -> str:
+    """Handle characters that are not removed by unicode normalization.
+    """
+    # e.g. bad decoding of UTF-8 as Latin-1 or similar
+    mojibake = [("¬†", " "), ("√°√±", "an"), ("√º", "u"), ("√§", "a"),
+                ("√ß", "ç"), ("‚Äô", "'"), ("√©", "é"), ("√∫", "u"),
+                ("√o", "u"), ("√≠", "i"), ("√†", "à")]
+    for a, b in mojibake:
+        if a in s:
+            s = s.replace(a, b)
+    # Normalize various dashes to ASCII hyphen
+    s = s.replace("–", "-").replace("—", "-").replace("−", "-")
+    return s
+
+
 def clean_string(name: str) -> str:
     """General-purpose string cleaner for display/storage.
     - Return empty string for None
     - Unicode normalize to NFKC (compatibility decomposition + composition)
     - Remove control and formatting characters (categories Cc, Cf)
     - Replace non-breaking spaces with regular spaces
+    - Apply ASCII fallbacks for special letters and mojibake
     - Collapse all whitespace runs to a single space and trim
     """
     if name is None:
@@ -43,6 +59,8 @@ def clean_string(name: str) -> str:
     s = "".join(ch for ch in s if unicodedata.category(ch) not in {"Cc", "Cf"})
     # Normalize various space types
     s = s.replace("\u00A0", " ")  # non-breaking space to regular space
+    # Apply ASCII fallbacks and dash normalization (also fixes mojibake)
+    s = ascii_fallbacks(s)
     # Collapse whitespace and trim
     s = re.sub(r"\s+", " ", s).strip()
     return s
@@ -192,17 +210,21 @@ def normalize_publisher(name: str) -> str:
         return "BMJ Group"
     elif "BioOne Complete" in name:
         return "BioOne"
-    elif "OUP" in name:
-        return "Oxford University Press"
-    elif "APA" in name:
-        return "American Psychological Association"
-    elif "AMA" in name:
-        return "American Medical Association"
-    elif "AAAS" in name:
-        return "American Association for the Advancement of Science"
+    elif "OUP" in name or "oxford university press" in name_lower:
+        return "Oxford University Press (OUP)"
+    elif "CUP" in name or "cambridge university press" in name_lower:
+        return "Cambridge University Press (CUP)"
+    elif "APA" in name or "american psychological association" in name_lower:
+        return "American Psychological Association (APA)"
+    elif "AMA" in name or "american medical association" in name_lower:
+        return "American Medical Association (AMA)"
+    elif "ASM" in name or "american society for microbiology" in name_lower:
+        return "American Society for Microbiology (ASM)"
+    elif "AAAS" in name or "american association for the advancement of science" in name_lower:
+        return "American Association for the Advancement of Science (AAAS)"
     elif "public library of science" in name_lower or "plos" in name_lower:
         return "Public Library of Science (PLoS)"
-    elif "PCI" in name:
+    elif "PCI" in name or "peer community in" in name_lower:
         return "Peer Community In"
     return str(clean_string(name))
 

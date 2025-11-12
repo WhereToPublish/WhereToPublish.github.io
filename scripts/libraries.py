@@ -1,4 +1,6 @@
 import polars as pl
+import re
+import unicodedata
 
 # Expected columns and their final order
 FINAL_COLUMNS = [
@@ -25,21 +27,75 @@ def load_csv(path: str) -> pl.DataFrame:
 
 
 def clean_string(name: str) -> str:
-    if "¬†" in name:
-        name = name.replace("¬†", " ")
-    if "√©" in name:
-        name = name.replace("√©", "é")
-    if "√°√±" in name:
-        name = name.replace("√°√±", "an")
-    if "√º" in name:
-        name = name.replace("√º", "u")
-    if "√§" in name:
-        name = name.replace("√§", "a")
-    if "√ß" in name:
-        name = name.replace("√ß", "ç")
-    if "‚Äô" in name:
-        name = name.replace("‚Äô", "'")
-    return str(name).strip()
+    """General-purpose string cleaner for display/storage.
+    - Return empty string for None
+    - Unicode normalize to NFKC (compatibility decomposition + composition)
+    - Remove control and formatting characters (categories Cc, Cf)
+    - Replace non-breaking spaces with regular spaces
+    - Collapse all whitespace runs to a single space and trim
+    """
+    if name is None:
+        return ""
+    s = str(name)
+    # Normalize the text to handle compatibility characters
+    s = unicodedata.normalize("NFKC", s)
+    # Remove control and formatting characters (e.g., zero-width joiners)
+    s = "".join(ch for ch in s if unicodedata.category(ch) not in {"Cc", "Cf"})
+    # Normalize various space types
+    s = s.replace("\u00A0", " ")  # non-breaking space to regular space
+    # Collapse whitespace and trim
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def strip_diacritics(text: str) -> str:
+    """Remove diacritics from a unicode string using NFKD normalization."""
+    if text is None:
+        return ""
+    norm = unicodedata.normalize("NFKD", str(text))
+    return "".join(ch for ch in norm if not unicodedata.combining(ch))
+
+
+def norm_name(text: str) -> str:
+    """Normalize names for duplicate detection.
+    - Lowercase
+    - Remove diacritics
+    - Replace any sequence of non-alphanumeric characters with a single space
+    - Collapse multiple spaces, strip leading/trailing spaces
+    """
+    if text is None:
+        return ""
+    s = strip_diacritics(text).lower()
+    # Replace any non [a-z0-9] by space
+    s = re.sub(r"[^a-z0-9]+", " ", s)
+    # Collapse spaces and trim
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def norm_url(url: str) -> str:
+    """Normalize URLs for duplicate detection.
+    - Lowercase
+    - Strip scheme (http/https)
+    - Strip leading www.
+    - Remove query string and fragment
+    - Remove trailing slash
+    - Collapse whitespace and strip
+    """
+    if url is None:
+        return ""
+    s = str(url).strip().lower()
+    # Remove scheme
+    s = re.sub(r"^https?://", "", s)
+    # Remove query and fragment
+    s = s.split("?")[0].split("#")[0]
+    # Remove leading www.
+    s = re.sub(r"^www\.", "", s)
+    # Remove trailing slash(es)
+    s = s.rstrip("/")
+    # Collapse whitespace just in case
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
 
 
 def format_APC_Euros(df: pl.DataFrame) -> pl.DataFrame:
@@ -256,7 +312,8 @@ def infer_publisher_type_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
         "MDPI",
     }
     df = df.with_columns(pub_lower=pl.col("Publisher").cast(pl.Utf8))
-    empty_pubtype = pl.col("Publisher type").is_null() | (pl.col("Publisher type").cast(pl.Utf8).str.strip_chars() == "")
+    empty_pubtype = pl.col("Publisher type").is_null() | (
+            pl.col("Publisher type").cast(pl.Utf8).str.strip_chars() == "")
     is_forprofit = pl.col("pub_lower").is_in(list(for_profit))
     is_unipress = pl.col("pub_lower").cast(pl.Utf8).str.contains(r"University Press")
 
@@ -293,12 +350,12 @@ def annotate_publisher_type_from_institution_type(df: pl.DataFrame) -> pl.DataFr
     df_temp = df.with_columns(new_publisher_type=new_type_expr)
     changes = df_temp.filter(pl.col("new_publisher_type") != pl.col("Publisher type"))
     if changes.height > 0:
-        for row in changes.select(["Journal", "Publisher type", "Institution", "Institution type", "new_publisher_type"]).to_dicts():
-            print(
-                "[annotate_publisher_type_from_institution_type] Journal='{}', prev_publisher_type='{}', institution='{}', institution_type='{}', new_publisher_type='{}'".format(
-                    row.get("Journal"), row.get("Publisher type"), row.get("Institution"), row.get("Institution type"), row.get("new_publisher_type")
-                )
-            )
+        for row in changes.select(
+                ["Journal", "Publisher type", "Institution", "Institution type", "new_publisher_type"]).to_dicts():
+            print("\t[annotate_publisher_type_from_institution_type] Journal='{}'"
+                  "\n\t\tprev_publisher_type='{}', institution='{}',\n\t\tinstitution_type='{}', new_publisher_type='{}'".format(
+                row.get("Journal"), row.get("Publisher type"), row.get("Institution"), row.get("Institution type"),
+                row.get("new_publisher_type")))
     df_temp = df_temp.with_columns(pl.col("new_publisher_type").alias("Publisher type")).drop("new_publisher_type")
     return df_temp
 

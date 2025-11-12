@@ -1,7 +1,7 @@
 import os
 from glob import glob
 import polars as pl
-from libraries import load_pci_friendly_set, mark_pci_friendly, format_table
+from libraries import load_pci_friendly_set, mark_pci_friendly, format_table, norm_name
 
 # Constants
 DATA_EXTRACTED_DIR = "data_extracted"
@@ -14,13 +14,6 @@ COLUMNS_TO_UPDATE = [
     "Scimago Quartile",
     "H index"
 ]
-
-
-def remove_unused_characters(name: str) -> str:
-    """Remove unused characters from journal names for normalization."""
-    if name is None:
-        return ""
-    return str(name).replace("the ", "").replace("-", " ").replace("_", " ").strip()
 
 
 def update_and_log_statistics(df: pl.DataFrame, totals: dict) -> pl.DataFrame:
@@ -79,7 +72,7 @@ def main():
     )
 
     scimago_df = scimago_df.with_columns(
-        pl.col("Journal_scimago").str.to_lowercase().map_elements(remove_unused_characters, return_dtype=pl.Utf8).alias(
+        pl.col("Journal_scimago").str.to_lowercase().map_elements(norm_name, return_dtype=pl.Utf8).alias(
             "norm_journal_scimago"
         ),
         pl.when(pl.col("Open Access Diamond_scimago") == "Yes")
@@ -89,7 +82,8 @@ def main():
         .otherwise(None)
         .alias("Business model_scimago"),
         pl.col("Areas_scimago").str.split(";").list.first().alias("Journal's MAIN field_scimago"),
-        pl.col("Categories_scimago").str.split(";").list.first().str.replace(r" \(Q\d\)", "").str.replace(" (miscellaneous)", "", literal=True).alias("Field_scimago"),
+        pl.col("Categories_scimago").str.split(";").list.first().str.replace(r" \(Q\d\)", "").str.replace(
+            " (miscellaneous)", "", literal=True).alias("Field_scimago"),
     )
 
     # Keep only the necessary columns and remove duplicates
@@ -125,7 +119,7 @@ def main():
         original_cols = target_df.columns.copy()
 
         target_df = target_df.with_columns(
-            pl.col("Journal").str.to_lowercase().map_elements(remove_unused_characters, return_dtype=pl.Utf8).alias(
+            pl.col("Journal").str.to_lowercase().map_elements(norm_name, return_dtype=pl.Utf8).alias(
                 "norm_journal"
             )
         )

@@ -4,7 +4,7 @@ import polars as pl
 from glob import glob
 
 col="Journal"
-input_directory = "data_raw"
+input_directory = "data_extracted"
 output_file = "data_extraction/journals.txt"
 os.makedirs("data_extraction", exist_ok=True)
 journal_names = set()

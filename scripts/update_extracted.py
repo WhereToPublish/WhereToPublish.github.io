@@ -12,9 +12,7 @@ COLUMNS_TO_UPDATE = [
     "Publisher",
     "Business model",
     "Scimago Quartile",
-    "H index",
-    "Journal's MAIN field",
-    "Field",
+    "H index"
 ]
 
 
@@ -85,7 +83,7 @@ def main():
             "norm_journal_scimago"
         ),
         pl.when(pl.col("Open Access Diamond_scimago") == "Yes")
-        .then(pl.lit("Diamond OA"))
+        .then(pl.lit("OA diamond"))
         .when(pl.col("Open Access_scimago") == "Yes")
         .then(pl.lit("OA"))
         .otherwise(None)

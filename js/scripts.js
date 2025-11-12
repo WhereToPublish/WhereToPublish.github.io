@@ -258,15 +258,7 @@ $(document).ready(function () {
         $('.business-model-button').removeClass('active');
         $(this).addClass('active');
         if (dataTable) {
-            dataTable.column(4).search('Diamond OA', false, false).draw();
-            refreshHistogramFromTable(dataTable); // counts should NOT change here
-        }
-    });
-    $('#goldOABusinessModel').on('click', function () {
-        $('.business-model-button').removeClass('active');
-        $(this).addClass('active');
-        if (dataTable) {
-            dataTable.column(4).search('Gold OA', false, false).draw();
+            dataTable.column(4).search('OA diamond', false, false).draw();
             refreshHistogramFromTable(dataTable); // counts should NOT change here
         }
     });
@@ -364,13 +356,12 @@ $(document).ready(function () {
         let consideredCount = 0;
 
         const publisherTypeCounts = { 'For-profit': 0, 'Non-profit': 0, 'University Press': 0 };
-        const businessModelCounts = { 'Diamond OA': 0, 'Gold OA': 0, 'OA': 0, 'Hybrid': 0, 'Subscription': 0 };
+        const businessModelCounts = { 'OA diamond': 0, 'OA': 0, 'Hybrid': 0, 'Subscription': 0 };
 
         // Capture previously active business model button id (if any)
         const previouslyActiveId = $('.business-model-button.active').attr('id') || null;
         const idToModel = {
-            'diamondOABusinessModel': 'Diamond OA',
-            'goldOABusinessModel': 'Gold OA',
+            'diamondOABusinessModel': 'OA diamond',
             'oaBusinessModel': 'OA',
             'hybridBusinessModel': 'Hybrid',
             'subscriptionBusinessModel': 'Subscription'
@@ -400,8 +391,7 @@ $(document).ready(function () {
         // Update business model buttons text + dynamic hide/show for zero-count
         $('#allBusinessModels').text('All Business Models (' + consideredCount + ')');
         const modelToSelector = {
-            'Diamond OA': '#diamondOABusinessModel',
-            'Gold OA': '#goldOABusinessModel',
+            'OA diamond': '#diamondOABusinessModel',
             'OA': '#oaBusinessModel',
             'Hybrid': '#hybridBusinessModel',
             'Subscription': '#subscriptionBusinessModel'
@@ -701,8 +691,7 @@ $(document).ready(function () {
                             'University Press': 0,
                         };
                         const businessModelCounts = {
-                            'Diamond OA': 0,
-                            'Gold OA': 0,
+                            'OA diamond': 0,
                             'OA': 0,
                             'Hybrid': 0,
                             'Subscription': 0
@@ -723,17 +712,11 @@ $(document).ready(function () {
                         $('#universityPressPublishers').text('University Press (' + publisherTypeCounts['University Press'] + ')');
 
                         $('#allBusinessModels').text('All Business Models (' + allData.length + ')');
-                        if (businessModelCounts['Diamond OA'] === 0) {
+                        if (businessModelCounts['OA diamond'] === 0) {
                             $('#diamondOABusinessModel').addClass('hidden');
                         } else {
                             let d = $('#diamondOABusinessModel');
-                            d.removeClass('hidden').text('Diamond OA (' + businessModelCounts['Diamond OA'] + ')');
-                        }
-                        if (businessModelCounts['Gold OA'] === 0) {
-                            $('#goldOABusinessModel').addClass('hidden');
-                        } else {
-                            let d = $('#goldOABusinessModel');
-                            d.removeClass('hidden').text('Gold OA (' + businessModelCounts['Gold OA'] + ')');
+                            d.removeClass('hidden').text('OA diamond (' + businessModelCounts['OA diamond'] + ')');
                         }
                         if (businessModelCounts['OA'] === 0) {
                             $('#oaBusinessModel').addClass('hidden');
@@ -755,7 +738,7 @@ $(document).ready(function () {
                         }
 
                         // Render domain filter as dropdown if too many domains, else as buttons
-                        const tooManyDomains = Array.isArray(domains) && domains.length > 15;
+                        const tooManyDomains = Array.isArray(domains) && domains.length > 10;
                         domainFiltersContainer.empty();
                         if (tooManyDomains) {
                             // Dropdown select to save vertical space

@@ -27,6 +27,8 @@ def load_csv(path: str) -> pl.DataFrame:
 def clean_string(name: str) -> str:
     if "¬†" in name:
         name = name.replace("¬†", " ")
+    if "√©" in name:
+        name = name.replace("√©", "é")
     if "√°√±" in name:
         name = name.replace("√°√±", "an")
     if "√º" in name:
@@ -187,8 +189,8 @@ def derive_country_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
 def normalize_business_model(name: str) -> str:
     """Normalize business model values.
     "oa" -> "OA"
-    "gold_OA" -> "Gold OA"
-    "diamond_OA" -> "Diamond OA"
+    "gold_OA" -> "OA"
+    "diamond_OA" -> "OA diamond"
     "hybrid" -> "Hybrid"
     "subscription" -> "Subscription"
     """
@@ -197,10 +199,11 @@ def normalize_business_model(name: str) -> str:
     s = str(name).strip().lower()
     mapping = {
         "oa": "OA",
-        "gold_oa": "Gold OA",
-        "gold oa": "Gold OA",
-        "diamond_oa": "Diamond OA",
-        "diamond oa": "Diamond OA",
+        "gold_oa": "OA",
+        "gold oa": "OA",
+        "diamond_oa": "OA diamond",
+        "diamond oa": "OA diamond",
+        "oa diamond": "OA diamond",
         "hybrid": "Hybrid",
         "subscription": "Subscription",
     }

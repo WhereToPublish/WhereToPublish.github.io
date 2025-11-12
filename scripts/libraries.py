@@ -83,7 +83,7 @@ def norm_name(text: str) -> str:
     """
     if text is None:
         return ""
-    s = strip_diacritics(text).lower()
+    s = strip_diacritics(clean_string(text)).lower()
     # Replace any non [a-z0-9] by space
     s = re.sub(r"[^a-z0-9]+", " ", s)
     # Collapse spaces and trim
@@ -116,15 +116,38 @@ def norm_url(url: str) -> str:
     return s
 
 
-def format_APC_Euros(df: pl.DataFrame) -> pl.DataFrame:
+def format_url(url: str) -> str:
+    """Format a single URL to normalized form."""
+    # Add https:// if http/https scheme is missing
+    if url is None:
+        return ""
+    s = str(url).strip()
+    if not re.match(r"^https?://", s, re.IGNORECASE):
+        s = "https://" + s
+    # if http instead of https, convert to https
+    if s.lower().startswith("http://"):
+        s = "https://" + s[7:]
+    return s
+
+
+def format_urls(df: pl.DataFrame, col: str = "Website") -> pl.DataFrame:
+    """Format the 'Website' column to normalized URLs."""
+    return df.with_columns(
+        pl.col(col)
+        .map_elements(format_url, return_dtype=pl.Utf8)
+        .alias(col)
+    )
+
+
+def format_APC_Euros(df: pl.DataFrame, col: str = "APC Euros") -> pl.DataFrame:
     """Format the 'APC Euros' column to be integer, extracting only the part before any comma or period, then removing non-digit characters."""
     return df.with_columns(
-        pl.col("APC Euros")
+        pl.col(col)
         .cast(pl.Utf8)
         .str.replace_all(r"[,.].*", "")
         .str.replace_all(r"[^\d]", "")
         .cast(pl.Int64, strict=False)
-        .alias("APC Euros")
+        .alias(col)
     )
 
 
@@ -383,15 +406,15 @@ def annotate_publisher_type_from_institution_type(df: pl.DataFrame) -> pl.DataFr
 
 
 def format_table(df: pl.DataFrame) -> pl.DataFrame:
-    # Format numeric columns
+    # Format numeric columns and URLs
     df = format_APC_Euros(df)
     df = format_Scimago_Rank(df)
+    df = format_urls(df)
 
     # Normalize text fields
     # Format names
     df = df.with_columns(
-        pl.col("Journal").map_elements(clean_string, return_dtype=pl.Utf8)
-        .alias("Journal")
+        pl.col("Journal").map_elements(clean_string, return_dtype=pl.Utf8).alias("Journal")
     )
     df = df.with_columns(
         pl.col("Publisher").map_elements(normalize_publisher, return_dtype=pl.Utf8).alias("Publisher")
@@ -409,7 +432,7 @@ def format_table(df: pl.DataFrame) -> pl.DataFrame:
     # Ensure required columns exist for inference
     df = ensure_columns(df)
 
-    # Infer types and annotate publisher type based on institution type
+    # Infer types and annotate the publisher type based on the institution type
     df = infer_institution_type(df)
     df = infer_publisher_type_from_publisher(df)
     df = annotate_publisher_type_from_institution_type(df)

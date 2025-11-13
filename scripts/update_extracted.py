@@ -28,6 +28,45 @@ COLUMNS_TO_UPDATE = set([col for cols in FILE_COLS.values() for col, _ in cols])
 print(f"Columns to update: {COLUMNS_TO_UPDATE}")
 
 
+def validate_no_duplicates_for_join(right_df: pl.DataFrame, join_key: str, left_keys: set, source_name: str) -> None:
+    """Validate that the right DataFrame has no duplicates on the join key for keys that exist in the left DataFrame.
+
+    Args:
+        right_df: Right DataFrame in the join (lookup table)
+        join_key: Column name to check for duplicates in the right DataFrame
+        left_keys: Set of key values from the left DataFrame that will be joined
+        source_name: Name of the data source (for error messages)
+
+    Raises:
+        ValueError: If duplicates are found on the join key for keys that will be joined
+    """
+    # Filter right_df to only include rows where the join key is in left_keys
+    relevant_rows = right_df.filter(pl.col(join_key).is_in(list(left_keys)))
+
+    # Count rows and unique values for the join key in relevant rows
+    total_rows = relevant_rows.height
+    if total_rows == 0:
+        # No matching keys, nothing to validate
+        return
+
+    unique_values = relevant_rows[join_key].n_unique()
+
+    if total_rows != unique_values:
+        duplicates_count = total_rows - unique_values
+        # Find the duplicate values
+        duplicates = relevant_rows.group_by(join_key).agg(
+            pl.count().alias("count")
+        ).filter(pl.col("count") > 1).sort("count", descending=True)
+
+        error_msg = (
+            f"ERROR: Found {duplicates_count} duplicate entries in {source_name} on join key '{join_key}' "
+            f"for keys that will be joined.\n"
+            f"Total relevant rows: {total_rows}, Unique values: {unique_values}\n"
+            f"Top duplicates:\n{duplicates.head(10)}"
+        )
+        raise ValueError(error_msg)
+
+
 def format_scimago_quartile_from_categories(categories_str: str | None, best_quartile: str | None) -> str | None:
     """Return a string like 'Q1 (Oncology and Cancer; Medicine)' built from the Categories field.
 
@@ -318,7 +357,11 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
         pl.col("Journal").map_elements(norm_name, return_dtype=pl.Utf8)
         .alias("norm_journal")
     )
+    # Get the set of keys that will be used for joining
+    left_keys = set(target_df["norm_journal"].unique().to_list())
 
+    # Validate Scimago lookup has no duplicates for keys that will be joined
+    validate_no_duplicates_for_join(scimago_lookup, "norm_journal_scimago", left_keys, "Scimago")
     # Join with Scimago data
     updated_df = target_df.join(
         scimago_lookup,
@@ -327,10 +370,11 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
         how="left",
         coalesce=False,
     )
-
     # Update columns from Scimago
     updated_df = update_and_log_statistics(updated_df, totals, source="scimago")
 
+    # Validate OpenAPC lookup has no duplicates for keys that will be joined
+    validate_no_duplicates_for_join(openapc_lookup, "norm_journal_openapc", left_keys, "OpenAPC")
     # Join with OpenAPC data
     updated_df = updated_df.join(
         openapc_lookup,
@@ -339,10 +383,11 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
         how="left",
         coalesce=False,
     )
-
     # Update APC Euros from OpenAPC
     updated_df = update_and_log_statistics(updated_df, totals, source="openapc")
 
+    # Validate DOAJ lookup has no duplicates for keys that will be joined
+    validate_no_duplicates_for_join(doaj_lookup, "norm_journal_doaj", left_keys, "DOAJ")
     # Join with DOAJ data
     updated_df = updated_df.join(
         doaj_lookup,
@@ -351,16 +396,13 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
         how="left",
         coalesce=False,
     )
-
     # Update columns from DOAJ
     updated_df = update_and_log_statistics(updated_df, totals, source="doaj")
 
     # Apply formatting and normalization
     updated_df = format_table(updated_df)
-
     # Mark PCI friendly journals
     updated_df = mark_pci_friendly(updated_df, pci_friendly_set)
-
     # Select original columns only (avoid helper/join columns)
     final_df = updated_df.select(original_cols)
 

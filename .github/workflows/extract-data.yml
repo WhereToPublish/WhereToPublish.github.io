@@ -1,0 +1,43 @@
+name: Extract Data (DOAJ, OpenAPC, Scimago)
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Process data
+        run: bash ./scripts/clean_run.sh
+
+      - name: Commit and push if changed
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add data/
+          git diff --cached --quiet || git commit -m "Extract data from DOAJ, OpenAPC, Scimago and update data files"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
+          force_with_lease: true

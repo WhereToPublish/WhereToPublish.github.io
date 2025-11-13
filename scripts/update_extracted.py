@@ -16,7 +16,8 @@ FILE_COLS = {"scimago": [("Scimago Rank", True),
                          ("Scimago Quartile", True),
                          ("H index", True)],
              "openapc": [("APC Euros", True),
-                         ("Publisher", False)]}
+                         ("Publisher", False),
+                         ("Business model", False)]}
 COLUMNS_TO_UPDATE = set([col for cols in FILE_COLS.values() for col, _ in cols])
 print(f"Columns to update: {COLUMNS_TO_UPDATE}")
 
@@ -124,7 +125,7 @@ def load_openapc_lookup() -> pl.DataFrame:
     """Load and process OpenAPC data into a lookup table.
 
     Returns:
-        pl.DataFrame: Processed OpenAPC lookup table with normalized journal names and max APC.
+        pl.DataFrame: Processed OpenAPC lookup table with normalized journal names and aggregated data from last 5 years.
     """
     openapc_df = pl.read_csv(OPENAPC_FILE)
     openapc_df = openapc_df.rename(
@@ -133,18 +134,37 @@ def load_openapc_lookup() -> pl.DataFrame:
          "publisher": "Publisher_openapc"}
     )
 
-    # Normalize journal names
+    # Normalize journal names first
     openapc_df = openapc_df.with_columns(
         pl.col("Journal_openapc").map_elements(norm_name, return_dtype=pl.Utf8).alias("norm_journal_openapc")
     )
 
-    # Format APC Euros
-    openapc_df = format_APC_Euros(openapc_df, "APC Euros_openapc")
-    # Group by normalized journal name and take the maximum APC Euros and corresponding publisher
-    return openapc_df.group_by("norm_journal_openapc").agg([
-        pl.col("APC Euros_openapc").max().alias("APC Euros_openapc"),
-        pl.col("Publisher_openapc").first().alias("Publisher_openapc"),
+    # For each journal, determine the last 5 years with available data
+    # First, find the max period (latest year) for each journal
+    max_periods = openapc_df.group_by("norm_journal_openapc").agg(
+        pl.col("period").max().alias("max_period")
+    )
+
+    # Join back and filter to keep only last 5 years of data per journal
+    openapc_df = openapc_df.join(max_periods, on="norm_journal_openapc", how="left")
+    openapc_df = openapc_df.filter(
+        pl.col("period") > (pl.col("max_period") - 5)
+    )
+
+    # Group by normalized journal name and aggregate:
+    # - Mean APC Euros from last 5 years
+    # - Most frequent publisher from last 5 years
+    # - Majority vote for is_hybrid (if more than 50% are hybrid, mark as Hybrid)
+    openapc_df = openapc_df.group_by("norm_journal_openapc").agg([
+        pl.col("APC Euros_openapc").mean().alias("APC Euros_openapc"),
+        pl.col("Publisher_openapc").mode().first().alias("Publisher_openapc"),
+        pl.when(pl.col("is_hybrid").mean() > 0.5)
+        .then(pl.lit("Hybrid"))
+        .otherwise(None)
+        .alias("Business model_openapc"),
     ])
+
+    return format_APC_Euros(openapc_df, "APC Euros_openapc")
 
 
 def update_column_from_source(df: pl.DataFrame, col: str, source_col: str,
@@ -302,6 +322,7 @@ def main():
     for col, total in totals.items():
         if total > 0:
             print(f"\t- Total {col} updates: {total}")
+
 
 if __name__ == "__main__":
     main()

@@ -104,6 +104,24 @@ function escapeRegExp(string) {
     return String(string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// Place the Columns control next to the DataTables search box
+function placeColumnsControlNextToSearch() {
+    const $wrapper = $('#journalTable').closest('.dataTables_wrapper');
+    const $filter = $wrapper.find('.dataTables_filter');
+    const $control = $('.table-controls .column-visibility');
+    if ($filter.length && $control.length) {
+        $filter.append($control);
+    }
+}
+
+// Move the Columns control back to its original container (hidden) before destroying/reloading
+function restoreColumnsControlToDock() {
+    const $controlInWrapper = $('#journalTable').closest('.dataTables_wrapper').find('.column-visibility');
+    if ($controlInWrapper.length) {
+        $('.table-controls').append($controlInWrapper);
+    }
+}
+
 $(document).ready(function () {
     let dataTable; // Variable to store the DataTable instance
 
@@ -548,6 +566,8 @@ $(document).ready(function () {
         try {
             // Clear existing table if it exists
             if (dataTable) {
+                // move Columns control back to the dock before destroying the wrapper
+                restoreColumnsControlToDock();
                 dataTable.destroy();
                 $('#journalTable tbody').empty();
                 $('#domainFilters').empty();
@@ -664,6 +684,9 @@ $(document).ready(function () {
 
                         // Build column toggle menu now that visibility is finalized
                         buildColumnToggleMenu(table, allHeadersText, defaultVisibleHeaders, mandatoryHeaders);
+
+                        // Move Columns control next to search box
+                        placeColumnsControlNextToSearch();
 
                         // Persist defaults if no saved preferences existed
                         if (!savedVis) {

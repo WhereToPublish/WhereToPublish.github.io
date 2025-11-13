@@ -84,12 +84,16 @@ def norm_name(text: str) -> str:
     if text is None:
         return ""
     s = strip_diacritics(clean_string(text)).lower()
-    # Replace any non [a-z0-9] by space
-    s = re.sub(r"[^a-z0-9]+", " ", s)
-    # Collapse spaces and trim
-    s = re.sub(r"\s+", " ", s).strip()
     if s.startswith("the "):
         s = s.replace("the ", "", 1)
+    if " and " in s:
+        s = s.replace(" and ", " ")
+    if "&" in s:
+        s = s.replace("&", " ")
+    # Remove any non [a-z0-9]
+    s = re.sub(r"[^a-z0-9]+", "", s)
+    # Collapse spaces and trim
+    s = re.sub(r"\s+", " ", s).strip()
     return s
 
 

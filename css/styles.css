@@ -197,6 +197,9 @@ table.dataTable tr.university-press-row:hover {
     float: right;
     box-sizing: border-box;
     text-align: right;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 .dataTables_wrapper .dataTables_filter input {
     padding: 8px 12px 8px 35px;
@@ -224,11 +227,14 @@ table.dataTable tr.university-press-row:hover {
         padding-right: 5px;
         float: none;
         width: 100%;
+        flex-wrap: wrap;
+        justify-content: space-between;
     }
 
     .dataTables_wrapper .dataTables_filter input {
-        width: 100%;
-        max-width: 300px;
+        flex: 1 1 auto;
+        min-width: 200px;
+        max-width: 100%;
     }
 
     .dataTables_wrapper .dataTables_info {
@@ -241,6 +247,8 @@ table.dataTable tr.university-press-row:hover {
 @media (max-width: 480px) {
     .dataTables_wrapper .dataTables_filter {
         text-align: center;
+        gap: 8px;
+        justify-content: center;
     }
 
     .dataTables_wrapper .dataTables_filter input {
@@ -906,7 +914,7 @@ p.modal-trigger:after {
 
 /* Column visibility toggle */
 .table-controls {
-    display: flex;
+    display: none; /* we'll inject the button next to the search box */
     justify-content: flex-end;
     margin: 10px 0 5px 0;
 }
@@ -916,30 +924,32 @@ p.modal-trigger:after {
 }
 
 .column-toggle-button {
-    padding: 6px 10px;
-    border: 1px solid #e2e8f0;
+    padding: 8px 12px;
+    border: 1px solid #2b6cb0;
     border-radius: 6px;
-    background: #f8fafc;
+    background: #3182ce;
     cursor: pointer;
     font-size: 13px;
-    color: #4a5568;
-    transition: all 0.2s ease;
+    color: #ffffff;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 3px rgba(49,130,206,0.3);
 }
 
 .column-toggle-button:hover {
-    background: #ebf8ff;
-    border-color: #bee3f8;
+    background: #2b6cb0;
+    border-color: #2b6cb0;
+    box-shadow: 0 2px 6px rgba(49,130,206,0.35);
 }
 
 .column-toggle-menu {
     position: absolute;
     right: 0;
     top: calc(100% + 4px);
-    width: 220px;
+    width: 240px;
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    box-shadow: 0 10px 24px rgba(0,0,0,0.10);
     padding: 8px;
     display: none;
     z-index: 10;

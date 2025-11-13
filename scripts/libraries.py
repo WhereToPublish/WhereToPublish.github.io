@@ -32,7 +32,7 @@ def ascii_fallbacks(s: str) -> str:
     # e.g. bad decoding of UTF-8 as Latin-1 or similar
     mojibake = [("¬†", " "), ("√°√±", "an"), ("√º", "u"), ("√§", "a"),
                 ("√ß", "ç"), ("‚Äô", "'"), ("√©", "é"), ("√∫", "u"),
-                ("√o", "u"), ("√≠", "i"), ("√†", "à")]
+                ("√o", "u"), ("√≠", "i"), ("√†", "à"), ("Äö", "")]
     for a, b in mojibake:
         if a in s:
             s = s.replace(a, b)

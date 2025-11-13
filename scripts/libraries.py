@@ -88,6 +88,8 @@ def norm_name(text: str) -> str:
     s = re.sub(r"[^a-z0-9]+", " ", s)
     # Collapse spaces and trim
     s = re.sub(r"\s+", " ", s).strip()
+    if s.startswith("the "):
+        s = s.replace("the ", "", 1)
     return s
 
 
@@ -287,6 +289,84 @@ def derive_country_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
+def standardize_country_name(name: str) -> str:
+    """Standardize country names to common abbreviations and names.
+    Maps various country name variants to standard forms.
+    """
+    if name is None:
+        return ""
+    s = str(name).strip()
+    if not s:
+        return ""
+
+    s_lower = s.lower()
+    mapping = {
+        "united states": "USA",
+        "united states of america": "USA",
+        "us": "USA",
+        "usa": "USA",
+        "united kingdom": "UK",
+        "great britain": "UK",
+        "uk": "UK",
+        "england": "UK",
+        "netherlands": "Netherlands",
+        "the netherlands": "Netherlands",
+        "holland": "Netherlands",
+        "germany": "Germany",
+        "deutschland": "Germany",
+        "france": "France",
+        "switzerland": "Switzerland",
+        "swiss": "Switzerland",
+        "spain": "Spain",
+        "españa": "Spain",
+        "italy": "Italy",
+        "italia": "Italy",
+        "canada": "Canada",
+        "australia": "Australia",
+        "china": "China",
+        "japan": "Japan",
+        "india": "India",
+        "brazil": "Brazil",
+        "brasil": "Brazil",
+        "mexico": "Mexico",
+        "méxico": "Mexico",
+        "argentina": "Argentina",
+        "russia": "Russia",
+        "russian federation": "Russia",
+        "south korea": "South Korea",
+        "korea": "South Korea",
+        "republic of korea": "South Korea",
+        "new zealand": "New Zealand",
+        "poland": "Poland",
+        "portugal": "Portugal",
+        "austria": "Austria",
+        "belgium": "Belgium",
+        "denmark": "Denmark",
+        "finland": "Finland",
+        "sweden": "Sweden",
+        "norway": "Norway",
+        "ireland": "Ireland",
+        "czech republic": "Czech Republic",
+        "czechia": "Czech Republic",
+        "hungary": "Hungary",
+        "romania": "Romania",
+        "greece": "Greece",
+        "turkey": "Turkey",
+        "türkiye": "Turkey",
+        "south africa": "South Africa",
+        "egypt": "Egypt",
+        "iran": "Iran",
+        "islamic republic of iran": "Iran",
+        "israel": "Israel",
+        "saudi arabia": "Saudi Arabia",
+    }
+
+    if s_lower in mapping:
+        return mapping[s_lower]
+    # Return capitalized version if not in mapping
+    return s
+
+
 def normalize_business_model(name: str) -> str:
     """Normalize business model values.
     "oa" -> "OA"
@@ -425,7 +505,9 @@ def format_table(df: pl.DataFrame) -> pl.DataFrame:
     df = df.with_columns(
         pl.col("Institution").map_elements(normalize_institution, return_dtype=pl.Utf8).alias("Institution")
     )
-
+    df = df.with_columns(
+        pl.col("Country").map_elements(standardize_country_name, return_dtype=pl.Utf8).alias("Country")
+    )
     # Derive Country from Publisher when missing/empty
     df = derive_country_from_publisher(df)
 

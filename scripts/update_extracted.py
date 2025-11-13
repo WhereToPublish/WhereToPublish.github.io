@@ -7,6 +7,7 @@ import re
 DATA_EXTRACTED_DIR = "data_extracted"
 SCIMAGO_FILE = os.path.join("data_extraction", "scimagojr.csv")
 OPENAPC_FILE = os.path.join("data_extraction", "openapc.csv")
+DOAJ_FILE = os.path.join("data_extraction", "DOAJ.csv")
 FILES_TO_SKIP = []
 
 # Columns that should be updated from each data source
@@ -17,7 +18,12 @@ FILE_COLS = {"scimago": [("Scimago Rank", True),
                          ("H index", True)],
              "openapc": [("APC Euros", True),
                          ("Publisher", False),
-                         ("Business model", False)]}
+                         ("Business model", False)],
+             "doaj": [("Publisher", False),
+                      ("Country", False),
+                      ("Institution", False),
+                      ("APC Euros", False)]}
+
 COLUMNS_TO_UPDATE = set([col for cols in FILE_COLS.values() for col, _ in cols])
 print(f"Columns to update: {COLUMNS_TO_UPDATE}")
 
@@ -167,6 +173,65 @@ def load_openapc_lookup() -> pl.DataFrame:
     return format_APC_Euros(openapc_df, "APC Euros_openapc")
 
 
+def load_doaj_lookup() -> pl.DataFrame:
+    """Load and process DOAJ data into a lookup table.
+
+    Returns:
+        pl.DataFrame: Processed DOAJ lookup table with normalized journal names.
+    """
+    doaj_df = pl.read_csv(DOAJ_FILE)
+
+    # Rename columns to match our naming convention
+    doaj_df = doaj_df.rename({
+        "Journal title": "Journal_doaj",
+        "Publisher": "Publisher_doaj",
+        "Country of publisher": "Country_doaj",
+        "Other organisation": "Institution_doaj",
+        "APC amount": "APC Euros_doaj",
+    })
+
+    # Normalize journal names
+    doaj_df = doaj_df.with_columns(
+        pl.col("Journal_doaj").map_elements(norm_name, return_dtype=pl.Utf8).alias("norm_journal_doaj")
+    )
+
+    # Filter APC Euros to only include EUR currency
+    # The APC amount column typically has format like "1000 EUR" or "2000 USD"
+    doaj_df = doaj_df.with_columns(
+        pl.when(pl.col("APC Euros_doaj").cast(pl.Utf8).str.contains("EUR"))
+        .then(pl.col("APC Euros_doaj"))
+        .otherwise(None)
+        .alias("APC Euros_doaj")
+    )
+
+    # Standardize country names
+    doaj_df = doaj_df.with_columns(
+        pl.col("Country_doaj").map_elements(standardize_country_name, return_dtype=pl.Utf8).alias("Country_doaj")
+    )
+
+    # Clean institution names
+    doaj_df = doaj_df.with_columns(
+        pl.col("Institution_doaj").map_elements(normalize_institution, return_dtype=pl.Utf8).alias("Institution_doaj")
+    )
+
+    # Clean publisher names
+    doaj_df = doaj_df.with_columns(
+        pl.col("Publisher_doaj").map_elements(normalize_publisher, return_dtype=pl.Utf8).alias("Publisher_doaj")
+    )
+
+    # Format APC Euros (extract numeric value)
+    doaj_df = format_APC_Euros(doaj_df, "APC Euros_doaj")
+
+    # Keep only necessary columns and remove duplicates (keep first occurrence)
+    return doaj_df.select([
+        "norm_journal_doaj",
+        "Publisher_doaj",
+        "Country_doaj",
+        "Institution_doaj",
+        "APC Euros_doaj"
+    ]).unique(subset=["norm_journal_doaj"], keep="first")
+
+
 def update_column_from_source(df: pl.DataFrame, col: str, source_col: str,
                               always_overwrite: bool = False) -> tuple[pl.DataFrame, int]:
     """Update a column from a source column, optionally overwriting existing values.
@@ -231,13 +296,14 @@ def update_and_log_statistics(df: pl.DataFrame, totals: dict, source: str = "sci
 
 
 def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup: pl.DataFrame,
-                     pci_friendly_set: set, totals: dict) -> None:
-    """Process a single CSV file with Scimago and OpenAPC data.
+                     doaj_lookup: pl.DataFrame, pci_friendly_set: set, totals: dict) -> None:
+    """Process a single CSV file with Scimago, OpenAPC, and DOAJ data.
 
     Args:
         csv_path: Path to the CSV file to process
         scimago_lookup: Scimago lookup table
         openapc_lookup: OpenAPC lookup table
+        doaj_lookup: DOAJ lookup table
         pci_friendly_set: Set of PCI-friendly journal names
         totals: Dictionary to accumulate update counts
     """
@@ -277,6 +343,18 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
     # Update APC Euros from OpenAPC
     updated_df = update_and_log_statistics(updated_df, totals, source="openapc")
 
+    # Join with DOAJ data
+    updated_df = updated_df.join(
+        doaj_lookup,
+        left_on="norm_journal",
+        right_on="norm_journal_doaj",
+        how="left",
+        coalesce=False,
+    )
+
+    # Update columns from DOAJ
+    updated_df = update_and_log_statistics(updated_df, totals, source="doaj")
+
     # Apply formatting and normalization
     updated_df = format_table(updated_df)
 
@@ -293,7 +371,7 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
 
 def main():
     """Main function to update Scimago and OpenAPC information in CSV files."""
-    print("Starting script to update Scimago and OpenAPC info...")
+    print("Starting script to update Scimago, OpenAPC, and DOAJ info...")
 
     # Load lookup tables
     pci_friendly_set = load_pci_friendly_set()
@@ -302,6 +380,9 @@ def main():
 
     openapc_lookup = load_openapc_lookup()
     print(f"Successfully loaded and processed OpenAPC data from {OPENAPC_FILE}")
+
+    doaj_lookup = load_doaj_lookup()
+    print(f"Successfully loaded and processed DOAJ data from {DOAJ_FILE}")
 
     # Initialize totals for tracking updates
     totals = {col: 0 for col in COLUMNS_TO_UPDATE}
@@ -313,7 +394,7 @@ def main():
             print(f"Skipping file: {filename}")
             continue
 
-        process_csv_file(csv_path, scimago_lookup, openapc_lookup, pci_friendly_set, totals)
+        process_csv_file(csv_path, scimago_lookup, openapc_lookup, doaj_lookup, pci_friendly_set, totals)
 
     # Print summary
     print("\nScript finished.")

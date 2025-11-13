@@ -58,4 +58,18 @@ The columns in each CSV file are as follows in this order:
     "Website",
     "APC Euros",
     "Scimago Rank",
+    "Scimago Quartile",
+    "H index",
     "PCI partner"
+
+The raw data is downloaded and stored in the data_extracted/ directory, using the scripts/download_csv.sh script.
+The data is processed using Python scripts located in the "scripts/" directory, using mainly the polars library.
+First, the script "scripts/update_extracted.py" is used to update the raw data from various sources (DOAJ, Scimago, OpenAPC) and complete missing information or correct existing information. The input csv files are in the folder "data_extracted/" and the output csv are re-written in the same folder. 
+The data sources are:
+- DOAJ: Directory of Open Access Journals, providing information about open access journals, including publisher and country, in the file "data_extraction/DOAJ.csv".
+- Scimago: Journal ranking data, providing information about journal ranks and quartiles, in the file "data_extraction/scimagor.csv".
+- OpenAPC: Open Article Processing Charges data, providing information about APCs and business, in the file "data_extraction/openapc.csv".
+Second, the script "scripts/data_merge_dafnee.py" is used to merge the DAFNEE data (data_extracted/dafnee.csv) with the other data sources (data_extracted/*.csv). Mainly it spreads the DAFNEE data the csv files ecology_evolution.csv and generalist.csv. The input csv files are in the folder "data_extracted/" and the output csv are in the folder "data_merged/". 
+Third, the script "scripts/data_process.py" is used to process the merged data and generate the final CSV files used by the JS code. Mainly it formats and cleans the data, removes duplicates, and concatenates the various csv files into a single csv file "data/all_biology.csv". The input csv files are in the folder "data_merged/" ("data_merged/*.csv") and the output csv files are in the folder ("data/*.csv").
+The file "scipts/libraries.py" contains helper functions used by the other scripts (e.g., formatting functions, etc.).
+Always run scripts from the root directory (e.g., python3 scripts/data_process.py) due to relative paths.

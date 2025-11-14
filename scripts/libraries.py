@@ -145,16 +145,38 @@ def format_urls(df: pl.DataFrame, col: str = "Website") -> pl.DataFrame:
     )
 
 
+def format_APC(apc: str) -> str:
+    """Format a single APC value to extract the integer part before any comma or period, removing non-digit characters."""
+    if apc is None:
+        return ""
+    s = str(apc)
+    # Their can be ";" as separator for multiple values, take the one that contains EUR
+    if ";" in s:
+        parts = s.split(";")
+        eur_parts = [p for p in parts if "eur" in p.lower()]
+        if eur_parts:
+            s = eur_parts[0]
+        else:
+            s = parts[0]
+    # Extract part before comma or period
+    s = re.split(r"[,.]", s)[0]
+    # Remove non-digit characters
+    s = re.sub(r"[^\d]", "", s)
+    return s
+
+
 def format_APC_Euros(df: pl.DataFrame, col: str = "APC Euros") -> pl.DataFrame:
     """Format the 'APC Euros' column to be integer, extracting only the part before any comma or period, then removing non-digit characters."""
-    return df.with_columns(
-        pl.col(col)
-        .cast(pl.Utf8)
-        .str.replace_all(r"[,.].*", "")
-        .str.replace_all(r"[^\d]", "")
-        .cast(pl.Int64, strict=False)
+    df = df.with_columns(
+        pl.col(col).map_elements(format_APC, return_dtype=pl.Utf8).cast(pl.Int64, strict=False)
         .alias(col)
     )
+    # assert there is no APC < 0 and APC > 20000
+    filter_invalid = df.filter((pl.col(col).is_not_null()) & ((pl.col(col) < 0) | (pl.col(col) > 20000)))
+    if filter_invalid.height > 0:
+        print("Invalid APC Euros values found:")
+        print(filter_invalid)
+    return df
 
 
 def format_Scimago_Rank(df: pl.DataFrame, col: str = "Scimago Rank") -> pl.DataFrame:

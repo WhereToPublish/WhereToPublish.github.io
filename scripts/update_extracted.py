@@ -21,6 +21,7 @@ FILE_COLS = {"scimago": [("Scimago Rank", True),
                          ("Business model", False)],
              "doaj": [("Publisher", False),
                       ("Country", False),
+                      ("Website", False),
                       ("Institution", False),
                       ("APC Euros", False)]}
 
@@ -226,6 +227,7 @@ def load_doaj_lookup() -> pl.DataFrame:
         "Publisher": "Publisher_doaj",
         "Country of publisher": "Country_doaj",
         "Other organisation": "Institution_doaj",
+        "Journal URL": "Website_doaj",
         "APC amount": "APC Euros_doaj",
     })
 
@@ -260,6 +262,7 @@ def load_doaj_lookup() -> pl.DataFrame:
 
     # Format APC Euros (extract numeric value)
     doaj_df = format_APC_Euros(doaj_df, "APC Euros_doaj")
+    doaj_df = format_urls(doaj_df, "Website_doaj")
 
     # Keep only necessary columns and remove duplicates (keep first occurrence)
     return doaj_df.select([
@@ -267,6 +270,7 @@ def load_doaj_lookup() -> pl.DataFrame:
         "Publisher_doaj",
         "Country_doaj",
         "Institution_doaj",
+        "Website_doaj",
         "APC Euros_doaj"
     ]).unique(subset=["norm_journal_doaj"], keep="first")
 
@@ -347,7 +351,7 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
         totals: Dictionary to accumulate update counts
     """
     print(f"Processing file: {csv_path}")
-    target_df = pl.read_csv(csv_path)
+    target_df = pl.read_csv(csv_path, ignore_errors=True)
 
     # Keep track of original columns to avoid persisting helper columns
     original_cols = target_df.columns.copy()

@@ -6,6 +6,6 @@ URL_DOAJ="https://doaj.org/csv"
 rm -rf ./data_extraction
 mkdir -p ./data_extraction
 wget -O ./data_extraction/PCI_friendly.csv "${URL_PCI}/export?format=csv"
-wget -O ./data_extraction/scimagojr.csv "${URL_SCIMAGO}?out=xls"
+wget --header="User-Agent: Mozilla/5.0" -O ./data_extraction/scimagojr.csv "${URL_SCIMAGO}?out=xls"
 wget -O ./data_extraction/openapc.csv "${URL_OPENAPC}"
 wget -O ./data_extraction/DOAJ.csv "${URL_DOAJ}"

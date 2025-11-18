@@ -249,8 +249,20 @@ def normalize_publisher(name: str) -> str:
         return "Springer Nature"
     elif "wiley" in name_lower:
         return "John Wiley & Sons"
-    elif "taylor" in name_lower and "francis" in name_lower:
+    elif "de gruyter" in name_lower:
+        return "De Gruyter Brill"
+    elif "karger" in name_lower:
+        return "Karger Publishers"
+    elif "inderscience" in name_lower:
+        return "Inderscience Publishers"
+    elif ("taylor" in name_lower) and ("francis" in name_lower) and ("(" not in name_lower):
         return "Taylor & Francis Group"
+    elif ("taylor" in name_lower) and ("francis" in name_lower):
+        return "Taylor & Francis Group (" + name.split("(", 1)[1]
+    elif ("sage" in name_lower) and ("(" not in name_lower):
+        return "Sage Publishing"
+    elif "sage publishing" in name_lower:
+        return "Sage Publishing (" + name.split("(", 1)[1]
     elif "Cell" == name or "cell press" in name_lower:
         return "Elsevier (Cell Press)"
     elif "elsevier" in name_lower:
@@ -284,24 +296,39 @@ def derive_country_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
     """ Derive 'Country' from known 'Publisher' names when 'Country' is missing/empty.
     """
     country_map = {
-        "Oxford University Press": "UK",
-        "Cambridge University Press": "UK",
+        "American Association for the Advancement of Science (AAAS)": "USA",
+        "American Psychological Association (APA)": "USA",
+        "American Medical Association (AMA)": "USA",
+        "BioOne": "USA",
         "BMJ Group": "UK",
-        "Springer Nature": "Germany/UK",
-        "The Royal Society": "UK",
-        "MDPI": "Switzerland",
-        "Frontiers Media SA": "Switzerland",
-        "Peer Community In": "France",
+        "Cambridge University Press (CUP)": "UK",
+        "De Gruyter": "Germany",
         "Elsevier": "Netherlands",
         "Elsevier (Cell Press)": "USA",
+        "Frontiers Media SA": "Switzerland",
+        "Inderscience Publishers": "Switzerland",
+        "John Libbey Eurotext": "France",
         "John Wiley & Sons": "USA",
-        "Taylor & Francis Group": "USA",
-        "BioOne": "USA",
+        "Karger Publishers": "Switzerland",
+        "MDPI": "Switzerland",
+        "Oxford University Press (OUP)": "UK",
+        "Peer Community In": "France",
         "Sage Publishing": "USA",
+        "Sage Publishing (Mary Ann Liebert)": "USA",
+        "Sage Publishing (IOS Press)": "UK / Germany",
+        "Springer Nature": "Germany / UK",
+        "Springer Nature (BioMed Central)": "UK",
+        "Taylor & Francis Group": "UK",
+        "Taylor & Francis Group (Dovepress)": "UK",
+        "Taylor & Francis Group (F1000 research)": "UK",
+        "Taylor & Francis Group (Routledge)": "UK",
+        "Thieme Group": "Germany",
+        "The Royal Society": "UK",
         "Public Library of Science (PLoS)": "USA",
-        "American Association for the Advancement of Science": "USA",
-        "American Psychological Association": "USA",
-        "American Medical Association": "USA",
+        "Wolters Kluwer": "Netherlands",
+        "Wolters Kluwer (Lippincott)": "Netherlands (USA)",
+        "Wolters Kluwer (Akadémiai Kiadó Journals)": "Netherlands (Hungary)",
+        "World Scientific Publishing": "Singapore",
     }
     return df.with_columns(
         pl.when(

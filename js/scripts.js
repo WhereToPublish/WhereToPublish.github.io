@@ -26,6 +26,12 @@ function parseCSV(csvText) {
         'H index',            // 12
         'PCI partner'         // 13
     ];
+    const columnDefs = {
+        5: 'APC values are obtained from OpenAPC as the average in the last 3 years.',
+        10: 'Scimago Rank is an ordinal position where higher numbers indicate higher impact.',
+        11: 'Scimago Quartile ranges from Q1 (best) to Q4 (lowest)',
+        12: 'At least H publications have received at least H citations.'
+    };
 
     // Mandatory columns that cannot be hidden
     const mandatoryHeaders = new Set(['Journal', 'Publisher type']);
@@ -36,7 +42,20 @@ function parseCSV(csvText) {
     // Render table headers (we render all headers so DataTables knows columns; visibility handled later)
     const headerRow = $('#journalTable thead tr');
     headerRow.empty();
-    allHeadersText.forEach(headerText => headerRow.append($('<th>').text(headerText)));
+    allHeadersText.forEach((headerText, index) => {
+        const $th = $('<th>');
+        const $label = $('<span>').text(headerText);
+        $th.append($label);
+        if (columnDefs[index]) {
+            const $icon = $('<span>')
+                .addClass('hint--bottom hint--medium hint--rounded info-icon')
+                .attr('aria-label', columnDefs[index])
+                .attr('tabindex', '0')
+                .text('ⓘ');
+            $th.append($icon);
+        }
+        headerRow.append($th);
+    });
 
     // Helper to split a CSV line into fields, handling quotes and escaped quotes
     function splitCSVLine(line) {

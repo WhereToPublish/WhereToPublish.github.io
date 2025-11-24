@@ -788,6 +788,21 @@ p.modal-trigger:after {
     margin-left: 5px;
 }
 
+.info-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 6px;
+    font-size: 1em;
+    color: #3182ce;
+    cursor: help;
+    outline: none;
+}
+
+.info-icon:focus {
+    color: #2b6cb0;
+}
+
 @media (max-width: 768px) {
     .modal-content {
         width: 90%;

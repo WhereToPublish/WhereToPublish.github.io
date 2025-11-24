@@ -32,9 +32,9 @@ def derive_publisher_type_from_publisher_and_institution(df: pl.DataFrame) -> pl
         if publisher_type.lower() == "non-profit":
             return "Non-profit"
         if institution_type.lower() == "uni/gov":
-            return f"{publisher_type} on behalf of a university or government institution"
+            return f"{publisher_type} associated with a university or government institution"
         elif institution_type.lower() in ["non-profit", "society", "museum"]:
-            return f"{publisher_type} on behalf of a {institution_type.lower()}"
+            return f"{publisher_type} associated with a {institution_type.lower()}"
         else:
             return publisher_type
 

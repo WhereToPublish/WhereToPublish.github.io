@@ -582,14 +582,14 @@ def normalize_publisher_type(name: str) -> str:
     s = str(name).strip().lower()
 
     if "for-profit" in s and "society" in s:
-        return "For-profit on behalf of a society"
-    elif "for-profit" in s and "behalf" in s:
+        return "For-profit associated to a society"
+    elif "for-profit" in s and "associated" in s:
         return name.strip()
     elif "for-profit" in s:
         return "For-profit"
     elif "university press" in s and "society" in s:
-        return "University Press on behalf of a society"
-    elif "university press" in s and "behalf" in s:
+        return "University Press associated to a society"
+    elif "university press" in s and "associated" in s:
         return name.strip()
     elif "university press" in s:
         return "University Press"

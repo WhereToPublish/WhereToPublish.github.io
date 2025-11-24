@@ -44,15 +44,16 @@ function parseCSV(csvText) {
     headerRow.empty();
     allHeadersText.forEach((headerText, index) => {
         const $th = $('<th>');
-        const $label = $('<span>').text(headerText);
-        $th.append($label);
         if (columnDefs[index]) {
             const $icon = $('<span>')
-                .addClass('hint--bottom hint--medium hint--rounded info-icon')
+                .addClass('hint--bottom hint--medium hint--rounded')
                 .attr('aria-label', columnDefs[index])
                 .attr('tabindex', '0')
-                .text('ⓘ');
+                .text(headerText);
             $th.append($icon);
+        } else {
+            const $label = $('<span>').text(headerText);
+            $th.append($label);
         }
         headerRow.append($th);
     });
@@ -563,10 +564,6 @@ $(document).ready(function () {
                         {
                             extend: 'colvis',
                             columns: ':not(.noVis)',
-                            // Render the collection attached to <body> to avoid any clipping by overflow
-                            collectionLayout: 'fixed',
-                            dropup: true,
-                            // Add a Reset option inside the dropdown
                             postfixButtons: [
                                 {
                                     text: 'Reset columns',

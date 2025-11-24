@@ -87,7 +87,7 @@ table.dataTable {
     width: 100%;
     margin: 25px 0;
     border-radius: 8px;
-    overflow: hidden;
+    overflow: visible;
     box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     table-layout: auto;
 }
@@ -95,7 +95,7 @@ table.dataTable {
 /* Responsive table container */
 #journalTable_wrapper {
     width: 100%;
-    overflow-x: auto;
+    overflow: visible;
     max-width: 100%;
     margin: 0 auto;
     box-sizing: border-box;
@@ -954,4 +954,19 @@ div.dt-button-background {
         min-width: 0;
         font-size: 14px;
     }
+}
+
+/* Ensure header cells don’t clip hint tooltips */
+#journalTable_wrapper table.dataTable thead,
+#journalTable_wrapper table.dataTable th {
+    position: relative;
+    overflow: visible;
+}
+
+/* Raise hint tooltip layers above the table */
+#journalTable_wrapper .hint--bottom:before,
+#journalTable_wrapper .hint--bottom:after,
+#journalTable_wrapper .hint--top:before,
+#journalTable_wrapper .hint--top:after {
+    z-index: 1000002;
 }

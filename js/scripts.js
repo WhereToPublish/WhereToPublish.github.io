@@ -123,24 +123,6 @@ function escapeRegExp(string) {
     return String(string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// Place the Columns control next to the DataTables search box
-function placeColumnsControlNextToSearch() {
-    const $wrapper = $('#journalTable').closest('.dataTables_wrapper');
-    const $filter = $wrapper.find('.dataTables_filter');
-    const $control = $('.table-controls .column-visibility');
-    if ($filter.length && $control.length) {
-        $filter.append($control);
-    }
-}
-
-// Move the Columns control back to its original container (hidden) before destroying/reloading
-function restoreColumnsControlToDock() {
-    const $controlInWrapper = $('#journalTable').closest('.dataTables_wrapper').find('.column-visibility');
-    if ($controlInWrapper.length) {
-        $('.table-controls').append($controlInWrapper);
-    }
-}
-
 $(document).ready(function () {
     let dataTable; // Variable to store the DataTable instance
 
@@ -178,23 +160,6 @@ $(document).ready(function () {
         }
         return true;
     }
-
-    // Add click handler for expandable rows
-    $('#journalTable').on('click', 'td.details-control', function () {
-        var tr = $(this).closest('tr');
-        var row = dataTable ? dataTable.row(tr) : $('#journalTable').DataTable().row(tr);
-
-        if (row.child.isShown()) {
-            // This row is already open - close it
-            row.child.hide();
-            tr.removeClass('shown');
-        } else {
-            // Open this row
-            var content = tr.data('child-content');
-            row.child(content).show();
-            tr.addClass('shown');
-        }
-    });
 
     // Data source buttons
     $('#allJournals').on('click', function () {
@@ -585,8 +550,6 @@ $(document).ready(function () {
         try {
             // Clear existing table if it exists
             if (dataTable) {
-                // move Columns control back to the dock before destroying the wrapper
-                restoreColumnsControlToDock();
                 dataTable.destroy();
                 $('#journalTable tbody').empty();
                 $('#domainFilters').empty();
@@ -669,7 +632,6 @@ $(document).ready(function () {
                             },
                             searchable: false
                         },
-                        { targets: 9, visible: false,  },
                         ...(toHide.length ? [{targets: toHide, visible: false}] : [])
                     ],
                     language: {
@@ -699,13 +661,10 @@ $(document).ready(function () {
                         var domainFiltersContainer = $('#domainFilters');
 
                         // Add placeholder to search input
-                        $('.dataTables_filter input').attr('placeholder', 'Search journals...');
+                        $('.dt-input').attr('placeholder', 'Search journals...');
 
                         // Build column toggle menu now that visibility is finalized
                         buildColumnToggleMenu(table, allHeadersText, defaultVisibleHeaders, mandatoryHeaders);
-
-                        // Move Columns control next to search box
-                        placeColumnsControlNextToSearch();
 
                         // Persist defaults if no saved preferences existed
                         if (!savedVis) {
@@ -713,7 +672,7 @@ $(document).ready(function () {
                         }
 
                         // Search box updates only histogram
-                        $('.dataTables_filter input').on('keyup', function () {
+                        $('.dt-input').on('keyup', function () {
                             refreshHistogramFromTable(table);
                         });
 

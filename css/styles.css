@@ -93,7 +93,7 @@ table.dataTable {
 }
 
 /* Responsive table container */
-.dataTables_wrapper {
+#journalTable_wrapper {
     width: 100%;
     overflow-x: auto;
     max-width: 100%;
@@ -102,7 +102,7 @@ table.dataTable {
 }
 
 @media (max-width: 768px) {
-    .dataTables_wrapper {
+    #journalTable_wrapper {
         padding-right: 5px; /* Add some padding on the right side */
     }
 }
@@ -191,7 +191,7 @@ table.dataTable tr.non-profit-row:hover,
 table.dataTable tr.university-press-row:hover {
     background-color: #ebf4ff;
 }
-.dataTables_wrapper .dataTables_filter {
+#journalTable_wrapper .dt-input {
     margin-bottom: 20px;
     width: auto;
     float: right;
@@ -200,8 +200,6 @@ table.dataTable tr.university-press-row:hover {
     display: flex;
     align-items: center;
     gap: 10px;
-}
-.dataTables_wrapper .dataTables_filter input {
     padding: 8px 12px 8px 35px;
     border: 1px solid #cbd5e0;
     border-radius: 6px;
@@ -209,19 +207,18 @@ table.dataTable tr.university-press-row:hover {
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     transition: all 0.2s ease;
     max-width: 100%;
-    box-sizing: border-box;
     background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23718096" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
     background-repeat: no-repeat;
     background-position: 10px center;
     background-size: 16px 16px;
 }
 
-.dataTables_wrapper .dataTables_filter input::placeholder {
+#journalTable_wrapper .dt-input::placeholder {
     color: #a0aec0;
 }
 
 @media (max-width: 768px) {
-    .dataTables_wrapper .dataTables_filter {
+    #journalTable_wrapper .dt-input {
         text-align: left;
         margin-bottom: 15px;
         padding-right: 5px;
@@ -229,15 +226,12 @@ table.dataTable tr.university-press-row:hover {
         width: 100%;
         flex-wrap: wrap;
         justify-content: space-between;
-    }
-
-    .dataTables_wrapper .dataTables_filter input {
         flex: 1 1 auto;
         min-width: 200px;
         max-width: 100%;
     }
 
-    .dataTables_wrapper .dataTables_info {
+    #journalTable_wrapper .dt-info {
         float: none;
         width: 100%;
         margin-bottom: 10px;
@@ -245,32 +239,29 @@ table.dataTable tr.university-press-row:hover {
 }
 
 @media (max-width: 480px) {
-    .dataTables_wrapper .dataTables_filter {
+    #journalTable_wrapper .dt-input {
         text-align: center;
         gap: 8px;
         justify-content: center;
-    }
-
-    .dataTables_wrapper .dataTables_filter input {
         width: 100%;
         max-width: 100%;
         padding: 6px 10px;
         font-size: 0.9rem;
     }
 }
-.dataTables_wrapper .dataTables_filter input:focus {
+#journalTable_wrapper .dt-input:focus {
     outline: none;
     border-color: #4299e1;
     box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
 }
-.dataTables_wrapper .dataTables_length select {
+#journalTable_wrapper .dataTables_length select {
     padding: 8px 12px;
     border: 1px solid #cbd5e0;
     border-radius: 6px;
     font-family: 'Roboto', sans-serif;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
-.dataTables_wrapper .dataTables_info {
+#journalTable_wrapper .dt-info {
     margin-bottom: 20px;
     color: #718096;
     font-size: 0.9rem;
@@ -280,7 +271,7 @@ table.dataTable tr.university-press-row:hover {
     padding-right: 5px;
     line-height: 32px; /* Match the height of the search input */
 }
-.dataTables_wrapper .dataTables_paginate {
+#journalTable_wrapper .dataTables_paginate {
     margin-top: 20px;
     width: 100%;
     box-sizing: border-box;
@@ -289,8 +280,8 @@ table.dataTable tr.university-press-row:hover {
 }
 
 @media (max-width: 480px) {
-    .dataTables_wrapper .dataTables_info,
-    .dataTables_wrapper .dataTables_paginate {
+    #journalTable_wrapper .dt-info,
+    #journalTable_wrapper .dataTables_paginate {
         width: 100%;
         text-align: center;
         float: none;
@@ -298,7 +289,7 @@ table.dataTable tr.university-press-row:hover {
         font-size: 0.85rem;
     }
 }
-.dataTables_wrapper .dataTables_paginate .paginate_button {
+#journalTable_wrapper .dataTables_paginate .paginate_button {
     padding: 8px 14px;
     border: 1px solid #e2e8f0;
     margin: 0 3px;
@@ -311,7 +302,7 @@ table.dataTable tr.university-press-row:hover {
 }
 
 @media (max-width: 768px) {
-    .dataTables_wrapper .dataTables_paginate .paginate_button {
+    #journalTable_wrapper .dataTables_paginate .paginate_button {
         padding: 6px 10px;
         margin: 0 2px;
         font-size: 0.9rem;
@@ -319,7 +310,7 @@ table.dataTable tr.university-press-row:hover {
 }
 
 @media (max-width: 480px) {
-    .dataTables_wrapper .dataTables_paginate .paginate_button {
+    #journalTable_wrapper .dataTables_paginate .paginate_button {
         padding: 4px 8px;
         margin: 0 1px;
         font-size: 0.85rem;
@@ -327,7 +318,7 @@ table.dataTable tr.university-press-row:hover {
 }
 
 @media (max-width: 320px) {
-    .dataTables_wrapper .dataTables_paginate .paginate_button {
+    #journalTable_wrapper .dataTables_paginate .paginate_button {
         padding: 3px 6px;
         margin: 0;
         font-size: 0.8rem;
@@ -335,15 +326,15 @@ table.dataTable tr.university-press-row:hover {
     }
 
     /* Hide some pagination buttons on very small screens */
-    .dataTables_wrapper .dataTables_paginate .paginate_button:not(.previous):not(.next):not(.current) {
+    #journalTable_wrapper .dataTables_paginate .paginate_button:not(.previous):not(.next):not(.current) {
         display: none;
     }
 }
-.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+#journalTable_wrapper .dataTables_paginate .paginate_button:hover {
     background-color: #ebf8ff;
     border-color: #bee3f8;
 }
-.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+#journalTable_wrapper .dataTables_paginate .paginate_button.current {
     background-color: #3182ce;
     color: white !important;
     border: 1px solid #3182ce;
@@ -351,7 +342,7 @@ table.dataTable tr.university-press-row:hover {
 }
 
 /* Add clearfix to ensure proper layout with floated elements */
-.dataTables_wrapper:after {
+#journalTable_wrapper:after {
     content: "";
     display: table;
     clear: both;
@@ -413,38 +404,6 @@ table.dataTable tr.university-press-row:hover {
 .domain-no {
     color: #e53e3e;
     font-weight: 500;
-}
-
-/* Style for the expandable row control */
-td.details-control {
-    position: relative;
-    cursor: pointer;
-}
-
-td.details-control:before {
-    content: '+';
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    color: #3182ce;
-    font-weight: bold;
-    margin-right: 8px;
-    width: 18px;
-    height: 18px;
-    text-align: center;
-    border: 1px solid #3182ce;
-    border-radius: 50%;
-    font-size: 14px;
-    transition: all 0.2s ease;
-}
-
-tr.shown td.details-control:before {
-    content: '-';
-    color: white;
-    background-color: #3182ce;
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
 }
 
 /* Styles for domain filter buttons */
@@ -884,33 +843,7 @@ p.modal-trigger:after {
     opacity: 1;
 }
 
-.legend-item {
-    display: inline-block;
-    margin: 0 10px;
-    padding: 5px 10px;
-    background-color: #f8fafc;
-    border-radius: 4px;
-    border: 1px solid #e2e8f0;
-    font-size: 0.9rem;
-}
-
-@media (max-width: 768px) {
-    .legend-item {
-        margin: 0 5px;
-        padding: 4px 8px;
-        font-size: 0.85rem;
-        display: inline-block;
-    }
-}
-
 @media (max-width: 480px) {
-    .legend-item {
-        margin: 5px 3px;
-        padding: 3px 6px;
-        font-size: 0.8rem;
-        display: inline-block;
-    }
-
     .footer p {
         display: flex;
         flex-wrap: wrap;
@@ -929,7 +862,7 @@ p.modal-trigger:after {
 
 /* Column visibility toggle */
 .table-controls {
-    display: none; /* we'll inject the button next to the search box */
+    float: right;
     justify-content: flex-end;
     margin: 10px 0 5px 0;
 }

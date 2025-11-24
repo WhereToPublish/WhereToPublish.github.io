@@ -860,6 +860,16 @@ p.modal-trigger:after {
     display: none !important;
 }
 
+/* Ensure DataTables Buttons collections appear above FixedHeader and other UI */
+div.dt-button-collection {
+    z-index: 10050 !important; /* higher than FixedHeader */
+    max-height: 75vh; /* prevent off-screen overflow on small viewports */
+    overflow: auto;
+}
+div.dt-button-background {
+    z-index: 10049 !important;
+}
+
 /* Column visibility toggle */
 .table-controls {
     float: right;

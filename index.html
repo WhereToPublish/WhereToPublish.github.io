@@ -8,6 +8,9 @@
     <link rel="alternate icon" href="favicon.ico" type="image/x-icon">
     <link rel="stylesheet" type="text/css" href="vendor/dataTables.dataTables.min.css">
     <link rel="stylesheet" type="text/css" href="vendor/responsive.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="vendor/buttons.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="vendor/stateRestore.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="vendor/fixedHeader.dataTables.min.css">
     <link rel="stylesheet" type="text/css" href="vendor/hint.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -82,15 +85,7 @@
         <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 80px; height: 3px; background: linear-gradient(90deg, #3182ce, #63b3ed); border-radius: 3px;"></div>
     </div>
 
-    <!-- Table controls: column visibility dropdown -->
-    <div class="table-controls">
-        <div class="column-visibility">
-            <button id="columnToggleButton" class="column-toggle-button" aria-haspopup="true" aria-expanded="false">Visible columns ▾</button>
-            <div id="columnToggleMenu" class="column-toggle-menu" role="menu" aria-label="Toggle columns visibility">
-                <!-- Checkboxes will be populated by JavaScript -->
-            </div>
-        </div>
-    </div>
+    <!-- Buttons (export & column visibility) will be added above the table by DataTables Buttons -->
 
     <table id="journalTable" class="display" style="width:100%; margin-top: 0;">
         <thead>
@@ -129,7 +124,12 @@
 
 <script src="vendor/jquery.min.js"></script>
 <script src="vendor/dataTables.min.js"></script>
+<script src="vendor/dataTables.buttons.min.js"></script>
+<script src="vendor/buttons.html5.min.js"></script>
+<script src="vendor/buttons.colVis.min.js"></script>
+<script src="vendor/dataTables.stateRestore.min.js"></script>
 <script src="vendor/dataTables.responsive.min.js"></script>
+<script src="vendor/dataTables.fixedHeader.min.js"></script>
 <script src="js/scripts.js"></script>
 
 </body>

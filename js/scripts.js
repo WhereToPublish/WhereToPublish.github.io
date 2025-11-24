@@ -125,6 +125,8 @@ function escapeRegExp(string) {
 
 $(document).ready(function () {
     let dataTable; // Variable to store the DataTable instance
+    let currentDataSource = null; // Track current CSV file
+    let resetFieldOnNextLoad = false; // Only reset Field filter when switching CSV
 
     // Track APC slider state for persistent filtering
     let currentMaxAPC = '10000';
@@ -165,52 +167,82 @@ $(document).ready(function () {
     $('#allJournals').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('data/all_biology.csv');
+        const src = 'data/all_biology.csv';
+        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
+        currentDataSource = src;
+        loadTable(src);
     });
     $('#generalist').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('data/generalist.csv');
+        const src = 'data/generalist.csv';
+        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
+        currentDataSource = src;
+        loadTable(src);
     });
     $('#cancer').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('data/cancer.csv');
+        const src = 'data/cancer.csv';
+        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
+        currentDataSource = src;
+        loadTable(src);
     });
     $('#development').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('data/development.csv');
+        const src = 'data/development.csv';
+        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
+        currentDataSource = src;
+        loadTable(src);
     });
     $('#ecologyEvolution').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('data/ecology_evolution.csv');
+        const src = 'data/ecology_evolution.csv';
+        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
+        currentDataSource = src;
+        loadTable(src);
     });
     $('#geneticsGenomics').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('data/genetics_genomics.csv');
+        const src = 'data/genetics_genomics.csv';
+        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
+        currentDataSource = src;
+        loadTable(src);
     });
     $('#immunology').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('data/immunology.csv');
+        const src = 'data/immunology.csv';
+        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
+        currentDataSource = src;
+        loadTable(src);
     });
     $('#molecularCellularBiology').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('data/molecular_cellular_biology.csv');
+        const src = 'data/molecular_cellular_biology.csv';
+        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
+        currentDataSource = src;
+        loadTable(src);
     });
     $('#neurosciences').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('data/neurosciences.csv');
+        const src = 'data/neurosciences.csv';
+        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
+        currentDataSource = src;
+        loadTable(src);
     });
     $('#plants').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        loadTable('data/plants.csv');
+        const src = 'data/plants.csv';
+        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
+        currentDataSource = src;
+        loadTable(src);
     });
 
     // Profit status filter buttons
@@ -455,95 +487,7 @@ $(document).ready(function () {
         }
     }
 
-    // Column toggle menu
-    function buildColumnToggleMenu(table, allHeadersText, defaultVisibleHeaders, mandatoryHeaders) {
-        const menu = $('#columnToggleMenu');
-        menu.empty();
-        allHeadersText.forEach((header, index) => {
-            const isMandatory = mandatoryHeaders.has(header);
-            const isChecked = table.column(index).visible();
-            const item = $('<label class="column-toggle-item"></label>');
-            const checkbox = $('<input type="checkbox">')
-                .prop('checked', isChecked)
-                .prop('disabled', isMandatory)
-                .on('change', function () {
-                    if (isMandatory && !this.checked) {
-                        this.checked = true;
-                        return;
-                    }
-                    table.column(index).visible(this.checked, false);
-                    scheduleAdjust(table);
-                    saveVisibleColumns(table, allHeadersText, mandatoryHeaders);
-                });
-            item.append(checkbox).append($('<span>').text(header));
-            menu.append(item);
-        });
-        const sep = $('<hr>').css({border: 'none', borderTop: '1px solid #e2e8f0', margin: '6px 0'});
-        const resetBtn = $('<button type="button" class="column-toggle-button" style="width:100%;margin-top:4px;">Reset columns</button>')
-            .on('click', function (e) {
-                e.stopPropagation();
-                try {
-                    localStorage.removeItem(COLUMN_VIS_STATE_KEY);
-                } catch (_) {
-                }
-                allHeadersText.forEach((header, idx) => {
-                    const mustShow = defaultVisibleHeaders.has(header) || mandatoryHeaders.has(header);
-                    table.column(idx).visible(mustShow, false);
-                });
-                scheduleAdjust(table);
-                buildColumnToggleMenu(table, allHeadersText, defaultVisibleHeaders, mandatoryHeaders);
-            });
-        menu.append(sep).append(resetBtn);
-    }
-
-    // Column visibility persistence
-    const COLUMN_VIS_STATE_KEY = 'wtp_visible_columns_v1';
-
-    function saveVisibleColumns(table, allHeadersText, mandatoryHeaders) {
-        const state = {};
-        allHeadersText.forEach((header, idx) => {
-            const visible = mandatoryHeaders.has(header) ? true : table.column(idx).visible();
-            state[header] = !!visible;
-        });
-        try {
-            localStorage.setItem(COLUMN_VIS_STATE_KEY, JSON.stringify(state));
-        } catch (_) {
-        }
-    }
-
-    function loadVisibleColumns() {
-        try {
-            const raw = localStorage.getItem(COLUMN_VIS_STATE_KEY);
-            if (!raw) return null;
-            return JSON.parse(raw);
-        } catch (_) {
-            return null;
-        }
-    }
-
-    function computeDesiredVisibility(allHeadersText, defaultVisibleHeaders, mandatoryHeaders, saved) {
-        return allHeadersText.map(header => {
-            if (mandatoryHeaders.has(header)) return true;
-            if (saved && Object.prototype.hasOwnProperty.call(saved, header)) return !!saved[header];
-            return defaultVisibleHeaders.has(header);
-        });
-    }
-
-    // Column toggle dropdown open/close
-    $(document).on('click', '#columnToggleButton', function (e) {
-        e.stopPropagation();
-        const menu = $('#columnToggleMenu');
-        const willOpen = !menu.hasClass('open');
-        $('#columnToggleButton').attr('aria-expanded', willOpen ? 'true' : 'false');
-        menu.toggleClass('open');
-    });
-    $(document).on('click', '#columnToggleMenu', function (e) {
-        e.stopPropagation();
-    });
-    $(document).on('click', function () {
-        $('#columnToggleMenu').removeClass('open');
-        $('#columnToggleButton').attr('aria-expanded', 'false');
-    });
+    // Column visibility menu removed in favor of DataTables Buttons 'colvis'
 
     // Load and initialize the table
     async function loadTable(dataSource = 'data/all_biology.csv') {
@@ -555,15 +499,8 @@ $(document).ready(function () {
                 $('#domainFilters').empty();
             }
 
-            // Reset filters and slider
-            $('.profit-status-button').removeClass('active');
-            $('#allPublishers').addClass('active');
-            $('.business-model-button').removeClass('active');
-            $('#allBusinessModels').addClass('active');
-            $('#apcSlider').val(10000);
-            currentMaxAPC = '10000';
+            // Only reset the Field filter; other filters will be restored from saved state
             selectedField = '';
-            $('#apcValue').text('All APC');
 
             // Ensure APC search is registered once and applies to our table only
             if (!apcSearchRegistered) {
@@ -588,9 +525,8 @@ $(document).ready(function () {
             $('#loading-indicator').remove();
 
             if (tableData && tableData.length > 0) {
-                // Precompute initial visibility
-                const savedVis = loadVisibleColumns();
-                const desiredVisible = computeDesiredVisibility(allHeadersText, defaultVisibleHeaders, mandatoryHeaders, savedVis);
+                // Precompute initial visibility (only used if no saved state exists)
+                const desiredVisible = allHeadersText.map(h => mandatoryHeaders.has(h) || defaultVisibleHeaders.has(h));
                 const toHide = desiredVisible.map((v, i) => (v ? null : i)).filter(i => i !== null);
 
                 dataTable = $('#journalTable').DataTable({
@@ -601,7 +537,82 @@ $(document).ready(function () {
                     ordering: true,
                     orderClasses: false,
                     info: true,
-                    dom: 'ift',
+                    dom: 'Bift',
+                    stateSave: true,
+                    stateDuration: -1, // use localStorage and persist
+                    // Use a single global localStorage key so state is shared across CSVs
+                    stateSaveCallback: function (settings, data) {
+                        try { localStorage.setItem('wtp_global_state_v1', JSON.stringify(data)); } catch (e) {}
+                    },
+                    stateLoadCallback: function (settings) {
+                        try {
+                            const raw = localStorage.getItem('wtp_global_state_v1');
+                            return raw ? JSON.parse(raw) : null;
+                        } catch (e) { return null; }
+                    },
+                    fixedHeader: true,
+                    buttons: [
+                        {
+                            extend: 'csvHtml5',
+                            title: 'WhereToPublish',
+                            exportOptions: {
+                                // export only visible columns by default
+                                columns: ':visible'
+                            }
+                        },
+                        {
+                            extend: 'colvis',
+                            columns: ':not(.noVis)',
+                            // Render the collection attached to <body> to avoid any clipping by overflow
+                            collectionLayout: 'fixed',
+                            dropup: true,
+                            // Add a Reset option inside the dropdown
+                            postfixButtons: [
+                                {
+                                    text: 'Reset columns',
+                                    action: function (e, dt/*, node, config*/) {
+                                        try {
+                                            // Restore the project defaults: mandatory + default visible headers
+                                            allHeadersText.forEach(function (header, idx) {
+                                                var mustShow = mandatoryHeaders.has(header) || defaultVisibleHeaders.has(header);
+                                                dt.column(idx).visible(mustShow, false);
+                                            });
+                                            dt.columns.adjust().draw(false);
+                                            if (dt.state && typeof dt.state.save === 'function') {
+                                                dt.state.save();
+                                            }
+                                        } catch (err) {
+                                            // no-op
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    stateSaveParams: function (settings, data) {
+                        // Persist custom filters
+                        data.custom = data.custom || {};
+                        data.custom.apcMax = currentMaxAPC;
+                    },
+                    stateLoadParams: function (settings, data) {
+                        // Reset Field filter when switching CSV files
+                        if (resetFieldOnNextLoad && data && data.columns && data.columns[1] && data.columns[1].search) {
+                            data.columns[1].search.search = '';
+                            data.columns[1].search.regex = false;
+                            data.columns[1].search.smart = true;
+                        }
+                        // Restore APC from saved state if present
+                        if (data && data.custom && data.custom.apcMax) {
+                            currentMaxAPC = String(data.custom.apcMax);
+                            $('#apcSlider').val(currentMaxAPC);
+                            $('#apcValue').text(currentMaxAPC === '10000' ? 'All APC' : '≤ ' + currentMaxAPC + ' €');
+                        } else {
+                            // default APC
+                            currentMaxAPC = '10000';
+                            $('#apcSlider').val(10000);
+                            $('#apcValue').text('All APC');
+                        }
+                    },
                     deferRender: true,
                     autoWidth: false,
                     responsive: {
@@ -613,6 +624,7 @@ $(document).ready(function () {
                         ]
                     },
                     columnDefs: [
+                        { targets: [0, 3], className: 'noVis' },
                         {
                             targets: 0,
                             render: function (data, type, row) {
@@ -663,12 +675,31 @@ $(document).ready(function () {
                         // Add placeholder to search input
                         $('.dt-input').attr('placeholder', 'Search journals...');
 
-                        // Build column toggle menu now that visibility is finalized
-                        buildColumnToggleMenu(table, allHeadersText, defaultVisibleHeaders, mandatoryHeaders);
+                        // Sync publisher and business model filter buttons with restored state
+                        $('.profit-status-button').removeClass('active');
+                        const pubSearch = table.column(3).search();
+                        if (!pubSearch) {
+                            $('#allPublishers').addClass('active');
+                        } else if (pubSearch.indexOf('For-profit') !== -1) {
+                            $('#forProfitPublishers').addClass('active');
+                        } else if (pubSearch.indexOf('Non-profit') !== -1) {
+                            $('#nonProfitPublishers').addClass('active');
+                        } else if (pubSearch.indexOf('University Press') !== -1) {
+                            $('#universityPressPublishers').addClass('active');
+                        }
 
-                        // Persist defaults if no saved preferences existed
-                        if (!savedVis) {
-                            saveVisibleColumns(table, allHeadersText, mandatoryHeaders);
+                        $('.business-model-button').removeClass('active');
+                        const bmSearch = table.column(4).search();
+                        if (!bmSearch) {
+                            $('#allBusinessModels').addClass('active');
+                        } else if (bmSearch.indexOf('OA diamond') !== -1) {
+                            $('#diamondOABusinessModel').addClass('active');
+                        } else if (bmSearch.indexOf('Hybrid') !== -1) {
+                            $('#hybridBusinessModel').addClass('active');
+                        } else if (bmSearch.indexOf('Subscription') !== -1) {
+                            $('#subscriptionBusinessModel').addClass('active');
+                        } else if (bmSearch.indexOf('OA') !== -1) {
+                            $('#oaBusinessModel').addClass('active');
                         }
 
                         // Search box updates only histogram
@@ -799,8 +830,11 @@ $(document).ready(function () {
                                     });
                                 domainFiltersContainer.append(button);
                             });
+                            // Default to SHOW ALL (Field reset on data source change)
                             showAllButton.addClass('active');
                         }
+                        // Reset flag once applied
+                        resetFieldOnNextLoad = false;
                     }
                 });
             } else if (tableData) {

@@ -5,3 +5,4 @@ data_extraction
 data_extracted
 data_merged
 __pycache__
+node_modules/

@@ -195,6 +195,18 @@ $(document).ready(function () {
         }
     }
 
+    function rowMatchesGlobalSearch(row, tableApi) {
+        if (!tableApi || typeof tableApi.search !== 'function') return true;
+        const term = String(tableApi.search() || '').trim();
+        if (!term) return true;
+        const haystack = row
+            .map(cell => (cell === null || cell === undefined) ? '' : String(cell))
+            .join(' ')
+            .toLowerCase();
+        const tokens = term.toLowerCase().split(/\s+/).filter(Boolean);
+        return tokens.every(token => haystack.indexOf(token) !== -1);
+    }
+
     // Data source buttons
     $('#allJournals').on('click', function () {
         $('.data-source-button').removeClass('active');
@@ -293,7 +305,7 @@ $(document).ready(function () {
         $(this).addClass('active');
         if (dataTable) {
             currentPublisherTypeFilter = 'for-profit';
-            dataTable.column(3).search('For-profit', false, false).draw();
+            dataTable.column(3).search('For-profit', regex=false, smart=false, caseInsenstive=false).draw();
             refreshHistogramFromTable(dataTable);
             refreshCountsFromTable(dataTable);
         }
@@ -303,7 +315,7 @@ $(document).ready(function () {
         $(this).addClass('active');
         if (dataTable) {
             currentPublisherTypeFilter = 'university-press';
-            dataTable.column(3).search('University Press', false, false).draw();
+            dataTable.column(3).search('University Press', regex=false, smart=false, caseInsenstive=false).draw();
             refreshHistogramFromTable(dataTable);
             refreshCountsFromTable(dataTable);
         }
@@ -313,7 +325,7 @@ $(document).ready(function () {
         $(this).addClass('active');
         if (dataTable) {
             currentPublisherTypeFilter = 'non-profit';
-            dataTable.column(3).search('Non-profit', false, false).draw();
+            dataTable.column(3).search('Non-profit', regex=false, smart=false, caseInsenstive=false).draw();
             refreshHistogramFromTable(dataTable);
             refreshCountsFromTable(dataTable);
         }
@@ -411,7 +423,7 @@ $(document).ready(function () {
                     borderRadius: '2px 2px 0 0',
                     opacity: '0.7'
                 })
-                .attr('title', counts[i] + ' journals with APC between ' + bins[i] + '€ and ' + bins[i + 1] + '€');
+                .attr('title', counts[i] + ' journals with APC between ' + bins[i] + '€ and ' + bins[i] + '€');
             const label = $('<div>')
                 .text(counts[i])
                 .css({
@@ -452,7 +464,7 @@ $(document).ready(function () {
         };
 
         allRows.forEach((row) => {
-            if (!rowPassesApcAndField(row)) return;
+            if (!rowPassesApcAndField(row) || !rowMatchesGlobalSearch(row, tableApi)) return;
 
             if (matchesBusinessModelFilter(row, currentBusinessModelFilter)) {
                 publisherConsidered++;
@@ -707,11 +719,11 @@ $(document).ready(function () {
                         $row.removeClass('for-profit-row for-profit-society-run-row university-press-row university-press-society-run-row non-profit-row');
                         if (publisherType === 'For-profit') {
                             $row.addClass('for-profit-row');
-                        } else if (publisherType.indexOf('For-profit') !== -1) {
+                        } else if (publisherType.indexOf('For-profit') === 0) {
                             $row.addClass('for-profit-society-run-row');
                         } else if (publisherType === 'University Press') {
                             $row.addClass('university-press-row');
-                        } else if (publisherType.indexOf('University Press') !== -1) {
+                        } else if (publisherType.indexOf('University Press') === 0) {
                             $row.addClass('university-press-society-run-row');
                         } else if (publisherType === 'Non-profit') {
                             $row.addClass('non-profit-row');
@@ -730,13 +742,13 @@ $(document).ready(function () {
                         currentPublisherTypeFilter = 'all';
                         if (!pubSearch) {
                             $('#allPublishers').addClass('active');
-                        } else if (pubSearch.indexOf('For-profit') !== -1) {
+                        } else if (pubSearch.indexOf('For-profit') === 0) {
                             $('#forProfitPublishers').addClass('active');
                             currentPublisherTypeFilter = 'for-profit';
-                        } else if (pubSearch.indexOf('Non-profit') !== -1) {
+                        } else if (pubSearch.indexOf('Non-profit') === 0) {
                             $('#nonProfitPublishers').addClass('active');
                             currentPublisherTypeFilter = 'non-profit';
-                        } else if (pubSearch.indexOf('University Press') !== -1) {
+                        } else if (pubSearch.indexOf('University Press') === 0) {
                             $('#universityPressPublishers').addClass('active');
                             currentPublisherTypeFilter = 'university-press';
                         } else {
@@ -767,6 +779,7 @@ $(document).ready(function () {
                         // Search box updates only histogram
                         $('.dt-input').on('keyup', function () {
                             refreshHistogramFromTable(table);
+                            refreshCountsFromTable(table);
                         });
 
                         // Initialize histogram

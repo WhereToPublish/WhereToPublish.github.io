@@ -305,7 +305,7 @@ $(document).ready(function () {
         $(this).addClass('active');
         if (dataTable) {
             currentPublisherTypeFilter = 'for-profit';
-            dataTable.column(3).search('For-profit', regex=false, smart=false, caseInsenstive=false).draw();
+            dataTable.column(3).search('For-profit', regex = false, smart = false, caseInsenstive = false).draw();
             refreshHistogramFromTable(dataTable);
             refreshCountsFromTable(dataTable);
         }
@@ -315,7 +315,7 @@ $(document).ready(function () {
         $(this).addClass('active');
         if (dataTable) {
             currentPublisherTypeFilter = 'university-press';
-            dataTable.column(3).search('University Press', regex=false, smart=false, caseInsenstive=false).draw();
+            dataTable.column(3).search('University Press', regex = false, smart = false, caseInsenstive = false).draw();
             refreshHistogramFromTable(dataTable);
             refreshCountsFromTable(dataTable);
         }
@@ -325,7 +325,7 @@ $(document).ready(function () {
         $(this).addClass('active');
         if (dataTable) {
             currentPublisherTypeFilter = 'non-profit';
-            dataTable.column(3).search('Non-profit', regex=false, smart=false, caseInsenstive=false).draw();
+            dataTable.column(3).search('Non-profit', regex = false, smart = false, caseInsenstive = false).draw();
             refreshHistogramFromTable(dataTable);
             refreshCountsFromTable(dataTable);
         }
@@ -452,8 +452,8 @@ $(document).ready(function () {
         let publisherConsidered = 0;
         let businessConsidered = 0;
 
-        const publisherTypeCounts = { 'For-profit': 0, 'Non-profit': 0, 'University Press': 0 };
-        const businessModelCounts = { 'OA diamond': 0, 'OA': 0, 'Hybrid': 0, 'Subscription': 0 };
+        const publisherTypeCounts = {'For-profit': 0, 'Non-profit': 0, 'University Press': 0};
+        const businessModelCounts = {'OA diamond': 0, 'OA': 0, 'Hybrid': 0, 'Subscription': 0};
 
         const previouslyActiveId = $('.business-model-button.active').attr('id') || null;
         const idToModel = {
@@ -607,13 +607,18 @@ $(document).ready(function () {
                     stateDuration: -1, // use localStorage and persist
                     // Use a single global localStorage key so state is shared across CSVs
                     stateSaveCallback: function (settings, data) {
-                        try { localStorage.setItem('wtp_global_state_v1', JSON.stringify(data)); } catch (e) {}
+                        try {
+                            localStorage.setItem('wtp_global_state_v1', JSON.stringify(data));
+                        } catch (e) {
+                        }
                     },
                     stateLoadCallback: function (settings) {
                         try {
                             const raw = localStorage.getItem('wtp_global_state_v1');
                             return raw ? JSON.parse(raw) : null;
-                        } catch (e) { return null; }
+                        } catch (e) {
+                            return null;
+                        }
                     },
                     fixedHeader: true,
                     buttons: [
@@ -692,7 +697,7 @@ $(document).ready(function () {
                         ]
                     },
                     columnDefs: [
-                        { targets: [0, 3], className: 'noVis' },
+                        {targets: [0, 3], className: 'noVis'},
                         {
                             targets: 0,
                             render: function (data, type, row) {

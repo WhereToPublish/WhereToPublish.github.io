@@ -14,14 +14,16 @@
     <link rel="stylesheet" type="text/css" href="vendor/hint.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap"
+          rel="stylesheet">
     <link rel="stylesheet" type="text/css" href="css/styles.css">
 </head>
 <body>
 
 <div class="container">
     <h1 style="margin-bottom: 10px; margin-top: 0"><span class="modal-trigger">Where to Publish?</span></h1>
-    <p class="modal-trigger" style="margin-bottom: 10px">A database of for-profit and non-profit scientific journals in biology.</p>
+    <p class="modal-trigger" style="margin-bottom: 10px">A database of for-profit and non-profit scientific journals in
+        biology.</p>
     <div id="dataSourceFilters" style="margin-bottom: 10px; text-align: center;">
         <!-- Data source buttons: one per CSV category -->
         <button id="generalist" class="data-source-button active">Generalist</button>
@@ -43,19 +45,32 @@
         <div class="filters-column">
             <div id="profitStatusFilters" style="text-align: center;">
                 <button id="allPublishers" class="profit-status-button active">All Publishers</button>
-                <button id="nonProfitPublishers" class="profit-status-button" style="background-color: #e8f5e9;">Non-profit</button>
-                <button id="universityPressPublishers" class="profit-status-button" style="background-color: #e7fbff;">University Press</button>
-                <button id="forProfitPublishers" class="profit-status-button" style="background-color: #ffebee;">For-profit</button>
+                <button id="nonProfitPublishers" class="profit-status-button" style="background-color: #e8f5e9;">
+                    Non-profit
+                </button>
+                <button id="universityPressPublishers" class="profit-status-button" style="background-color: #e7fbff;">
+                    University Press
+                </button>
+                <button id="forProfitPublishers" class="profit-status-button" style="background-color: #ffebee;">
+                    For-profit
+                </button>
             </div>
         </div>
 
         <div class="filters-column">
             <div id="businessModelFilters" style="text-align: center;">
                 <button id="allBusinessModels" class="business-model-button active">All Business Models</button>
-                <button id="diamondOABusinessModel" class="business-model-button" style="background-color: #e8eaf6;">OA diamond</button>
-                <button id="oaBusinessModel" class="business-model-button" style="background-color: #e8eaf6;">OA</button>
-                <button id="hybridBusinessModel" class="business-model-button" style="background-color: #e8eaf6;">Hybrid</button>
-                <button id="subscriptionBusinessModel" class="business-model-button" style="background-color: #e8eaf6;">Subscription</button>
+                <button id="diamondOABusinessModel" class="business-model-button" style="background-color: #e8eaf6;">OA
+                    diamond
+                </button>
+                <button id="oaBusinessModel" class="business-model-button" style="background-color: #e8eaf6;">OA
+                </button>
+                <button id="hybridBusinessModel" class="business-model-button" style="background-color: #e8eaf6;">
+                    Hybrid
+                </button>
+                <button id="subscriptionBusinessModel" class="business-model-button" style="background-color: #e8eaf6;">
+                    Subscription
+                </button>
             </div>
         </div>
         <div class="filters-column">
@@ -68,7 +83,8 @@
             <div id="apcSliderContainer" style="text-align: center; margin: 0 auto;">
                 <p class="apc-value-label"><span id="apcValue">All</span></p>
                 <div id="apcHistogram"></div>
-                <input type="range" id="apcSlider" min="0" max="10000" value="10000" aria-label="Filter maximum APC in Euros">
+                <input type="range" id="apcSlider" min="0" max="10000" value="10000"
+                       aria-label="Filter maximum APC in Euros">
                 <div class="apc-range-labels" aria-hidden="true">
                     <span>0 €</span>
                     <span>2.5k €</span>
@@ -89,15 +105,15 @@
 
     <table id="journalTable" class="display" style="width:100%; margin-top: 0;">
         <thead>
-            <tr>
-                <!-- Headers will be populated by JavaScript -->
-            </tr>
+        <tr>
+            <!-- Headers will be populated by JavaScript -->
+        </tr>
         </thead>
         <tbody>
-            <!-- Data will be populated by DataTables -->
+        <!-- Data will be populated by DataTables -->
         </tbody>
     </table>
-    There is an error in the data, or a journal is not in the database?  <br>
+    There is an error in the data, or a journal is not in the database? <br>
     Help us and contribute at <a href="https://github.com/WhereToPublish/WhereToPublish.github.io" target="_blank">WhereToPublish/WhereToPublish.github.io</a>
 </div>
 
@@ -106,8 +122,22 @@
     <div class="modal-content">
         <span class="close-modal">&times;</span>
         <h2>About</h2>
-        <p>There is a growing consensus in academia within the life sciences domain that the current scientific publishing system needs to change. This consensus has many causes: the high profit margins of big publishers, the pervasive presence of predatory journals, the extremely high article processing charges using open access as an excuse, the scarcity of reviewers, etc. However, it is quite common for early-career researchers to accept the publish-or-perish culture and to pursue a first-author publication in a top-tier journal claiming that this is the only way possible to play the game in academia and that no alternatives exist when it comes to journal choices. Although the former may be true to a certain extent, the latter is not. There are many alternatives and, importantly, making use of these alternatives is the way to begin to make changes in the current system and to enable a transition to a healthier and sustainable academic publishing system.</p>
-        <p><b>Where to Publish?</b> is a database of journals within the life-science domain created to highlight three main factors that, combined, represent an alternative to the current dominant publishing system: non-profit, open access, and society-based journals. <b>Where to Publish?</b> is intended to generate awareness of the existing diversity of journals with these three characteristics and to help researchers make informed contrasted decisions about where to send their work and for whom they are willing to review or act as editors. A change is possible and alternatives exist. Let's make it happen.</p>
+        <p>There is a growing consensus in academia within the life sciences domain that the current scientific
+            publishing system needs to change. This consensus has many causes: the high profit margins of big
+            publishers, the pervasive presence of predatory journals, the extremely high article processing charges
+            using open access as an excuse, the scarcity of reviewers, etc. However, it is quite common for early-career
+            researchers to accept the publish-or-perish culture and to pursue a first-author publication in a top-tier
+            journal claiming that this is the only way possible to play the game in academia and that no alternatives
+            exist when it comes to journal choices. Although the former may be true to a certain extent, the latter is
+            not. There are many alternatives and, importantly, making use of these alternatives is the way to begin to
+            make changes in the current system and to enable a transition to a healthier and sustainable academic
+            publishing system.</p>
+        <p><b>Where to Publish?</b> is a database of journals within the life-science domain created to highlight three
+            main factors that, combined, represent an alternative to the current dominant publishing system: non-profit,
+            open access, and society-based journals. <b>Where to Publish?</b> is intended to generate awareness of the
+            existing diversity of journals with these three characteristics and to help researchers make informed
+            contrasted decisions about where to send their work and for whom they are willing to review or act as
+            editors. A change is possible and alternatives exist. Let's make it happen.</p>
         <p>Got a review invitation from a for-profit journal, use the following text to decline it:</p>
         <div class="copy-box-container">
             <div class="copy-box" id="copyBox">
@@ -118,7 +148,8 @@
                 <div class="copy-tooltip" id="copyTooltip">Copied!</div>
             </div>
         </div>
-        Know more about the project, help us or contribute at <a href="https://github.com/WhereToPublish/WhereToPublish.github.io" target="_blank">WhereToPublish/WhereToPublish.github.io</a>.
+        Know more about the project, help us or contribute at <a
+            href="https://github.com/WhereToPublish/WhereToPublish.github.io" target="_blank">WhereToPublish/WhereToPublish.github.io</a>.
     </div>
 </div>
 
@@ -127,9 +158,11 @@
         <span class="close-modal">&times;</span>
         <h2>About Impact Factor</h2>
         <p>
-            We have voluntarily decided not to include the Impact Factor because it is a flawed metric that is often misused.
+            We have voluntarily decided not to include the Impact Factor because it is a flawed metric that is often
+            misused.
             <br>
-            For more information, please see <a href="https://sfdora.org/reports/#reports" target="_blank" rel="noopener noreferrer">DORA</a>.
+            For more information, please see <a href="https://sfdora.org/dora_indicators_guidance/" target="_blank"
+                                                rel="noopener noreferrer">DORA indicator guidance</a>.
             <br>
         </p>
     </div>

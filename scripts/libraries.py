@@ -114,6 +114,8 @@ def norm_name(text: str) -> str:
         s = s.replace(" and ", " ")
     if "&" in s:
         s = s.replace("&", " ")
+    # Remove anything between parentheses
+    s = re.sub(r"\(.*?\)", "", s)
     # Remove any non [a-z0-9]
     s = re.sub(r"[^a-z0-9]+", "", s)
     # Collapse spaces and trim

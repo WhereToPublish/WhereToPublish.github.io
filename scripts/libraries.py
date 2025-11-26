@@ -1,6 +1,7 @@
 import polars as pl
 import re
 import unicodedata
+import gzip
 
 # Expected columns and their final order
 FINAL_COLUMNS = [
@@ -22,8 +23,15 @@ FINAL_COLUMNS = [
 ]
 
 
-def load_csv(path: str) -> pl.DataFrame:
-    return pl.read_csv(path, ignore_errors=True)
+def load_csv(file_path, **kwargs):
+    """
+    Load a CSV file, handling both compressed (.gz) and uncompressed files.
+    """
+    if file_path.endswith(".gz"):
+        with gzip.open(file_path, "rb") as f:
+            return pl.read_csv(f, **kwargs)
+    else:
+        return pl.read_csv(file_path, **kwargs)
 
 
 def ascii_fallbacks(s: str) -> str:
@@ -209,8 +217,8 @@ def format_Scimago_Rank(df: pl.DataFrame, col: str = "Scimago Rank") -> pl.DataF
 
 def load_pci_friendly_set() -> set[str]:
     """Load the set of normalized (lowercase, trimmed) journal names that are PCI-friendly."""
-    PCI_FRIENDLY_PATH = "data_extraction/PCI_friendly.csv"
-    df = pl.read_csv(PCI_FRIENDLY_PATH)
+    PCI_FRIENDLY_PATH = "data_extraction/PCI_friendly.csv.gz"
+    df = load_csv(PCI_FRIENDLY_PATH)
     journals = [clean_string(j) for j in df["Journal"].to_list()]
     return {str(j).lower().strip() for j in journals if j is not None}
 

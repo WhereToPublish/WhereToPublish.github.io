@@ -2,9 +2,7 @@
 # Create one more csv file in the 'data' directory: all_biology.csv containing all entries (deduplicated if necessary).
 import os
 from glob import glob
-import polars as pl
-from libraries import load_pci_friendly_set, mark_pci_friendly, format_table, normalize_publisher_type, norm_name, \
-    norm_url
+from libraries import *
 
 INPUT_DIR = "data_merged"
 OUTPUT_DIR = "data"
@@ -275,7 +273,7 @@ def main():
     # Process each CSV in the input directory
     for csv_path in sorted(glob(os.path.join(INPUT_DIR, "*.csv"))):
         print(f"Processing file: {csv_path}")
-        df = pl.read_csv(csv_path)
+        df = load_csv(csv_path)
         # Drop rows with empty/null Journal
         df = drop_empty_journals(df, os.path.basename(csv_path))
 

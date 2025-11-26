@@ -15,3 +15,5 @@ git add data/
 git add data_extraction/
 git commit -m "Extract data from DOAJ, OpenAPC, Scimago and update data files"
 git push origin data --force
+# Checkout main branch again
+git checkout main

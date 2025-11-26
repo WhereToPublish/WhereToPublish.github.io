@@ -5,9 +5,9 @@ import re
 
 # Constants
 DATA_EXTRACTED_DIR = "data_extracted"
-SCIMAGO_FILE = os.path.join("data_extraction", "scimagojr.csv")
-OPENAPC_FILE = os.path.join("data_extraction", "openapc.csv")
-DOAJ_FILE = os.path.join("data_extraction", "DOAJ.csv")
+SCIMAGO_FILE = os.path.join("data_extraction", "scimagojr.csv.gz")
+OPENAPC_FILE = os.path.join("data_extraction", "openapc.csv.gz")
+DOAJ_FILE = os.path.join("data_extraction", "DOAJ.csv.gz")
 FILES_TO_SKIP = []
 
 # Columns that should be updated from each data source
@@ -116,7 +116,7 @@ def load_scimago_lookup() -> pl.DataFrame:
     Returns:
         pl.DataFrame: Processed Scimago lookup table with normalized journal names.
     """
-    scimago_df = pl.read_csv(SCIMAGO_FILE, separator=';')
+    scimago_df = load_csv(SCIMAGO_FILE, separator=';')
     scimago_df = scimago_df.rename({
         "Title": "Journal_scimago",
         "SJR": "Scimago Rank_scimago",
@@ -173,7 +173,7 @@ def load_openapc_lookup() -> pl.DataFrame:
     Returns:
         pl.DataFrame: Processed OpenAPC lookup table with normalized journal names and aggregated data from last 5 years.
     """
-    openapc_df = pl.read_csv(OPENAPC_FILE)
+    openapc_df = load_csv(OPENAPC_FILE)
     openapc_df = openapc_df.rename(
         {"journal_full_title": "Journal_openapc",
          "euro": "APC Euros_openapc",
@@ -219,7 +219,7 @@ def load_doaj_lookup() -> pl.DataFrame:
     Returns:
         pl.DataFrame: Processed DOAJ lookup table with normalized journal names.
     """
-    doaj_df = pl.read_csv(DOAJ_FILE)
+    doaj_df = load_csv(DOAJ_FILE)
 
     # Rename columns to match our naming convention
     doaj_df = doaj_df.rename({
@@ -351,7 +351,7 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
         totals: Dictionary to accumulate update counts
     """
     print(f"Processing file: {csv_path}")
-    target_df = pl.read_csv(csv_path, ignore_errors=True)
+    target_df = load_csv(csv_path, ignore_errors=True)
 
     # Keep track of original columns to avoid persisting helper columns
     original_cols = target_df.columns.copy()

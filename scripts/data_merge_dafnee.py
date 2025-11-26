@@ -47,7 +47,7 @@ def derive_publisher_type_from_publisher_and_institution(df: pl.DataFrame) -> pl
 
 def main():
     # Detect if dafnee.csv exists and load/split for later merging
-    dafnee_path = os.path.join(INPUT_DIR, "dafnee.csv")
+    dafnee_path = os.path.join(INPUT_DIR, "dafnee.csv.gz")
     dafnee_general = None
     dafnee_not_general = None
     if os.path.exists(dafnee_path):
@@ -75,11 +75,11 @@ def main():
                 pl.lit("Ecology and Evolution").alias("Journal's MAIN field"))
 
     # Process each CSV in input dir
-    csv_paths = sorted(glob(os.path.join(INPUT_DIR, "*.csv")))
+    csv_paths = sorted(glob(os.path.join(INPUT_DIR, "*.csv*")))
 
     for path in csv_paths:
         fname = os.path.basename(path)
-        if fname == "dafnee.csv":
+        if fname.startswith("dafnee.csv"):
             # Do not write dafnee.csv output
             continue
 

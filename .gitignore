@@ -1,7 +1,6 @@
 .idea
 .DS_store
 data_legacy
-data_extraction
 data_extracted
 data_merged
 __pycache__

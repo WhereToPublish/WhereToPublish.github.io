@@ -608,6 +608,29 @@ table.dataTable tr.university-press-row:hover {
     height: 40px;
     margin-bottom: 5px;
     position: relative;
+    width: 100%;
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.apc-histogram-bar {
+    flex: 1 1 auto;
+    background-color: #3182ce;
+    border-radius: 2px 2px 0 0;
+    opacity: 0.7;
+    position: relative;
+    min-width: 0;
+}
+
+.apc-histogram-label {
+    position: absolute;
+    top: -18px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    font-size: 10px;
+    color: #4a5568;
 }
 
 .apc-range-labels {

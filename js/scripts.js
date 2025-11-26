@@ -136,21 +136,7 @@ $(document).ready(function () {
     let apcSearchRegistered = false;
     let currentPublisherTypeFilter = 'all';
     let currentBusinessModelFilter = 'all';
-
-    // Batch expensive adjust/recalc to the next animation frame
-    let adjustScheduled = false;
-
-    function scheduleAdjust(table) {
-        if (adjustScheduled) return;
-        adjustScheduled = true;
-        requestAnimationFrame(() => {
-            try {
-                table.columns.adjust().responsive.recalc();
-            } finally {
-                adjustScheduled = false;
-            }
-        });
-    }
+    let lastHistogramSnapshot = null;
 
     // Helper: whether a row passes current APC and Field selection only
     function rowPassesApcAndField(row) {
@@ -406,35 +392,28 @@ $(document).ready(function () {
     function renderHistogram(distribution, maxCount) {
         const histogramContainer = $('#apcHistogram');
         histogramContainer.empty();
-        const {bins, distribution: counts} = distribution;
-        const containerWidth = histogramContainer.width();
-        const barWidth = containerWidth / (bins.length - 1);
-        const maxValue = maxCount || Math.max(...counts, 1);
+        const bins = distribution && Array.isArray(distribution.bins) ? distribution.bins : [];
+        const counts = distribution && Array.isArray(distribution.distribution) ? distribution.distribution : [];
+        if (!bins.length || !counts.length || histogramContainer.length === 0) {
+            lastHistogramSnapshot = null;
+            return;
+        }
+        const resolvedMax = maxCount || Math.max(...counts, 1);
+        lastHistogramSnapshot = {distribution: {bins: [...bins], distribution: [...counts]}, maxCount: resolvedMax};
         for (let i = 0; i < counts.length; i++) {
-            const height = (counts[i] / maxValue) * 100;
+            const heightPercent = (counts[i] / resolvedMax) * 100;
+            const upperBound = bins[i + 1] !== undefined ? bins[i + 1] : bins[i];
             const bar = $('<div>')
-                .css({
-                    position: 'absolute',
-                    left: (i * barWidth) + 'px',
-                    bottom: '0',
-                    width: (barWidth - 2) + 'px',
-                    height: height + '%',
-                    backgroundColor: '#3182ce',
-                    borderRadius: '2px 2px 0 0',
-                    opacity: '0.7'
-                })
-                .attr('title', counts[i] + ' journals with APC between ' + bins[i] + '€ and ' + bins[i] + '€');
-            const label = $('<div>')
-                .text(counts[i])
-                .css({
-                    position: 'absolute',
-                    top: '-18px',
-                    width: '100%',
-                    textAlign: 'center',
-                    fontSize: '10px',
-                    color: '#4a5568'
-                });
-            if (counts[i] > 0) bar.append(label);
+                .addClass('apc-histogram-bar')
+                .css('height', heightPercent + '%')
+                .attr('title', counts[i] + ' journals with APC between ' + bins[i] + '€ and ' + upperBound + '€');
+            if (counts[i] > 0) {
+                bar.append(
+                    $('<div>')
+                        .addClass('apc-histogram-label')
+                        .text(counts[i])
+                );
+            }
             histogramContainer.append(bar);
         }
     }

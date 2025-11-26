@@ -86,6 +86,22 @@ def norm_name(text: str) -> str:
     s = strip_diacritics(clean_string(text)).lower()
     if s.startswith("the "):
         s = s.replace("the ", "", 1)
+    if s.startswith("la "):
+        s = s.replace("la ", "", 1)
+    if s.startswith("le "):
+        s = s.replace("le ", "", 1)
+    if s.startswith("les "):
+        s = s.replace("les ", "", 1)
+    if s.startswith("el "):
+        s = s.replace("el ", "", 1)
+    if s.startswith("los "):
+        s = s.replace("los ", "", 1)
+    if s.startswith("las "):
+        s = s.replace("las ", "", 1)
+    if " an " in s:
+        s = s.replace(" an ", " ")
+    if " l'" in s:
+        s = s.replace(" l'", " ")
     if " and " in s:
         s = s.replace(" and ", " ")
     if "&" in s:

@@ -6,3 +6,9 @@ data_extracted
 data_merged
 __pycache__
 node_modules/
+
+# Add the data and data_extraction folders to .gitignore in main
+### DO NOT TOUCH THIS AND BELOW ###
+data/
+data_extraction/
+### DO NOT TOUCH THIS AND ABOVE ###

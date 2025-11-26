@@ -630,6 +630,13 @@ $(document).ready(function () {
                             columns: ':not(.noVis)',
                             postfixButtons: [
                                 {
+                                    text: 'Impact Factor',
+                                    action: function (e, dt, node, config) {
+                                        $('div.dt-button-background').click();
+                                        openModal($('#impactFactorModal'));
+                                    }
+                                },
+                                {
                                     text: 'Reset columns',
                                     action: function (e, dt/*, node, config*/) {
                                         try {
@@ -871,31 +878,31 @@ $(document).ready(function () {
     }
 
     // Modal functionality
-    const modal = $('#aboutModal');
+    const aboutModal = $('#aboutModal');
     const closeModalButton = $('.close-modal');
     const modalTriggers = $('.modal-trigger');
 
-    function openModal() {
+    function openModal(modal) {
         modal.addClass('show');
         $('body').css('overflow', 'hidden');
     }
 
     function closeModal() {
-        modal.removeClass('show');
+        $('.modal').removeClass('show');
         $('body').css('overflow', '');
     }
 
     modalTriggers.on('click', function () {
-        openModal();
+        openModal(aboutModal);
     });
     closeModalButton.on('click', function () {
         closeModal();
     });
-    modal.on('click', function (event) {
-        if ($(event.target).is(modal)) closeModal();
+    $('.modal').on('click', function (event) {
+        if ($(event.target).is('.modal')) closeModal();
     });
     $(document).on('keydown', function (event) {
-        if (event.key === 'Escape' && modal.hasClass('show')) closeModal();
+        if (event.key === 'Escape' && $('.modal.show').length) closeModal();
     });
 
     $('#copyBox').on('click', function () {

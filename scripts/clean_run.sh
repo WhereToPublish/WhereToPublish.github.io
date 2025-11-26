@@ -2,6 +2,7 @@
 set -euo pipefail
 
 rm -rf data_extracted/
+rm -rf data_extraction/
 rm -rf data_merged/
 rm -rf data
 

@@ -13,10 +13,14 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          persist-credentials: 'true'
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
@@ -25,19 +29,26 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Process data
-        run: bash ./scripts/clean_run.sh
-
-      - name: Commit and push if changed
+      - name: Rebase on main branch
         run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git checkout data
+          git rebase main
+          git reset --soft HEAD~1
+
+      - name: Process data
+        run: bash ./scripts/run.sh
+
+      - name: Commit and push
+        run: |
           git add data/
-          git diff --cached --quiet || git commit -m "Extract data from DOAJ, OpenAPC, Scimago and update data files"
+          git add data_extraction/
+          git commit -m "Extract data from DOAJ, OpenAPC, Scimago and update data files"
 
       - name: Push changes
         uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: main
-          force_with_lease: true
+          branch: data
+          force: true

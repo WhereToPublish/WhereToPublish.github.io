@@ -47,32 +47,35 @@ def derive_publisher_type_from_publisher_and_institution(df: pl.DataFrame) -> pl
 
 def main():
     # Detect if dafnee.csv exists and load/split for later merging
-    dafnee_path = os.path.join(INPUT_DIR, "dafnee.csv.gz")
-    dafnee_general = None
-    dafnee_not_general = None
-    if os.path.exists(dafnee_path):
-        ddf = load_csv(dafnee_path)
-        # Project to final string schema for safe concatenation later
-        ddf = project_to_final_string_schema(ddf)
-        # Normalize Publisher type for dafnee rows
-        ddf = derive_publisher_type_from_publisher_and_institution(ddf)
-        # Split by Field == 'general' (case-insensitive, strip)
-        field_norm = (
-            pl.col("Field")
-            .cast(pl.Utf8)
-            .str.to_lowercase()
-            .str.strip_chars()
-        )
-        ddf = ddf.with_columns(field_norm.alias("__field_norm__"))
-        dafnee_general = ddf.filter(pl.col("__field_norm__") == "general").drop("__field_norm__")
-        dafnee_not_general = ddf.filter(pl.col("__field_norm__") != "general").drop("__field_norm__")
-        # Do NOT add normalized key yet; we'll compute it after concatenation into targets
-        # Set Journal's MAIN field for dafnee-derived rows according to destination
-        if dafnee_general.height > 0:
-            dafnee_general = dafnee_general.with_columns(pl.lit("Generalist").alias("Journal's MAIN field"))
-        if dafnee_not_general.height > 0:
-            dafnee_not_general = dafnee_not_general.with_columns(
-                pl.lit("Ecology and Evolution").alias("Journal's MAIN field"))
+    dafnee_path = os.path.join(INPUT_DIR, "dafnee.csv")
+    assert os.path.exists(dafnee_path), f"dafnee.csv not found in {INPUT_DIR}"
+    ddf = load_csv(dafnee_path)
+    # Project to final string schema for safe concatenation later
+    ddf = project_to_final_string_schema(ddf)
+    # Normalize Publisher type for dafnee rows
+    ddf = derive_publisher_type_from_publisher_and_institution(ddf)
+    # Split by Field == 'general' (case-insensitive, strip)
+    field_norm = (
+        pl.col("Field")
+        .cast(pl.Utf8)
+        .str.to_lowercase()
+        .str.strip_chars()
+    )
+    ddf = ddf.with_columns(field_norm.alias("__field_norm__"))
+    dafnee_general = ddf.filter(pl.col("__field_norm__") == "general").drop("__field_norm__")
+    dafnee_not_general = ddf.filter(pl.col("__field_norm__") != "general").drop("__field_norm__")
+    # Do NOT add normalized key yet; we'll compute it after concatenation into targets
+    # Set Journal's MAIN field for dafnee-derived rows according to destination
+    if dafnee_general.height > 0:
+        dafnee_general = dafnee_general.with_columns(pl.lit("Generalist").alias("Journal's MAIN field"))
+    if dafnee_not_general.height > 0:
+        dafnee_not_general = dafnee_not_general.with_columns(
+            pl.lit("Ecology and Evolution").alias("Journal's MAIN field"))
+
+    # Remove field "archaeo_anthropo" from dafnee_not_general
+    dafnee_not_general = dafnee_not_general.filter(pl.col("Field") != "archaeo_anthropo")
+    dafnee_not_general = dafnee_not_general.filter(pl.col("Field") != "paleo_geo")
+    dafnee_not_general = dafnee_not_general.filter(pl.col("Field") != "theory")
 
     # Process each CSV in input dir
     csv_paths = sorted(glob(os.path.join(INPUT_DIR, "*.csv*")))

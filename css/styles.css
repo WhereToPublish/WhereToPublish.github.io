@@ -55,15 +55,24 @@ h1 {
     font-family: 'Source Sans Pro', sans-serif;
     color: #1a365d;
     text-align: center;
-    margin-bottom: 25px;
+    margin: 0;
     font-weight: 600;
     letter-spacing: -0.5px;
     font-size: 2.2rem;
     position: relative;
-    padding-bottom: 15px;
+    padding-bottom: 0 !important;
 }
 
-h1:after {
+#intro-p {
+    position: relative;
+    text-align: center;
+    margin-bottom: 10px;
+    margin-top: 0;
+    padding-bottom: 10px;
+}
+
+
+#intro-p:after {
     content: "";
     position: absolute;
     bottom: 0;
@@ -96,6 +105,7 @@ table.dataTable {
 }
 
 /* Responsive table container */
+
 #journalTable_wrapper {
     width: 100%;
     overflow: visible;
@@ -179,6 +189,7 @@ table.dataTable tr:hover {
 }
 
 /* Row coloring based on status */
+
 table.dataTable tr.for-profit-row {
     background-color: #ffebee; /* Light red */
 }
@@ -200,6 +211,7 @@ table.dataTable tr.non-profit-row {
 }
 
 /* Ensure hover effect still works with colored rows */
+
 table.dataTable tr.for-profit-row:hover,
 table.dataTable tr.non-profit-row:hover,
 table.dataTable tr.university-press-row:hover {
@@ -364,6 +376,7 @@ table.dataTable tr.university-press-row:hover {
 }
 
 /* Add clearfix to ensure proper layout with floated elements */
+
 #journalTable_wrapper:after {
     content: "";
     display: table;
@@ -371,6 +384,7 @@ table.dataTable tr.university-press-row:hover {
 }
 
 /* Domain details styles */
+
 .domain-details {
     padding: 20px;
     background-color: #f8fafc;
@@ -449,6 +463,7 @@ table.dataTable tr.university-press-row:hover {
 }
 
 /* Shared button appearance */
+
 .data-source-button,
 .profit-status-button,
 .business-model-button,
@@ -473,6 +488,7 @@ table.dataTable tr.university-press-row:hover {
 }
 
 /* Hover/active states shared across buttons */
+
 .data-source-button:hover,
 .profit-status-button:hover,
 .business-model-button:hover,
@@ -516,6 +532,7 @@ table.dataTable tr.university-press-row:hover {
 }
 
 /* Domain filter buttons */
+
 .domain-filters-container {
     margin-bottom: 20px;
     text-align: center;
@@ -550,6 +567,7 @@ table.dataTable tr.university-press-row:hover {
 }
 
 /* Compact variant when many domain filter buttons exist */
+
 #domainFilters.compact .domain-filter-button {
     margin: 0 2px 2px 0;
     padding: 2px 6px;
@@ -558,11 +576,13 @@ table.dataTable tr.university-press-row:hover {
 }
 
 /* Data source filter buttons styles */
+
 .data-source-button {
     margin: 0 6px 8px 0;
 }
 
 /* Profit status filter buttons styles */
+
 .profit-status-button {
     margin: 0 0 6px 0;
     display: block;
@@ -571,6 +591,7 @@ table.dataTable tr.university-press-row:hover {
 }
 
 /* Business model filter buttons styles */
+
 .business-model-button {
     margin: 0 0 6px 0;
     display: block;
@@ -580,6 +601,7 @@ table.dataTable tr.university-press-row:hover {
 
 
 /* Filters row and columns styles */
+
 .filters-row {
     display: flex;
     flex-wrap: wrap;
@@ -619,6 +641,7 @@ table.dataTable tr.university-press-row:hover {
 }
 
 /* APC slider styles */
+
 #apcSliderContainer {
     padding: 0;
     background-color: transparent;
@@ -723,6 +746,7 @@ table.dataTable tr.university-press-row:hover {
 }
 
 /* Modal styles */
+
 .modal {
     display: none;
     position: fixed;
@@ -794,6 +818,7 @@ table.dataTable tr.university-press-row:hover {
 }
 
 /* Add cursor pointer and visual cues to clickable elements */
+
 .modal-trigger {
     cursor: pointer;
     position: relative;
@@ -801,16 +826,19 @@ table.dataTable tr.university-press-row:hover {
 }
 
 /* Add hover effect to indicate clickability */
+
 .modal-trigger:hover {
     color: #3182ce; /* Change to blue on hover */
 }
 
 /* Special styling for h1 with modal-trigger class */
+
 h1.modal-trigger {
     position: relative;
 }
 
 /* Add info icon after paragraph with modal-trigger class */
+
 p.modal-trigger:after {
     content: "ⓘ"; /* Unicode for information icon */
     font-size: 0.8em;
@@ -935,6 +963,7 @@ p.modal-trigger:after {
 }
 
 /* Domain filter dropdown (used when too many fields) */
+
 .domain-filter-select {
     display: inline-block;
     min-width: 220px;
@@ -963,6 +992,7 @@ p.modal-trigger:after {
 }
 
 /* Ensure header cells don’t clip hint tooltips */
+
 #journalTable_wrapper table.dataTable thead,
 #journalTable_wrapper table.dataTable th {
     position: relative;
@@ -970,6 +1000,7 @@ p.modal-trigger:after {
 }
 
 /* Raise hint tooltip layers above the table */
+
 .hint--bottom:before,
 .hint--bottom:after,
 .hint--top:before,

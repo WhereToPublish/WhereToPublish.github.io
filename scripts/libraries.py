@@ -267,7 +267,8 @@ def normalize_field(name: str) -> str:
         return "Generalist"
     if name.lower() == "general":
         return "Generalist"
-    return str(name).strip()
+    name = str(name).replace("_", " ").strip()
+    return name[0].upper() + name[1:]
 
 
 def normalize_publisher(name: str) -> str:

@@ -188,6 +188,11 @@ table.dataTable tr:hover {
     transition: background-color 0.2s ease;
 }
 
+table.dataTable td a {
+    color: #2b6cb0;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
 /* Row coloring based on status */
 
 table.dataTable tr.for-profit-row {
@@ -1006,4 +1011,10 @@ p.modal-trigger:after {
 .hint--top:before,
 .hint--top:after {
     z-index: 10000000;
+}
+
+/* Slightly reduce tooltip text size for readability */
+[class*=hint--]:after {
+    font-size: 0.7rem !important;
+    line-height: 1rem !important;
 }

@@ -4,7 +4,6 @@
 .DS_store
 __pycache__
 data_legacy
-data_extracted
 data_merged
 node_modules/
 TODO.md
@@ -12,5 +11,6 @@ TODO.md
 # Add the data and data_extraction folders to .gitignore in main
 ### DO NOT TOUCH THIS AND BELOW ###
 data/
+data_extracted/
 data_extraction/
 ### DO NOT TOUCH THIS AND ABOVE ###

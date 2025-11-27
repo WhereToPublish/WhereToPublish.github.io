@@ -1,6 +1,6 @@
 function parseCSV(csvText) {
     // We know the exact column order in the CSV:
-    // 0: Journal, 1: Field, 2: Publisher, 3: Publisher type, 4: Business model,
+    // 0: Journal, 1: Subfield, 2: Publisher, 3: Publisher type, 4: Business model,
     // 5: Institution, 6: Institution type, 7: Country, 8: Website, 9: APC Euros,
     // 10: Scimago Rank, 11: Scimago Quartile, 12: H index, 13: PCI partner
     const lines = csvText.split('\n');
@@ -12,7 +12,7 @@ function parseCSV(csvText) {
     // Define all headers in the internal data order
     const allHeadersText = [
         'Journal',            // 0 (mandatory visible)
-        'Field',              // 1
+        'Subfield',           // 1
         'Publisher',          // 2
         'Publisher type',     // 3 (mandatory visible)
         'Business model',     // 4
@@ -37,7 +37,7 @@ function parseCSV(csvText) {
     const mandatoryHeaders = new Set(['Journal', 'Publisher type']);
 
     // Default visible columns at load
-    const defaultVisibleHeaders = new Set(['Journal', 'Field', 'Publisher', 'Publisher type', 'Business model', 'APC (€)']);
+    const defaultVisibleHeaders = new Set(['Journal', 'Subfield', 'Publisher', 'Publisher type', 'Business model', 'APC (€)']);
 
     // Render table headers (we render all headers so DataTables knows columns; visibility handled later)
     const headerRow = $('#journalTable thead tr');
@@ -788,7 +788,7 @@ $(document).ready(function () {
                             // Dropdown select to save vertical space
                             const select = $('<select class="domain-filter-select" aria-label="Filter by field"></select>');
                             // Default option: show all
-                            select.append($('<option value="">Show all fields</option>'));
+                            select.append($('<option value="">All subfields</option>'));
                             domains.forEach(function (domainName) {
                                 select.append($('<option></option>').val(domainName).text(domainName));
                             });
@@ -813,7 +813,7 @@ $(document).ready(function () {
                             // Fewer domains: render as clickable buttons
                             domainFiltersContainer.toggleClass('compact', false);
 
-                            var showAllButton = $('<button class="domain-filter-button">SHOW ALL</button>')
+                            var showAllButton = $('<button class="domain-filter-button">All subfields</button>')
                                 .on('click', function () {
                                     selectedField = '';
                                     table.column(1).search('');

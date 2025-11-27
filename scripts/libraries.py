@@ -577,6 +577,48 @@ def annotate_publisher_type_from_institution_type(df: pl.DataFrame) -> pl.DataFr
     df_temp = df_temp.with_columns(pl.col("new_publisher_type").alias("Publisher type")).drop("new_publisher_type")
     return df_temp
 
+def derive_business_model_from_APC(df: pl.DataFrame) -> pl.DataFrame:
+    """ Derive 'Business model' from 'APC Euros'.
+    - If APC Euros is > 0 and business model is "Subscription" or empty, set Business model to 'Hybrid'.
+    - If APC Euros is > 0 and business model is "OA Diamond", set Business model to 'OA'.
+    """
+    df = df.with_columns(
+        pl.when(
+            (pl.col("APC Euros").is_not_null())
+            & (pl.col("APC Euros") > 0)
+            & (pl.col("Business model") == "Subscription")
+        )
+        .then(pl.lit("Hybrid"))
+        .otherwise(pl.col("Business model"))
+        .alias("Business model")
+    )
+    df = df.with_columns(
+        pl.when(
+            (pl.col("APC Euros").is_not_null())
+            & (pl.col("APC Euros") > 0)
+            & (pl.col("Business model") == "OA Diamond")
+        )
+        .then(pl.lit("OA"))
+        .otherwise(pl.col("Business model"))
+        .alias("Business model")
+    )
+    return df
+
+def derive_APC_from_business_model(df: pl.DataFrame) -> pl.DataFrame:
+    """ Derive 'APC Euros' from 'Business model'.
+    - If Business model is 'OA Diamond' and 'APC Euros' is missing/empty , set 'APC Euros' to 0.
+    """
+    df = df.with_columns(
+        pl.when(
+            (pl.col("APC Euros").is_null())
+            & (pl.col("Business model") == "OA Diamond")
+        )
+        .then(pl.lit(0))
+        .otherwise(pl.col("APC Euros"))
+        .alias("APC Euros")
+    )
+    return df
+
 
 def format_table(df: pl.DataFrame) -> pl.DataFrame:
     # Format numeric columns and URLs
@@ -611,6 +653,11 @@ def format_table(df: pl.DataFrame) -> pl.DataFrame:
     df = infer_institution_type(df)
     df = infer_publisher_type_from_publisher(df)
     df = annotate_publisher_type_from_institution_type(df)
+
+    # Infer Business model from APC
+    df = derive_business_model_from_APC(df)
+    # Infer APC from Business model
+    df = derive_APC_from_business_model(df)
     return df
 
 

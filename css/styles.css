@@ -8,6 +8,7 @@ body {
     width: 100%;
     box-sizing: border-box;
 }
+
 .container {
     width: 95%;
     max-width: 1400px;
@@ -15,7 +16,7 @@ body {
     background-color: white;
     padding: 30px;
     border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
     transition: all 0.3s ease;
 }
 
@@ -49,6 +50,7 @@ body {
         font-size: 0.95rem;
     }
 }
+
 h1 {
     font-family: 'Source Sans Pro', sans-serif;
     color: #1a365d;
@@ -81,6 +83,7 @@ h1:after {
     font-size: 1.05rem;
     line-height: 1.7;
 }
+
 table.dataTable {
     border-collapse: separate;
     border-spacing: 0;
@@ -88,7 +91,7 @@ table.dataTable {
     margin: 25px 0;
     border-radius: 8px;
     overflow: visible;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     table-layout: auto;
 }
 
@@ -106,6 +109,7 @@ table.dataTable {
         padding-right: 5px; /* Add some padding on the right side */
     }
 }
+
 table.dataTable th, table.dataTable td {
     white-space: normal;
     padding: 12px 15px;
@@ -144,6 +148,7 @@ table.dataTable th, table.dataTable td {
         margin-right: 0 !important;
     }
 }
+
 table.dataTable th {
     background-color: #2c5282;
     color: white;
@@ -153,6 +158,7 @@ table.dataTable th {
     text-transform: uppercase;
     font-size: 0.85rem;
 }
+
 table.dataTable th select {
     width: 100%;
     padding: 4px;
@@ -162,35 +168,44 @@ table.dataTable th select {
     border-radius: 4px;
     border: 1px solid #cbd5e0;
 }
+
 table.dataTable tr:nth-child(even) {
     background-color: #f8fafc;
 }
+
 table.dataTable tr:hover {
     background-color: #ebf4ff;
     transition: background-color 0.2s ease;
 }
+
 /* Row coloring based on status */
 table.dataTable tr.for-profit-row {
     background-color: #ffebee; /* Light red */
 }
+
 table.dataTable tr.for-profit-society-run-row {
     background-color: #ffebee; /* Light orange */
 }
+
 table.dataTable tr.university-press-row {
     background-color: #e7fbff; /* Light blue */
 }
+
 table.dataTable tr.university-press-society-run-row {
     background-color: #e7fbff; /* Light blue */
 }
+
 table.dataTable tr.non-profit-row {
     background-color: #e8f5e9; /* Light green */
 }
+
 /* Ensure hover effect still works with colored rows */
 table.dataTable tr.for-profit-row:hover,
 table.dataTable tr.non-profit-row:hover,
 table.dataTable tr.university-press-row:hover {
     background-color: #ebf4ff;
 }
+
 #journalTable_wrapper .dt-input {
     margin-bottom: 20px;
     width: auto;
@@ -204,7 +219,7 @@ table.dataTable tr.university-press-row:hover {
     border: 1px solid #cbd5e0;
     border-radius: 6px;
     font-family: 'Roboto', sans-serif;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     transition: all 0.2s ease;
     max-width: 100%;
     background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23718096" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
@@ -249,18 +264,21 @@ table.dataTable tr.university-press-row:hover {
         font-size: 0.9rem;
     }
 }
+
 #journalTable_wrapper .dt-input:focus {
     outline: none;
     border-color: #4299e1;
     box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
 }
+
 #journalTable_wrapper .dataTables_length select {
     padding: 8px 12px;
     border: 1px solid #cbd5e0;
     border-radius: 6px;
     font-family: 'Roboto', sans-serif;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
+
 #journalTable_wrapper .dt-info {
     margin-bottom: 20px;
     color: #718096;
@@ -271,6 +289,7 @@ table.dataTable tr.university-press-row:hover {
     padding-right: 5px;
     line-height: 32px; /* Match the height of the search input */
 }
+
 #journalTable_wrapper .dataTables_paginate {
     margin-top: 20px;
     width: 100%;
@@ -289,6 +308,7 @@ table.dataTable tr.university-press-row:hover {
         font-size: 0.85rem;
     }
 }
+
 #journalTable_wrapper .dataTables_paginate .paginate_button {
     padding: 8px 14px;
     border: 1px solid #e2e8f0;
@@ -330,10 +350,12 @@ table.dataTable tr.university-press-row:hover {
         display: none;
     }
 }
+
 #journalTable_wrapper .dataTables_paginate .paginate_button:hover {
     background-color: #ebf8ff;
     border-color: #bee3f8;
 }
+
 #journalTable_wrapper .dataTables_paginate .paginate_button.current {
     background-color: #3182ce;
     color: white !important;
@@ -354,7 +376,7 @@ table.dataTable tr.university-press-row:hover {
     background-color: #f8fafc;
     margin: 15px;
     border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
     border: 1px solid #e2e8f0;
 }
 
@@ -385,7 +407,7 @@ table.dataTable tr.university-press-row:hover {
 }
 
 .domain-details li:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     transform: translateY(-2px);
 }
 
@@ -406,11 +428,99 @@ table.dataTable tr.university-press-row:hover {
     font-weight: 500;
 }
 
-/* Styles for domain filter buttons */
+.dt-button-background {
+    display: none !important;
+}
+
+.dt-button-collection {
+    padding: 0 !important;
+}
+
+.dt-button--reset {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    padding: 8px 14px !important;
+    border: 2px solid #e2e8f0 !important;
+    background-color: #f8fafc !important;
+    color: #2d3748 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Shared button appearance */
+.data-source-button,
+.profit-status-button,
+.business-model-button,
+.domain-filter-button,
+#journalTable_wrapper .buttons-html5,
+#journalTable_wrapper .buttons-colvis {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background-color: #f8fafc;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: #2d3748;
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    text-decoration: none;
+}
+
+/* Hover/active states shared across buttons */
+.data-source-button:hover,
+.profit-status-button:hover,
+.business-model-button:hover,
+.domain-filter-button:hover,
+#journalTable_wrapper .buttons-html5:hover,
+#journalTable_wrapper .buttons-html5:focus-visible,
+#journalTable_wrapper .buttons-colvis:hover,
+#journalTable_wrapper .buttons-colvis:focus-visible {
+    filter: brightness(0.9);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+.data-source-button.active,
+.profit-status-button.active,
+.business-model-button.active,
+.domain-filter-button.active {
+    background-color: #3182ce !important;
+    color: #ffffff !important;
+    border-color: #2b6cb0 !important;
+    box-shadow: 0 2px 8px rgba(49, 130, 206, 0.25);
+    transform: translateY(0);
+}
+
+#journalTable_wrapper .dt-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+    margin: 15px 0;
+}
+
+#journalTable_wrapper .buttons-columnVisibility:hover,
+#journalTable_wrapper .buttons-columnVisibility:focus-visible {
+    border-color: #bee3f8;
+    filter: brightness(0.9);
+}
+
+#journalTable_wrapper .dt-button-active {
+    background-color: #3182ce;
+    color: #ffffff;
+}
+
+/* Domain filter buttons */
 .domain-filters-container {
     margin-bottom: 20px;
     text-align: center;
 }
+
 .domain-filter-button {
     margin: 0 3px 4px 0;
     padding: 4px 8px;
@@ -422,14 +532,16 @@ table.dataTable tr.university-press-row:hover {
     font-weight: 500;
     color: #4a5568;
     transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
+
 .domain-filter-button:hover {
     background-color: #ebf8ff;
     border-color: #bee3f8;
     transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
 }
+
 .domain-filter-button.active {
     background-color: #3182ce;
     color: white;
@@ -448,84 +560,22 @@ table.dataTable tr.university-press-row:hover {
 /* Data source filter buttons styles */
 .data-source-button {
     margin: 0 6px 8px 0;
-    padding: 10px 16px;
-    border: 1px solid #e2e8f0;
-    background-color: #f8fafc;
-    cursor: pointer;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 500;
-    color: #4a5568;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-.data-source-button:hover {
-    background-color: #ebf8ff;
-    border-color: #bee3f8;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
-}
-.data-source-button.active {
-    background-color: #3182ce;
-    color: white;
-    border-color: #2b6cb0;
-    box-shadow: 0 2px 5px rgba(49, 130, 206, 0.2);
 }
 
 /* Profit status filter buttons styles */
 .profit-status-button {
     margin: 0 0 6px 0;
-    padding: 6px 10px;
-    border: 1px solid #e2e8f0;
-    cursor: pointer;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 500;
-    color: #4a5568;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     display: block;
     width: 100%;
     text-align: center;
-}
-.profit-status-button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
-    filter: brightness(0.95);
-}
-.profit-status-button.active {
-    color: white;
-    border-color: #2b6cb0;
-    box-shadow: 0 2px 5px rgba(49, 130, 206, 0.2);
-    background-color: #3182ce !important;
 }
 
 /* Business model filter buttons styles */
 .business-model-button {
     margin: 0 0 6px 0;
-    padding: 6px 10px;
-    border: 1px solid #e2e8f0;
-    cursor: pointer;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 500;
-    color: #4a5568;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     display: block;
     width: 100%;
     text-align: center;
-}
-.business-model-button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
-    filter: brightness(0.95);
-}
-.business-model-button.active {
-    color: white;
-    border-color: #2b6cb0;
-    box-shadow: 0 2px 5px rgba(49, 130, 206, 0.2);
-    background-color: #3182ce !important;
 }
 
 
@@ -541,7 +591,7 @@ table.dataTable tr.university-press-row:hover {
     background-color: #f8fafc;
     border-radius: 8px;
     border: 1px solid #e2e8f0;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     padding: 10px;
     flex: 1;
     min-width: 200px;
@@ -879,78 +929,9 @@ p.modal-trigger:after {
         margin-bottom: 5px;
     }
 }
+
 .hidden {
     display: none !important;
-}
-
-/* Ensure DataTables Buttons collections appear above FixedHeader and other UI */
-div.dt-button-collection {
-    z-index: 10050 !important; /* higher than FixedHeader */
-    max-height: 75vh; /* prevent off-screen overflow on small viewports */
-    overflow: auto;
-}
-div.dt-button-background {
-    z-index: 10049 !important;
-}
-
-/* Column visibility toggle */
-.table-controls {
-    float: right;
-    justify-content: flex-end;
-    margin: 10px 0 5px 0;
-}
-
-.column-visibility {
-    position: relative;
-}
-
-.column-toggle-button {
-    padding: 8px 12px;
-    border: 1px solid #2b6cb0;
-    border-radius: 6px;
-    background: #3182ce;
-    cursor: pointer;
-    font-size: 13px;
-    color: #ffffff;
-    transition: all 0.15s ease;
-    box-shadow: 0 1px 3px rgba(49,130,206,0.3);
-}
-
-.column-toggle-button:hover {
-    background: #2b6cb0;
-    border-color: #2b6cb0;
-    box-shadow: 0 2px 6px rgba(49,130,206,0.35);
-}
-
-.column-toggle-menu {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 4px);
-    width: 240px;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    box-shadow: 0 10px 24px rgba(0,0,0,0.10);
-    padding: 8px;
-    display: none;
-    z-index: 10;
-}
-
-.column-toggle-menu.open {
-    display: block;
-}
-
-.column-toggle-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 4px;
-    font-size: 13px;
-    color: #2d3748;
-}
-
-.column-toggle-item input[type="checkbox"] {
-    accent-color: #3182ce;
 }
 
 /* Domain filter dropdown (used when too many fields) */
@@ -964,13 +945,15 @@ div.dt-button-background {
     background: #ffffff;
     color: #2d3748;
     font-size: 13px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
+
 .domain-filter-select:focus {
     outline: none;
     border-color: #4299e1;
-    box-shadow: 0 0 0 3px rgba(66,153,225,0.2);
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
 }
+
 @media (max-width: 480px) {
     .domain-filter-select {
         width: 100%;
@@ -987,9 +970,9 @@ div.dt-button-background {
 }
 
 /* Raise hint tooltip layers above the table */
-#journalTable_wrapper .hint--bottom:before,
-#journalTable_wrapper .hint--bottom:after,
-#journalTable_wrapper .hint--top:before,
-#journalTable_wrapper .hint--top:after {
-    z-index: 1000002;
+.hint--bottom:before,
+.hint--bottom:after,
+.hint--top:before,
+.hint--top:after {
+    z-index: 10000000;
 }

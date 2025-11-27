@@ -622,6 +622,7 @@ $(document).ready(function () {
                                 },
                                 {
                                     text: 'Reset columns',
+                                    className: 'dt-button--reset',
                                     action: function (e, dt/*, node, config*/) {
                                         try {
                                             // Restore the project defaults: mandatory + default visible headers

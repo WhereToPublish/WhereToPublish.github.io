@@ -1,22 +1,13 @@
 import os
 from glob import glob
 import polars as pl
-from libraries import load_csv, write_ordered, project_to_final_string_schema
+from libraries import load_csv, write_ordered, project_to_final_string_schema, normalize_field
 
 # Directories
 INPUT_DIR = "data_extracted"
 OUTPUT_DIR = "data_merged"
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-
-def normalize_field(name: str) -> str:
-    """Normalize field values by stripping leading/trailing spaces."""
-    if name is None:
-        return ""
-    if name.lower() == "general":
-        return "Generalist"
-    return str(name).strip()
 
 
 def derive_publisher_type_from_publisher_and_institution(df: pl.DataFrame) -> pl.DataFrame:

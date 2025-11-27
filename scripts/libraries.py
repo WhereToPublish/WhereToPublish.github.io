@@ -257,6 +257,15 @@ def mark_pci_friendly(df: pl.DataFrame, friendly_set: set[str]) -> pl.DataFrame:
     )
 
 
+def normalize_field(name: str) -> str:
+    """Normalize field values by stripping leading/trailing spaces."""
+    if name is None:
+        return "Generalist"
+    if name.lower() == "general":
+        return "Generalist"
+    return str(name).strip()
+
+
 def normalize_publisher(name: str) -> str:
     """
     Normalize publisher names to standard forms.
@@ -343,7 +352,7 @@ def derive_country_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
         "Sage Publishing (Mary Ann Liebert)": "USA",
         "Sage Publishing (IOS Press)": "UK / Germany",
         "Springer Nature": "Germany / UK",
-        "Springer Nature (BioMed Central)": "UK",
+        "Springer Nature (BioMed Central)": "Germany / UK",
         "Taylor & Francis Group": "UK",
         "Taylor & Francis Group (Dovepress)": "UK",
         "Taylor & Francis Group (F1000 research)": "UK",
@@ -352,8 +361,8 @@ def derive_country_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
         "The Royal Society": "UK",
         "Public Library of Science (PLoS)": "USA",
         "Wolters Kluwer": "Netherlands",
-        "Wolters Kluwer (Lippincott)": "Netherlands (USA)",
-        "Wolters Kluwer (Akadémiai Kiadó Journals)": "Netherlands (Hungary)",
+        "Wolters Kluwer (Lippincott)": "Netherlands / USA",
+        "Wolters Kluwer (Akadémiai Kiadó Journals)": "Netherlands / Hungary",
         "World Scientific Publishing": "Singapore",
     }
     return df.with_columns(

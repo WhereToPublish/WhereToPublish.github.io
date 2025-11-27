@@ -14,17 +14,17 @@ function parseCSV(csvText) {
         'Journal',            // 0 (mandatory visible)
         'Subfield',           // 1
         'Publisher',          // 2
-        'Publisher type',     // 3 (mandatory visible)
-        'Business model',     // 4
+        'Publisher Type',     // 3 (mandatory visible)
+        'Business Model',     // 4
         'APC (€)',            // 5 (from APC Euros)
         'Country (Publisher)',// 6
         'Institution',        // 7
-        'Institution type',   // 8
+        'Institution Type',   // 8
         'Website',            // 9
         'Scimago Rank',       // 10
         'Scimago Quartile',   // 11
-        'H index',            // 12
-        'PCI partner'         // 13
+        'H Index',            // 12
+        'PCI Partner'         // 13
     ];
     const columnDefs = {
         5: 'APC values are obtained from OpenAPC as the average in the last 3 years.',
@@ -507,7 +507,7 @@ $(document).ready(function () {
     // APC slider filter
     $('#apcSlider').on('input', function () {
         currentMaxAPC = $(this).val();
-        $('#apcValue').text(currentMaxAPC === '10000' ? 'All APC' : '≤ ' + currentMaxAPC + ' €');
+        $('#apcValue').text(currentMaxAPC === '10000' ? 'All APCs' : '≤ ' + currentMaxAPC + ' €');
         if (dataTable) {
             dataTable.draw();
             refreshHistogramFromTable(dataTable);
@@ -530,8 +530,6 @@ $(document).ready(function () {
             return {data: [], domains: []};
         }
     }
-
-    // Column visibility menu removed in favor of DataTables Buttons 'colvis'
 
     // Load and initialize the table
     async function loadTable(dataSource = 'data/all_biology.csv') {
@@ -658,12 +656,12 @@ $(document).ready(function () {
                         if (data && data.custom && data.custom.apcMax) {
                             currentMaxAPC = String(data.custom.apcMax);
                             $('#apcSlider').val(currentMaxAPC);
-                            $('#apcValue').text(currentMaxAPC === '10000' ? 'All APC' : '≤ ' + currentMaxAPC + ' €');
+                            $('#apcValue').text(currentMaxAPC === '10000' ? 'All APCs' : '≤ ' + currentMaxAPC + ' €');
                         } else {
                             // default APC
                             currentMaxAPC = '10000';
                             $('#apcSlider').val(10000);
-                            $('#apcValue').text('All APC');
+                            $('#apcValue').text('All APCs');
                         }
                     },
                     deferRender: true,
@@ -788,7 +786,7 @@ $(document).ready(function () {
                             // Dropdown select to save vertical space
                             const select = $('<select class="domain-filter-select" aria-label="Filter by field"></select>');
                             // Default option: show all
-                            select.append($('<option value="">All subfields</option>'));
+                            select.append($('<option value="">All Subfields</option>'));
                             domains.forEach(function (domainName) {
                                 select.append($('<option></option>').val(domainName).text(domainName));
                             });
@@ -813,7 +811,7 @@ $(document).ready(function () {
                             // Fewer domains: render as clickable buttons
                             domainFiltersContainer.toggleClass('compact', false);
 
-                            var showAllButton = $('<button class="domain-filter-button">All subfields</button>')
+                            var showAllButton = $('<button class="domain-filter-button">All Subfields</button>')
                                 .on('click', function () {
                                     selectedField = '';
                                     table.column(1).search('');

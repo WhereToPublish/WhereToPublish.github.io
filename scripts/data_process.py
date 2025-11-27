@@ -243,27 +243,6 @@ def dedupe_by_journal_and_website(df: pl.DataFrame, source_name: str) -> pl.Data
     return pl.DataFrame(result_rows, schema_overrides={col: pl.Utf8 for col in EXPECTED_COLUMNS})
 
 
-def fill_field_from_main_field(df_in: pl.DataFrame) -> pl.DataFrame:
-    """If 'Field' is empty/null (or missing), use the column "Journal's MAIN field" to fill it.
-
-    This runs before column selection so that the source column can be dropped later.
-    """
-    # Perform the backfill
-    return df_in.with_columns(
-        pl.when(
-            pl.col("Field").is_null() | (pl.col("Field").cast(pl.Utf8).str.strip_chars() == "")
-        )
-        .then(pl.col("Journal's MAIN field").cast(pl.Utf8).str.strip_chars())
-        .otherwise(pl.col("Field"))
-        .alias("Field")
-    )
-
-
-def normalize_field(df_in: pl.DataFrame) -> pl.DataFrame:
-    """Normalize a journal name for deduplication: lowercase and trim."""
-    return df_in.with_columns(Field=pl.col("Field").cast(pl.Utf8).str.replace_all("_", " ").str.to_titlecase())
-
-
 def main():
     processed_frames: list[pl.DataFrame] = []
 
@@ -277,8 +256,10 @@ def main():
         # Drop rows with empty/null Journal
         df = drop_empty_journals(df, os.path.basename(csv_path))
 
-        # Backfill Field from "Journal's MAIN field" when empty/missing
-        df = normalize_field(fill_field_from_main_field(df))
+        # Backfill Field
+        df = df.with_columns(
+            pl.col("Field").map_elements(normalize_field, return_dtype=pl.Utf8).alias("Field")
+        )
 
         # Format table:
         df = format_table(df)

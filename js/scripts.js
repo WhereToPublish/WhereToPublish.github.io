@@ -129,6 +129,9 @@ $(document).ready(function () {
     let currentDataSource = null; // Track current CSV file
     let resetFieldOnNextLoad = false; // Only reset Field filter when switching CSV
 
+    DataTable.type('num', 'className', 'dt-body-right');
+    DataTable.type('num-fmt', 'className', 'dt-body-right');
+    DataTable.type('date', 'className', 'dt-body-right');
     // Track APC slider state for persistent filtering
     let currentMaxAPC = '10000';
     // Track selected Field (domain) for counts logic
@@ -575,9 +578,26 @@ $(document).ready(function () {
                     data: tableData,
                     scrollX: false,
                     paging: false,
-                    searching: true,
-                    ordering: true,
-                    orderClasses: false,
+                    search: {
+                        smart: true,
+                        regex: false,
+                        caseInsensitive: true
+                    },
+                    columnControl: [
+                        {
+                            extend: 'dropdown',
+                            content: [
+                                'orderAsc',
+                                'orderDesc',
+                                'spacer',
+                                'search'
+                            ]
+                        }
+                    ],
+                    ordering: {
+                        indicators: false,
+                        handler: false
+                    },
                     info: true,
                     dom: 'Bift',
                     stateSave: true,

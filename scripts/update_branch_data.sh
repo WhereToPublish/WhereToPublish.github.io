@@ -17,8 +17,9 @@ git reset --soft HEAD~1
 # Update data: download csv files and process them
 sh ./scripts/run.sh
 
-# Add data and data_extraction folders to the last commit and force push to origin
+# Add data, data_extraction and data_extracted folders to the last commit and force push to origin
 git add data/
+git add data_extracted/
 git add data_extraction/
 git commit -m "Extract data from DOAJ, OpenAPC, Scimago and update data files"
 git push origin data --force

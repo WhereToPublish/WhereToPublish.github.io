@@ -537,8 +537,10 @@ $(document).ready(function () {
     // Load and initialize the table
     async function loadTable(dataSource = 'data/all_biology.csv') {
         try {
+            let currentSearch = '';
             // Clear existing table if it exists
             if (dataTable) {
+                currentSearch = dataTable.search(); // Save global search
                 dataTable.destroy();
                 $('#journalTable tbody').empty();
                 $('#domainFilters').empty();
@@ -581,7 +583,8 @@ $(document).ready(function () {
                     search: {
                         smart: true,
                         regex: false,
-                        caseInsensitive: true
+                        caseInsensitive: true,
+                        search: currentSearch // Re-apply global search
                     },
                     columnControl: [
                         {
@@ -695,11 +698,13 @@ $(document).ready(function () {
                         ]
                     },
                     columnDefs: [
-                        {targets: [1, 3, 4], columnControl: [
                         {
-                            extend: 'order',
-                        }
-                    ]},
+                            targets: [1, 3, 4], columnControl: [
+                                {
+                                    extend: 'order',
+                                }
+                            ]
+                        },
                         {targets: [0, 3], className: 'noVis'},
                         {
                             targets: 0,
@@ -791,6 +796,10 @@ $(document).ready(function () {
                             $('#allBusinessModels').addClass('active');
                         }
 
+                        // Event listener for when a column's visibility changes
+                        table.on('column-visibility.dt', function (e, settings, column, state) {
+                            console.log('Column visibility changed');
+                        });
                         // Search box updates only histogram
                         $('.dt-input').on('keyup', function () {
                             refreshHistogramFromTable(table);

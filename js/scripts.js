@@ -128,6 +128,8 @@ $(document).ready(function () {
     let dataTable; // Variable to store the DataTable instance
     let currentDataSource = null; // Track current CSV file
     let resetFieldOnNextLoad = false; // Only reset Field filter when switching CSV
+    // Clear existing saved state on first load
+    localStorage.removeItem('wtp_global_state_v1');
 
     DataTable.type('num', 'className', 'dt-body-right');
     DataTable.type('num-fmt', 'className', 'dt-body-right');

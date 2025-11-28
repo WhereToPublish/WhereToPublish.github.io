@@ -796,10 +796,20 @@ $(document).ready(function () {
                             $('#allBusinessModels').addClass('active');
                         }
 
+                        // Initialize whether columns are searchable based on visibility
+                        table.columns().every(function (index) {
+                            this.settings()[0].aoColumns[index].bSearchable = this.visible();
+                            table.rows().invalidate().draw();
+                        });
+
                         // Event listener for when a column's visibility changes
                         table.on('column-visibility.dt', function (e, settings, column, state) {
-                            console.log('Column visibility changed');
+                            settings.aoColumns[column].bSearchable = state;
+                            table.rows().invalidate().draw();
+                            refreshHistogramFromTable(table);
+                            refreshCountsFromTable(table);
                         });
+
                         // Search box updates only histogram
                         $('.dt-input').on('keyup', function () {
                             refreshHistogramFromTable(table);
@@ -811,7 +821,6 @@ $(document).ready(function () {
                         const distribution = calculateAPCDistribution(allData);
                         renderHistogram(distribution);
                         refreshCountsFromTable(table);
-
 
                         // Render domain filter as dropdown if too many domains, else as buttons
                         const tooManyDomains = Array.isArray(domains) && domains.length > 10;

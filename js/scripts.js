@@ -125,8 +125,12 @@ function escapeRegExp(string) {
 }
 
 $(document).ready(function () {
+    const CONTRIBUTION_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfTWQ8PaFCL_zabYwUidZZlh8GR_SZJ1rWaQfZWX3ZS98pm3g/viewform';
+    const ALL_FIELDS_SOURCE = 'data/all_biology.csv';
+    const DEFAULT_DATA_SOURCE = 'data/generalist.csv';
     let dataTable; // Variable to store the DataTable instance
     let currentDataSource = null; // Track current CSV file
+    let currentDatasetLabel = '';
     let resetFieldOnNextLoad = false; // Only reset Field filter when switching CSV
     // Clear existing saved state on first load
     localStorage.removeItem('wtp_global_state_v1');
@@ -142,6 +146,15 @@ $(document).ready(function () {
     let currentPublisherTypeFilter = 'all';
     let currentBusinessModelFilter = 'all';
     let lastHistogramSnapshot = null;
+
+    function buildZeroRecordsMessage() {
+        const contributeLink = '<a href="' + CONTRIBUTION_FORM_URL + '" target="_blank" rel="noopener noreferrer">contribute to the database</a>';
+        if (currentDataSource === ALL_FIELDS_SOURCE) {
+            return 'No matching journals found. This database includes only biology and filtered out predatory journals. If you think a journal is missing, please ' + contributeLink + '.';
+        }
+        const label = currentDatasetLabel || 'current dataset';
+        return 'No matching journals. Maybe load the <a href="#" id="load-all-dataset-link" role="button">&quot;All fields&quot;</a> dataset. You currently have the &quot;' + label + '&quot; dataset loaded.';
+    }
 
     // Helper: whether a row passes current APC and Field selection only
     function rowPassesApcAndField(row) {
@@ -190,9 +203,10 @@ $(document).ready(function () {
     $('#allJournals').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        const src = 'data/all_biology.csv';
+        const src = ALL_FIELDS_SOURCE;
         resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
+        currentDatasetLabel = 'All fields';
         loadTable(src);
     });
     $('#generalist').on('click', function () {
@@ -201,6 +215,7 @@ $(document).ready(function () {
         const src = 'data/generalist.csv';
         resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
+        currentDatasetLabel = 'Generalist';
         loadTable(src);
     });
     $('#cancer').on('click', function () {
@@ -209,6 +224,7 @@ $(document).ready(function () {
         const src = 'data/cancer.csv';
         resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
+        currentDatasetLabel = 'Cancer';
         loadTable(src);
     });
     $('#development').on('click', function () {
@@ -217,6 +233,7 @@ $(document).ready(function () {
         const src = 'data/development.csv';
         resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
+        currentDatasetLabel = 'Development';
         loadTable(src);
     });
     $('#ecologyEvolution').on('click', function () {
@@ -225,6 +242,7 @@ $(document).ready(function () {
         const src = 'data/ecology_evolution.csv';
         resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
+        currentDatasetLabel = 'Ecology & Evolution';
         loadTable(src);
     });
     $('#geneticsGenomics').on('click', function () {
@@ -233,6 +251,7 @@ $(document).ready(function () {
         const src = 'data/genetics_genomics.csv';
         resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
+        currentDatasetLabel = 'Genetics & Genomics';
         loadTable(src);
     });
     $('#immunology').on('click', function () {
@@ -241,6 +260,7 @@ $(document).ready(function () {
         const src = 'data/immunology.csv';
         resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
+        currentDatasetLabel = 'Immunology';
         loadTable(src);
     });
     $('#molecularCellularBiology').on('click', function () {
@@ -249,6 +269,7 @@ $(document).ready(function () {
         const src = 'data/molecular_cellular_biology.csv';
         resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
+        currentDatasetLabel = 'Molecular & Cellular Biology';
         loadTable(src);
     });
     $('#neurosciences').on('click', function () {
@@ -257,6 +278,7 @@ $(document).ready(function () {
         const src = 'data/neurosciences.csv';
         resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
+        currentDatasetLabel = 'Neurosciences';
         loadTable(src);
     });
     $('#plants').on('click', function () {
@@ -265,6 +287,7 @@ $(document).ready(function () {
         const src = 'data/plants.csv';
         resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
+        currentDatasetLabel = 'Plants';
         loadTable(src);
     });
 
@@ -731,7 +754,8 @@ $(document).ready(function () {
                         info: "Displaying all _TOTAL_ journals",
                         infoEmpty: "No journals available",
                         emptyTable: "No journal data available",
-                        search: ""
+                        search: "",
+                        zeroRecords: buildZeroRecordsMessage()
                     },
                     rowCallback: function (row, data) {
                         var publisherType = (data && data[3]) ? String(data[3]) : '';
@@ -894,6 +918,17 @@ $(document).ready(function () {
                         resetFieldOnNextLoad = false;
                     }
                 });
+                $('#journalTable').off('click', '#load-all-dataset-link').on('click', '#load-all-dataset-link', function (event) {
+                    event.preventDefault();
+                    const $button = $('#allJournals');
+                    if ($button.length) {
+                        $button.trigger('click');
+                    } else {
+                        currentDataSource = ALL_FIELDS_SOURCE;
+                        currentDatasetLabel = 'All fields';
+                        loadTable(ALL_FIELDS_SOURCE);
+                    }
+                });
             } else if (tableData) {
                 $('#journalTable').parent().append('<p>No data found in CSV after parsing headers.</p>');
             }
@@ -946,5 +981,7 @@ $(document).ready(function () {
     });
 
     // Load default table
-    loadTable('data/generalist.csv');
+    currentDataSource = DEFAULT_DATA_SOURCE;
+    currentDatasetLabel = 'Generalist';
+    loadTable(DEFAULT_DATA_SOURCE);
 });

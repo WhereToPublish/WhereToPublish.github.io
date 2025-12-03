@@ -671,6 +671,7 @@ $(document).ready(function () {
                     scrollX: false,
                     scroller: false,
                     paging: false,
+                    deferRender: true, 
                     search: {
                         smart: true,
                         regex: false,
@@ -789,16 +790,8 @@ $(document).ready(function () {
                             $('#apcValue').text('All APCs');
                         }
                     },
-                    deferRender: true,
                     autoWidth: false,
-                    responsive: {
-                        details: {display: $.fn.dataTable.Responsive.display.childRow},
-                        breakpoints: [
-                            {name: 'desktop', width: Infinity},
-                            {name: 'tablet', width: 1024},
-                            {name: 'phone', width: 480}
-                        ]
-                    },
+                    responsive: false, // Disable responsive - it's expensive and we handle it with CSS
                     columnDefs: [
                         {
                             targets: [1, 3, 4], columnControl: [
@@ -837,16 +830,23 @@ $(document).ready(function () {
                         zeroRecords: buildZeroRecordsMessage()
                     },
                     rowCallback: function (row, data) {
-                        var publisherType = (data && data[3]) ? String(data[3]) : '';
-                        var $row = $(row);
-                        $row.removeClass('for-profit-row for-profit-society-run-row university-press-row university-press-society-run-row non-profit-row');
+                        // Optimized: use direct string comparison and early returns
+                        const publisherType = data[3];
+                        if (!publisherType) return;
+                        
+                        const $row = $(row);
+                        
+                        // Remove all classes at once
+                        $row[0].className = $row[0].className.replace(/\b(for-profit-row|for-profit-society-run-row|university-press-row|university-press-society-run-row|non-profit-row)\b/g, '').trim();
+                        
+                        // Add appropriate class based on publisher type
                         if (publisherType === 'For-profit') {
                             $row.addClass('for-profit-row');
-                        } else if (publisherType.indexOf('For-profit') === 0) {
+                        } else if (publisherType.startsWith('For-profit')) {
                             $row.addClass('for-profit-society-run-row');
                         } else if (publisherType === 'University Press') {
                             $row.addClass('university-press-row');
-                        } else if (publisherType.indexOf('University Press') === 0) {
+                        } else if (publisherType.startsWith('University Press')) {
                             $row.addClass('university-press-society-run-row');
                         } else if (publisherType === 'Non-profit') {
                             $row.addClass('non-profit-row');
@@ -904,8 +904,8 @@ $(document).ready(function () {
                         // Initialize whether columns are searchable based on visibility
                         table.columns().every(function (index) {
                             this.settings()[0].aoColumns[index].bSearchable = this.visible();
-                            table.rows().invalidate().draw();
                         });
+                        table.rows().invalidate().draw();
 
                         // Event listener for when a column's visibility changes
                         table.on('column-visibility.dt', function (e, settings, column, state) {

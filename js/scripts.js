@@ -602,6 +602,7 @@ $(document).ready(function () {
                 dataTable = $('#journalTable').DataTable({
                     data: tableData,
                     scrollX: false,
+                    scroller: false,
                     paging: false,
                     search: {
                         smart: true,

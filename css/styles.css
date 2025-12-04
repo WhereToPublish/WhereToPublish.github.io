@@ -70,8 +70,6 @@ h1 {
     margin-top: 0;
     padding-bottom: 10px;
 }
-
-
 #intro-p:after {
     content: "";
     position: absolute;
@@ -603,8 +601,6 @@ table.dataTable tr.university-press-row:hover {
     width: 100%;
     text-align: center;
 }
-
-
 /* Filters row and columns styles */
 
 .filters-row {
@@ -996,7 +992,7 @@ p.modal-trigger:after {
     }
 }
 
-/* Ensure header cells don’t clip hint tooltips */
+/* Ensure header cells don’t clip tooltips */
 
 #journalTable_wrapper table.dataTable thead,
 #journalTable_wrapper table.dataTable th {
@@ -1004,17 +1000,30 @@ p.modal-trigger:after {
     overflow: visible;
 }
 
-/* Raise hint tooltip layers above the table */
+/* Custom tippy.js theme styling */
 
-.hint--bottom:before,
-.hint--bottom:after,
-.hint--top:before,
-.hint--top:after {
-    z-index: 10000000;
+.tippy-box[data-theme~='light-border'] {
+    background-color: #fff;
+    color: #333;
+    border: 1px solid #cbd5e0;
+    box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.15);
+    font-size: 0.875rem;
+    line-height: 1.4;
+    border-radius: 6px;
 }
 
-/* Slightly reduce tooltip text size for readability */
-[class*=hint--]:after {
-    font-size: 0.7rem !important;
-    line-height: 1rem !important;
+.tippy-box[data-theme~='light-border'][data-placement^='top'] > .tippy-arrow::before {
+    border-top-color: #cbd5e0;
+}
+
+.tippy-box[data-theme~='light-border'][data-placement^='bottom'] > .tippy-arrow::before {
+    border-bottom-color: #cbd5e0;
+}
+
+.tippy-box[data-theme~='light-border'][data-placement^='left'] > .tippy-arrow::before {
+    border-left-color: #cbd5e0;
+}
+
+.tippy-box[data-theme~='light-border'][data-placement^='right'] > .tippy-arrow::before {
+    border-right-color: #cbd5e0;
 }

@@ -63,11 +63,27 @@ function parseCSV(csvText) {
         const $th = $('<th>');
         if (columnDefs[index]) {
             const $icon = $('<span>')
-                .addClass('hint--bottom hint--medium hint--rounded')
-                .attr('aria-label', columnDefs[index])
                 .attr('tabindex', '0')
                 .text(headerText);
             $th.append($icon);
+            
+            // Initialize tippy tooltip on this element
+            tippy($icon[0], {
+                content: columnDefs[index],
+                placement: 'bottom',
+                arrow: true,
+                theme: 'light-border',
+                maxWidth: 250,
+                appendTo: document.body,
+                zIndex: 1000,
+                trigger: 'mouseenter focus',
+                allowHTML: true,
+                interactive: true,
+                aria: {
+                    content: 'describedby',
+                    expanded: false
+                }
+            });
         } else {
             const $label = $('<span>').text(headerText);
             $th.append($label);

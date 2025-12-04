@@ -200,10 +200,10 @@ $(document).ready(function () {
     function buildZeroRecordsMessage() {
         const contributeLink = '<a href="' + CONTRIBUTION_FORM_URL + '" target="_blank" rel="noopener noreferrer">contribute to the database</a>';
         if (currentDataSource === ALL_FIELDS_SOURCE) {
-            return 'No matching journals found. This database includes only biology and filtered out predatory journals. If you think a journal is missing, please ' + contributeLink + '.';
+            return 'No matching journals found.<br> This database includes only biology and filtered out predatory journals.<br> If you think a journal is missing, please ' + contributeLink + '.';
         }
         const label = currentDatasetLabel || 'current dataset';
-        return 'No matching journals. Maybe load the <a href="#" id="load-all-dataset-link" role="button">&quot;All fields&quot;</a> dataset. You currently have the &quot;' + label + '&quot; dataset loaded.';
+        return 'No matching journals. <br>Maybe load the <a href="#" id="load-all-dataset-link" role="button">&quot;All fields&quot;</a> dataset. <br>You currently have the &quot;' + label + '&quot; dataset loaded.';
     }
 
     // Helper: whether a row passes current APC and Field selection only
@@ -357,8 +357,6 @@ $(document).ready(function () {
         if (dataTable) {
             currentPublisherTypeFilter = 'all';
             dataTable.column(3).search('').draw();
-            refreshHistogramFromTable(dataTable);
-            refreshCountsFromTable(dataTable);
         }
     });
     $('#forProfitPublishers').on('click', function () {
@@ -367,8 +365,6 @@ $(document).ready(function () {
         if (dataTable) {
             currentPublisherTypeFilter = 'For-profit';
             dataTable.column(3).search(currentPublisherTypeFilter, false, false, false).draw();
-            refreshHistogramFromTable(dataTable);
-            refreshCountsFromTable(dataTable);
         }
     });
     $('#universityPressPublishers').on('click', function () {
@@ -377,8 +373,6 @@ $(document).ready(function () {
         if (dataTable) {
             currentPublisherTypeFilter = 'University Press';
             dataTable.column(3).search(currentPublisherTypeFilter, false, false, false).draw();
-            refreshHistogramFromTable(dataTable);
-            refreshCountsFromTable(dataTable);
         }
     });
     $('#nonProfitPublishers').on('click', function () {
@@ -387,8 +381,6 @@ $(document).ready(function () {
         if (dataTable) {
             currentPublisherTypeFilter = 'Non-profit';
             dataTable.column(3).search(currentPublisherTypeFilter, false, false, false).draw();
-            refreshHistogramFromTable(dataTable);
-            refreshCountsFromTable(dataTable);
         }
     });
 
@@ -399,8 +391,6 @@ $(document).ready(function () {
         if (dataTable) {
             currentBusinessModelFilter = 'all';
             dataTable.column(4).search('').draw();
-            refreshHistogramFromTable(dataTable);
-            refreshCountsFromTable(dataTable);
         }
     });
     $('#diamondOABusinessModel').on('click', function () {
@@ -409,8 +399,6 @@ $(document).ready(function () {
         if (dataTable) {
             currentBusinessModelFilter = 'OA diamond';
             dataTable.column(4).search(currentBusinessModelFilter, false, false).draw();
-            refreshHistogramFromTable(dataTable);
-            refreshCountsFromTable(dataTable);
         }
     });
     $('#oaBusinessModel').on('click', function () {
@@ -419,8 +407,6 @@ $(document).ready(function () {
         if (dataTable) {
             currentBusinessModelFilter = 'OA';
             dataTable.column(4).search(currentBusinessModelFilter, false, false).draw();
-            refreshHistogramFromTable(dataTable);
-            refreshCountsFromTable(dataTable);
         }
     });
     $('#hybridBusinessModel').on('click', function () {
@@ -429,8 +415,6 @@ $(document).ready(function () {
         if (dataTable) {
             currentBusinessModelFilter = 'Hybrid';
             dataTable.column(4).search(currentBusinessModelFilter, false, false).draw();
-            refreshHistogramFromTable(dataTable);
-            refreshCountsFromTable(dataTable);
         }
     });
     $('#subscriptionBusinessModel').on('click', function () {
@@ -439,14 +423,11 @@ $(document).ready(function () {
         if (dataTable) {
             currentBusinessModelFilter = 'Subscription';
             dataTable.column(4).search(currentBusinessModelFilter, false, false).draw();
-            refreshHistogramFromTable(dataTable);
-            refreshCountsFromTable(dataTable);
         }
     });
 
     // APC distribution - optimized to use pre-computed bins
     function calculateAPCDistribution(data) {
-        console.time('calculateAPCDistribution');
         const distribution = Array(cachedApcBins.length - 1).fill(0);
         // Use pre-computed bin indices from parseCSV
         data.forEach(row => {
@@ -454,7 +435,6 @@ $(document).ready(function () {
                 distribution[row.__apcBin]++;
             }
         });
-        console.timeEnd('calculateAPCDistribution');
         return {bins: cachedApcBins, distribution};
     }
 
@@ -490,16 +470,13 @@ $(document).ready(function () {
 
     // Recompute only histogram based on current filtered rows
     function refreshHistogramFromTable(tableApi) {
-        console.time('refreshHistogramFromTable');
         const filteredData = tableApi.rows({search: 'applied'}).data().toArray();
         const distribution = calculateAPCDistribution(filteredData);
         renderHistogram(distribution);
-        console.timeEnd('refreshHistogramFromTable');
     }
 
     // Recompute and update counts for publisher type and business model buttons
     function refreshCountsFromTable(tableApi) {
-        console.time('refreshCountsFromTable');
         tableApi.column(3).search('')
         tableApi.column(4).search('')
         const allRows = tableApi.rows({search: 'applied'}).data().toArray();
@@ -581,7 +558,6 @@ $(document).ready(function () {
                 $('.business-model-button').removeClass('active');
                 $('#allBusinessModels').addClass('active');
                 tableApi.column(4).search('').draw();
-                refreshHistogramFromTable(tableApi);
                 currentBusinessModelFilter = 'all';
             }
         }
@@ -590,7 +566,6 @@ $(document).ready(function () {
             $('#allBusinessModels').addClass('active');
             currentBusinessModelFilter = 'all';
         }
-        console.timeEnd('refreshCountsFromTable');
     }
 
     // APC slider filter with debouncing
@@ -607,8 +582,6 @@ $(document).ready(function () {
         searchDebounceTimer = setTimeout(function() {
             if (dataTable) {
                 dataTable.draw();
-                refreshHistogramFromTable(dataTable);
-                refreshCountsFromTable(dataTable);
             }
         }, 20); // 20ms debounce for slider (faster feedback than search)
     });
@@ -641,7 +614,6 @@ $(document).ready(function () {
                 
                 // Remove event handlers before destroying
                 dataTable.off('column-visibility.dt');
-                $('.dt-input').off('keyup');
                 
                 // Destroy without removing from DOM - we'll clear tbody manually
                 dataTable.destroy(false);
@@ -690,6 +662,7 @@ $(document).ready(function () {
                 // Precompute initial visibility (only used if no saved state exists)
                 const desiredVisible = allHeadersText.map(h => mandatoryHeaders.has(h) || defaultVisibleHeaders.has(h));
                 const toHide = desiredVisible.map((v, i) => (v ? null : i)).filter(i => i !== null);
+                let firstDrawCompleted = false;
 
                 dataTable = $('#journalTable').DataTable({
                     data: tableData,
@@ -877,6 +850,24 @@ $(document).ready(function () {
                             $row.addClass('non-profit-row');
                         }
                     },
+                    preDrawCallback: function () {
+                        if (!firstDrawCompleted) {
+                            // Initialize whether columns are searchable based on visibility
+                            var table = this.api();
+                            table.columns().every(function (index) {
+                                this.settings()[0].aoColumns[index].bSearchable = this.visible();
+                            });
+                            table.rows().invalidate();
+                            firstDrawCompleted = true;
+                        }
+                    },
+                    drawCallback: function () {
+                        // This fires after every draw (search, filter, sort, page change, etc.)
+                        // Automatically updates histogram and counts for all search types including ColControl
+                        var table = this.api();
+                        refreshHistogramFromTable(table);
+                        refreshCountsFromTable(table);
+                    },
                     initComplete: function () {
                         console.timeEnd('DataTable initialization');
                         console.time('initComplete callback');
@@ -926,39 +917,11 @@ $(document).ready(function () {
                             $('#allBusinessModels').addClass('active');
                         }
 
-                        // Initialize whether columns are searchable based on visibility
-                        table.columns().every(function (index) {
-                            this.settings()[0].aoColumns[index].bSearchable = this.visible();
-                        });
-                        table.rows().invalidate().draw();
-
                         // Event listener for when a column's visibility changes
                         table.on('column-visibility.dt', function (e, settings, column, state) {
                             settings.aoColumns[column].bSearchable = state;
                             table.rows().invalidate().draw();
-                            refreshHistogramFromTable(table);
-                            refreshCountsFromTable(table);
                         });
-
-                        // Search box updates histogram and counts with debouncing
-                        $('.dt-input').on('keyup', function () {
-                            // Clear previous debounce timer
-                            if (searchDebounceTimer) {
-                                clearTimeout(searchDebounceTimer);
-                            }
-                            
-                            // Debounce expensive operations
-                            searchDebounceTimer = setTimeout(function() {
-                                refreshHistogramFromTable(table);
-                                refreshCountsFromTable(table);
-                            }, 150); // 150ms debounce for search
-                        });
-
-                        // Initialize histogram
-                        const allData = table.rows().data().toArray();
-                        const distribution = calculateAPCDistribution(allData);
-                        renderHistogram(distribution);
-                        refreshCountsFromTable(table);
 
                         // Render domain filter as dropdown if too many domains, else as buttons
                         const tooManyDomains = Array.isArray(domains) && domains.length > 10;
@@ -983,8 +946,6 @@ $(document).ready(function () {
                                     table.column(1).search(pattern, true, false);
                                 }
                                 table.draw();
-                                refreshHistogramFromTable(table);
-                                refreshCountsFromTable(table); // counts should change with Field
                             });
 
                             domainFiltersContainer.removeClass('compact').append(select);
@@ -999,8 +960,6 @@ $(document).ready(function () {
                                     table.draw();
                                     domainFiltersContainer.find('.domain-filter-button').removeClass('active');
                                     $(this).addClass('active');
-                                    refreshHistogramFromTable(table);
-                                    refreshCountsFromTable(table);
                                 });
                             domainFiltersContainer.append(showAllButton);
 
@@ -1020,8 +979,6 @@ $(document).ready(function () {
                                             $(this).addClass('active');
                                         }
                                         table.draw();
-                                        refreshHistogramFromTable(table);
-                                        refreshCountsFromTable(table); // counts should change with Field
                                     });
                                 domainFiltersContainer.append(button);
                             });

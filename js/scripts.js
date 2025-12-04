@@ -802,7 +802,7 @@ $(document).ready(function () {
                         {
                             targets: 0,
                             render: function (data, type, row) {
-                                if ((type === 'display' || type === 'filter') && row && row[9]) {
+                                if ((type === 'display') && row && row[9]) {
                                     return `<a href="${row[9]}" target="_blank" rel="noopener noreferrer">${data}</a>`;
                                 }
                                 return data;
@@ -811,12 +811,11 @@ $(document).ready(function () {
                         {
                             targets: 9,
                             render: function (data, type, row) {
-                                if ((type === 'display' || type === 'filter') && row && row[9]) {
+                                if ((type === 'display') && row && row[9]) {
                                     return `<a href="${row[9]}" target="_blank" rel="noopener noreferrer">${row[9]}</a>`;
                                 }
                                 return data;
-                            },
-                            searchable: false
+                            }
                         },
                         ...(toHide.length ? [{targets: toHide, visible: false}] : [])
                     ],

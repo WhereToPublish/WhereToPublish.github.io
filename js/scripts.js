@@ -304,6 +304,15 @@ $(document).ready(function () {
         currentDatasetLabel = 'Genetics & Genomics';
         loadTable(src);
     });
+    $('#health').on('click', function () {
+        $('.data-source-button').removeClass('active');
+        $(this).addClass('active');
+        const src = 'data/health.csv';
+        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
+        currentDataSource = src;
+        currentDatasetLabel = 'Health';
+        loadTable(src);
+    });
     $('#immunology').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');

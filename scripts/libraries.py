@@ -232,24 +232,23 @@ def load_pci_friendly_set() -> set[str]:
 def normalize_pci_friendly(entry: str) -> str:
     """Normalize a journal name for PCI-friendly comparison: lowercase and trim."""
     if entry is None:
-        return ""
+        return "No"
     name = str(entry).strip().lower()
     if name == "none":
-        return ""
+        return "No"
     elif name == "pci friendly":
         return "PCI friendly"
     elif name == "pci":
         return "PCI"
     else:
-        return ""
+        return "No"
 
 
 def mark_pci_friendly(df: pl.DataFrame, friendly_set: set[str]) -> pl.DataFrame:
     """Set 'PCI partner' to 'PCI friendly' when journal is in friendly_set."""
     df = df.with_columns(
-        pl.col("PCI partner").map_elements(normalize_pci_friendly, return_dtype=pl.Utf8).alias(
-            "PCI partner"
-        )
+        pl.col("PCI partner").map_elements(normalize_pci_friendly, return_dtype=pl.Utf8, skip_nulls=False).alias(
+            "PCI partner")
     )
     return df.with_columns(
         pl.when(
@@ -577,6 +576,7 @@ def annotate_publisher_type_from_institution_type(df: pl.DataFrame) -> pl.DataFr
     df_temp = df_temp.with_columns(pl.col("new_publisher_type").alias("Publisher type")).drop("new_publisher_type")
     return df_temp
 
+
 def derive_business_model_from_APC(df: pl.DataFrame) -> pl.DataFrame:
     """ Derive 'Business model' from 'APC Euros'.
     - If APC Euros is > 0 and business model is empty, set Business model to 'Hybrid'.
@@ -592,6 +592,7 @@ def derive_business_model_from_APC(df: pl.DataFrame) -> pl.DataFrame:
         .alias("Business model")
     )
     return df
+
 
 def derive_APC_from_business_model(df: pl.DataFrame) -> pl.DataFrame:
     """ Derive 'APC Euros' from 'Business model'.

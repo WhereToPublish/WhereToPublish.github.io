@@ -494,14 +494,6 @@ $(document).ready(function () {
         const publisherTypeCounts = {'For-profit': 0, 'Non-profit': 0, 'University Press': 0};
         const businessModelCounts = {'OA diamond': 0, 'OA': 0, 'Hybrid': 0, 'Subscription': 0};
 
-        const previouslyActiveId = $('.business-model-button.active').attr('id') || null;
-        const idToModel = {
-            'diamondOABusinessModel': 'OA diamond',
-            'oaBusinessModel': 'OA',
-            'hybridBusinessModel': 'Hybrid',
-            'subscriptionBusinessModel': 'Subscription'
-        };
-
         // Single iteration to compute both publisher and business model counts
         allRows.forEach((row) => {
             if (!rowPassesApcAndField(row)) return;
@@ -533,39 +525,34 @@ $(document).ready(function () {
         $('#universityPressPublishers').text('University Press (' + (publisherTypeCounts['University Press'] || 0) + ')');
 
         $('#allBusinessModels').text('All Business Models (' + businessConsidered + ')');
-        const modelToSelector = {
-            'OA diamond': '#diamondOABusinessModel',
-            'OA': '#oaBusinessModel',
-            'Hybrid': '#hybridBusinessModel',
-            'Subscription': '#subscriptionBusinessModel'
-        };
-        Object.keys(modelToSelector).forEach((model) => {
-            const sel = modelToSelector[model];
-            const count = businessModelCounts[model] || 0;
-            const $btn = $(sel);
-            $btn.text(model + ' (' + count + ')');
+        
+        // Update business model buttons and handle visibility
+        const modelButtons = [
+            {id: '#diamondOABusinessModel', label: 'OA diamond', key: 'OA diamond'},
+            {id: '#oaBusinessModel', label: 'OA', key: 'OA'},
+            {id: '#hybridBusinessModel', label: 'Hybrid', key: 'Hybrid'},
+            {id: '#subscriptionBusinessModel', label: 'Subscription', key: 'Subscription'}
+        ];
+        
+        modelButtons.forEach(function(btn) {
+            const count = businessModelCounts[btn.key] || 0;
+            const $button = $(btn.id);
+            $button.text(btn.label + ' (' + count + ')');
+            
             if (count === 0) {
-                $btn.addClass('hidden').removeClass('active');
+                $button.addClass('hidden');
+                // If this button is currently active, reset to "All Business Models"
+                if ($button.hasClass('active')) {
+                    $button.removeClass('active');
+                    $('.business-model-button').removeClass('active');
+                    $('#allBusinessModels').addClass('active');
+                    currentBusinessModelFilter = 'all';
+                    tableApi.column(4).search('').draw();
+                }
             } else {
-                $btn.removeClass('hidden');
+                $button.removeClass('hidden');
             }
         });
-
-        if (previouslyActiveId && previouslyActiveId !== 'allBusinessModels') {
-            const previouslyActiveModel = idToModel[previouslyActiveId];
-            const prevCount = businessModelCounts[previouslyActiveModel] || 0;
-            if (prevCount === 0) {
-                $('.business-model-button').removeClass('active');
-                $('#allBusinessModels').addClass('active');
-                tableApi.column(4).search('').draw();
-                currentBusinessModelFilter = 'all';
-            }
-        }
-
-        if ($('.business-model-button.active').length === 0) {
-            $('#allBusinessModels').addClass('active');
-            currentBusinessModelFilter = 'all';
-        }
     }
 
     // APC slider filter with debouncing
@@ -879,9 +866,9 @@ $(document).ready(function () {
                         // Sync publisher and business model filter buttons with restored state
                         $('.profit-status-button').removeClass('active');
                         const pubSearch = table.column(3).search();
-                        currentPublisherTypeFilter = 'all';
                         if (!pubSearch) {
                             $('#allPublishers').addClass('active');
+                            currentPublisherTypeFilter = 'all';
                         } else if (pubSearch.indexOf('For-profit') === 0) {
                             $('#forProfitPublishers').addClass('active');
                             currentPublisherTypeFilter = 'For-profit';
@@ -893,27 +880,29 @@ $(document).ready(function () {
                             currentPublisherTypeFilter = 'University Press';
                         } else {
                             $('#allPublishers').addClass('active');
+                            currentPublisherTypeFilter = 'all';
                         }
 
                         $('.business-model-button').removeClass('active');
                         const bmSearch = table.column(4).search();
-                        currentBusinessModelFilter = 'all';
                         if (!bmSearch) {
                             $('#allBusinessModels').addClass('active');
+                            currentBusinessModelFilter = 'all';
                         } else if (bmSearch === 'OA diamond') {
                             $('#diamondOABusinessModel').addClass('active');
-                            currentBusinessModelFilter = 'oa-diamond';
-                        } else if (bmSearch === '^OA$') {
+                            currentBusinessModelFilter = 'OA diamond';
+                        } else if (bmSearch === 'OA') {
                             $('#oaBusinessModel').addClass('active');
-                            currentBusinessModelFilter = 'oa';
-                        } else if (bmSearch === '^Hybrid$') {
+                            currentBusinessModelFilter = 'OA';
+                        } else if (bmSearch === 'Hybrid') {
                             $('#hybridBusinessModel').addClass('active');
-                            currentBusinessModelFilter = 'hybrid';
-                        } else if (bmSearch === '^Subscription$') {
+                            currentBusinessModelFilter = 'Hybrid';
+                        } else if (bmSearch === 'Subscription') {
                             $('#subscriptionBusinessModel').addClass('active');
-                            currentBusinessModelFilter = 'subscription';
+                            currentBusinessModelFilter = 'Subscription';
                         } else {
                             $('#allBusinessModels').addClass('active');
+                            currentBusinessModelFilter = 'all';
                         }
 
                         // Event listener for when a column's visibility changes

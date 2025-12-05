@@ -203,7 +203,7 @@ $(document).ready(function () {
             return 'No matching journals found.<br> This database includes only biology and filtered out predatory journals.<br> If you think a journal is missing, please ' + contributeLink + '.';
         }
         const label = currentDatasetLabel || 'current dataset';
-        return 'No matching journals. <br>Maybe load the <a href="#" id="load-all-dataset-link" role="button">&quot;All fields&quot;</a> dataset. <br>You currently have the &quot;' + label + '&quot; dataset loaded.';
+        return 'No matching journals.<br> You currently have the &quot;' + label + '&quot; dataset loaded.';
     }
 
     // Helper: whether a row passes current APC and Field selection only
@@ -676,23 +676,23 @@ $(document).ready(function () {
                         caseInsensitive: true,
                         search: currentSearch // Re-apply global search
                     },
-                    columnControl: [
-                        {
-                            extend: 'dropdown',
-                            content: [
-                                'orderAsc',
-                                'orderDesc',
-                                'spacer',
-                                'search'
-                            ]
-                        }
-                    ],
+                    columnControl: ['order', 'searchDropdown'],
                     ordering: {
                         indicators: false,
                         handler: false
                     },
                     info: true,
                     dom: 'Bift',
+                    footerCallback: function (row, data, start, end, display) {
+                        const isAllFields = currentDataSource === ALL_FIELDS_SOURCE;
+                        const $footerCell = $(row).find('td');
+                        $footerCell.css('text-align', 'center');
+                        if (!isAllFields) {
+                            $footerCell.html('Load the larger <a href="#" id="load-all-dataset-link" role="button" style="color: #3182ce; font-weight: 500;">"All Fields"</a> dataset.');
+                        } else {
+                            $footerCell.html('');
+                        }
+                    },
                     stateSave: true,
                     stateDuration: -1, // use localStorage and persist
                     // Use a single global localStorage key so state is shared across CSVs
@@ -1033,6 +1033,13 @@ $(document).ready(function () {
     modalTriggers.on('click', function () {
         openModal(aboutModal);
     });
+    
+    // About link handler
+    $('#aboutLink').on('click', function (event) {
+        event.preventDefault();
+        openModal(aboutModal);
+    });
+    
     closeModalButton.on('click', function () {
         closeModal();
     });

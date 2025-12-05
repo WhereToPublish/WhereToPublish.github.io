@@ -12,7 +12,6 @@
     <link rel="stylesheet" type="text/css" href="vendor/stateRestore.dataTables.min.css">
     <link rel="stylesheet" type="text/css" href="vendor/columnControl.dataTables.min.css">
     <link rel="stylesheet" type="text/css" href="vendor/fixedHeader.dataTables.min.css">
-<!--    <link rel="stylesheet" type="text/css" href="vendor/scroller.dataTables.min.css">-->
     <link rel="stylesheet" type="text/css" href="vendor/tippy.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,6 +25,7 @@
     <h1><span class="modal-trigger">Where to Publish?</span></h1>
     <p id="intro-p" class="modal-trigger">A database of for-profit and non-profit scientific journals in
         biology.</p>
+    <p class="line"></p>
     <div id="dataSourceFilters" style="margin-bottom: 5px; text-align: center;">
         <!-- Data source buttons: one per CSV category -->
         <button id="generalist" class="data-source-button active">Generalist</button>
@@ -115,9 +115,18 @@
         <tbody>
         <!-- Data will be populated by DataTables -->
         </tbody>
+        <tfoot>
+        <tr>
+            <td colspan="14" style="text-align: center; padding: 15px;"></td>
+        </tr>
+        </tfoot>
     </table>
-    There is an error in the data, or a journal is not in the database? <br>
-    Help us and contribute at <a href="https://github.com/WhereToPublish/WhereToPublish.github.io" target="_blank">WhereToPublish/WhereToPublish.github.io</a>
+    <div style="text-align: right; margin-top: 10px;">
+        Contribute at <a href="https://github.com/WhereToPublish/WhereToPublish.github.io" target="_blank">github.com/WhereToPublish</a>.
+    </div>
+    <div style="text-align: right; margin-top: 10px;">
+        <a href="#" id="aboutLink" class="modal-trigger" style="text-decoration: none; font-weight: 900;">About this website</a>
+    </div>
 </div>
 
 <!-- Modal -->
@@ -145,14 +154,15 @@
         <div class="copy-box-container">
             <div class="copy-box" id="copyBox">
                 <span id="copyContent">
-                    I thank you for your invitation. However, I need to decline it. I have a strict personal policy to check the publishing guidelines of the publishers I receive review invitations from. I consider that your journal has extremely high APC’s that do not reflect the true cost of publishing. Money which is mostly public is rendering high profits. I do not agree this should be the case.
+                    I thank you for your invitation. However, I need to decline it.
+                    I have a strict personal policy to check the publishing guidelines of the publishers I receive review invitations from and to review only for non-profit or university-press journals whose revenues serve the community.
                 </span><br>
                 <span class="copy-icon">📋 Click to copy! 📋</span>
                 <div class="copy-tooltip" id="copyTooltip">Copied!</div>
             </div>
         </div>
-        Know more about the project, help us or contribute at <a
-            href="https://github.com/WhereToPublish/WhereToPublish.github.io" target="_blank">WhereToPublish/WhereToPublish.github.io</a>.
+        Help us or contribute at <a
+            href="https://github.com/WhereToPublish/WhereToPublish.github.io" target="_blank">github.com/WhereToPublish</a>.
     </div>
 </div>
 
@@ -182,7 +192,6 @@
 <script src="vendor/dataTables.responsive.min.js"></script>
 <script src="vendor/dataTables.fixedHeader.min.js"></script>
 <script src="vendor/dataTables.columnControl.min.js"></script>
-<!--<script src="vendor/dataTables.scroller.min.js"></script>-->
 <script src="js/scripts.js"></script>
 
 </body>

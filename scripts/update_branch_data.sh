@@ -30,4 +30,4 @@ git checkout main
 git checkout data -- data/
 git checkout data -- data_extracted/
 git checkout data -- data_extraction/
-git checkout data -- data_merged/
+git reset

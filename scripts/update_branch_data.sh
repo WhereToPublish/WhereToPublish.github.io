@@ -16,7 +16,11 @@ git reset --soft HEAD~1
 # sh ./scripts/download_extraction.sh
 #
 # Update data: download csv files and process them
-sh ./scripts/run.sh
+sh ./scripts/download_csv.sh
+
+python3 ./scripts/update_extracted.py
+python3 ./scripts/data_merge_dafnee.py
+python3 ./scripts/data_process.py
 
 # Add data, data_extraction and data_extracted folders to the last commit and force push to origin
 git add data/

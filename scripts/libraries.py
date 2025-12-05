@@ -22,6 +22,12 @@ FINAL_COLUMNS = [
     "PCI partner",
 ]
 
+NUMERIC_COLUMNS = [
+    "APC Euros",
+    "Scimago Rank",
+    "H index",
+]
+
 
 def load_csv(file_path, **kwargs):
     """
@@ -198,7 +204,7 @@ def format_APC(apc: str) -> str:
 def format_APC_Euros(df: pl.DataFrame, col: str = "APC Euros") -> pl.DataFrame:
     """Format the 'APC Euros' column to be integer, extracting only the part before any comma or period, then removing non-digit characters."""
     df = df.with_columns(
-        pl.col(col).map_elements(format_APC, return_dtype=pl.Utf8).cast(pl.Int64, strict=False)
+        pl.col(col).map_elements(format_APC, return_dtype=pl.Utf8).cast(pl.Int64, strict=True)
         .alias(col)
     )
     # assert there is no APC < 0 and APC > 20000
@@ -216,7 +222,7 @@ def format_Scimago_Rank(df: pl.DataFrame, col: str = "Scimago Rank") -> pl.DataF
         .cast(pl.Utf8)
         .str.replace_all(",", ".")
         .str.replace_all(r"[^\d.]", "")
-        .cast(pl.Float64, strict=False)
+        .cast(pl.Float64, strict=True)
         .alias(col)
     )
 
@@ -596,10 +602,10 @@ def derive_business_model_from_APC(df: pl.DataFrame) -> pl.DataFrame:
 
 def derive_APC_from_business_model(df: pl.DataFrame) -> pl.DataFrame:
     """ Derive 'APC Euros' from 'Business model'.
-    - If Business model is 'OA Diamond', set 'APC Euros' to 0.
+    - If Business model is 'OA diamond', set 'APC Euros' to 0.
     """
     df = df.with_columns(
-        pl.when(pl.col("Business model") == "OA Diamond")
+        pl.when(pl.col("Business model") == "OA diamond")
         .then(pl.lit(0))
         .otherwise(pl.col("APC Euros"))
         .alias("APC Euros")
@@ -692,3 +698,14 @@ def write_ordered(df: pl.DataFrame, out_path: str) -> None:
     # Order columns and write CSV
     ordered = df.select([pl.col(c) for c in FINAL_COLUMNS])
     ordered.write_csv(out_path)
+
+
+def check_consistency(df: pl.DataFrame) -> None:
+    """Check for consistency in key columns and log any issues found."""
+    # Assert that we don't have any column that are OA diamond but APC is not 0.
+    filter_err = df.filter(
+        (pl.col("Business model") == "OA diamond") &
+        (pl.col("APC Euros").is_not_null()) &
+        (pl.col("APC Euros") != 0)
+    )
+    assert filter_err.height == 0, f"Found {filter_err.height} rows with Business model 'OA diamond' but APC Euros not 0."

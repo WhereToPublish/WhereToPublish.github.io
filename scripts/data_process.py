@@ -240,7 +240,7 @@ def dedupe_by_journal_and_website(df: pl.DataFrame, source_name: str) -> pl.Data
     result_rows = [all_rows[idx] for idx in kept_indices]
 
     # Convert back to DataFrame
-    return pl.DataFrame(result_rows, schema_overrides={col: pl.Utf8 for col in EXPECTED_COLUMNS})
+    return pl.DataFrame(result_rows, schema=df.columns)
 
 
 def main():
@@ -261,8 +261,6 @@ def main():
             pl.col("Field").map_elements(normalize_field, return_dtype=pl.Utf8).alias("Field")
         )
 
-        # Format table:
-        df = format_table(df)
         df = df.with_columns(
             pl.col("Publisher type").map_elements(normalize_publisher_type, return_dtype=pl.Utf8)
             .alias("Publisher type")
@@ -272,6 +270,7 @@ def main():
 
         # Deduplicate by Journal (case-insensitive, trimmed)
         df = dedupe_by_journal_and_website(df, os.path.basename(csv_path))
+        df = format_table(df)
 
         # Sort alphabetically by Journal
         df = df.sort(by=["Journal"], descending=[False])
@@ -282,6 +281,7 @@ def main():
         # Write to output directory using same filename
         out_path = os.path.join(OUTPUT_DIR, os.path.basename(csv_path))
         # Write using "" surrounding for all fields to ensure proper CSV formatting
+        check_consistency(df)
         df.write_csv(out_path, quote_char='"', quote_style="always")
         print(f"Wrote formatted data to: {out_path}")
 
@@ -292,6 +292,9 @@ def main():
         all_df = pl.concat(processed_frames, how="vertical_relaxed")
         # Deduplicate using OR logic (same normalized journal OR same normalized website)
         all_df = dedupe_by_journal_and_website(all_df, "all_biology.csv").sort("Journal")
+        all_df = format_table(all_df)
+        all_df = ensure_columns_and_order(all_df)
+        check_consistency(all_df)
 
         all_out_path = os.path.join(OUTPUT_DIR, "all_biology.csv")
         all_df.write_csv(all_out_path, quote_char='"', quote_style="always")

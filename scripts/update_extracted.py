@@ -411,6 +411,7 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
     final_df = updated_df.select(original_cols)
 
     # Overwrite the existing file
+    check_consistency(final_df)
     final_df.write_csv(csv_path)
     print(f"Successfully updated and saved {csv_path}")
 

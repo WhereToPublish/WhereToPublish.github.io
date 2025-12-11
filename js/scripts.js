@@ -44,10 +44,25 @@ function parseCSV(csvText) {
         'PCI Partner'         // 13
     ];
     const columnDefs = {
-        5: 'APC values are obtained from OpenAPC as the average in the last 3 years.',
-        10: 'Scimago Rank is an ordinal position where higher numbers indicate higher impact.',
-        11: 'Scimago Quartile ranges from Q1 (best) to Q4 (lowest)',
-        12: 'At least H publications have received at least H citations.'
+        0: 'The name of the journal. Official journal names might differ from the name on the list.',
+        1: 'The scientific field of the journal. This classification is based on the aims and scope of the journals but it is, admittedly, subjective and arbitrary to a certain extent.',
+        2: 'The company or organization that publishes the journal. Note that in some cases, societies, universities or government institutions are in charge of the journal but delegate the publishing per se and archiving to an often for-profit publishing company which is the company reported under the Publisher column. In those cases, the journal will be classified as For-profit associated with a Society. See “Publisher type” and “Business model”.',
+        3: '“For-profit”, “Non-profit” or “University press”. “For-profit” and “University-press” can be additionally “Associated with a society” or “Associated with a university or government institution” to encompass relationships of different types both in ownership and revenue between publisher and institution (see “Publisher” and “Institution”). In most cases, the specific arrangement between publisher and institution is not available through the journal website.',
+        4: 'We decided to classify journals according to 4 main business models regarding the origin of their revenues (authors/readers/other) and the way they charge authors for APCs (Article Processing Charges):' +
+            'Subscription: journals where the revenue entirely comes from readers’ subscription fees, but where generally no APCs are required from authors.' +
+            'Hybrid: journals where revenues come from either readers’ subscription or payment to access the journal’s articles and from authors paying for publishing and an additional fee to publish their article as open access for the readers. These journals generally leave the authors to choose if they want to pay an additional fee to make their article open access.' +
+            'OA (Open Access): encompasses both Green Open Access (preprint, postprint and self-archiving by the authors allowed for the authors to make the article openly available at their own responsibility) and Gold Open Access (the article is openly accessible to everyone on the official website of the journal in its final published version) although most cases in the database are typically Gold. Authors typically pay an extra-APC for readers to have OA access to their article.' +
+            'OA diamond: the article is openly accessible to everyone (no cost to readers) free of charge for authors Diamond OA typically obtain their revenue from government institutions, universities and other funders.',
+        5: 'Article Processing Charges (APCs) are fees charged to authors to make their work available as open access (see Business Model). The data is the average APCs from the last 3 years based on the OpenAPC database.',
+        6: 'The country where the publisher is based.',
+        7: 'The institution associated with the journal. Typically this refers to the scientific society in charge of the journal, in case it differs from the non-society Publisher or in case the journal is run by a Society which is also a publishing house. For-profit journals might or might not be associated with one or many institutions.',
+        8: 'The type of institution (e.g., university, research institute).',
+        9: 'Link to the journal\'s website.',
+        10: 'An ordinal position where higher numbers indicate higher impact. ' +
+            'The SCImago Journal Rank (SJR) indicator is calculated by dividing the total weighted citations a journal receives over a three-year period by the number of citable publications it published in those years.' +
+            'A journal with a SJR value > 1.0 has above average citation potential and a journal with a SJR value < 1.0 has below average citation potential.',
+        11: 'Ranges from Q1 (best) to Q4 (lowest) based on Scimago Journal Rank within its field (based on Scimago journal field classification).',
+        12: 'A journal with an H-index of h has published h papers that have each been cited at least h times. In most cases, the H-index is retrieved from the scimago database.'
     };
 
     // Mandatory columns that cannot be hidden

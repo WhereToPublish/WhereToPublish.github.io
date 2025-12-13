@@ -4,7 +4,6 @@
 .DS_store
 __pycache__
 data_legacy
-data_merged
 node_modules/
 TODO.md
 

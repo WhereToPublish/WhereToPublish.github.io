@@ -1,10 +1,10 @@
-# From the list of .csv files in the 'data_merged' directory, process each file to have it formatted with specific columns and write them to a new directory 'data'.
+# From the list of .csv files in the 'data_extracted' directory, process each file to have it formatted with specific columns and write them to a new directory 'data'.
 # Create one more csv file in the 'data' directory: all_biology.csv containing all entries (deduplicated if necessary).
 import os
 from glob import glob
 from libraries import *
 
-INPUT_DIR = "data_merged"
+INPUT_DIR = "data_extracted"
 OUTPUT_DIR = "data"
 
 # Ensure output directory exists
@@ -101,10 +101,11 @@ def merge_text_field(values: list, field: str) -> tuple[str, str | None]:
     return best_val, conflict
 
 
-def merge_duplicates(entries: list[dict]) -> dict:
+def merge_duplicates(entries: list[dict], all_columns: list[str]) -> dict:
     """Merge duplicate entries by keeping the best information from all duplicates.
     Args:
         entries: List of dictionaries representing duplicate rows
+        all_columns: Optional ordered list of all columns to preserve in results
     Returns:
         Merged dictionary with the best values from all entries
     """
@@ -112,14 +113,16 @@ def merge_duplicates(entries: list[dict]) -> dict:
         return {}
 
     if len(entries) == 1:
-        return entries[0]
+        return {col: entries[0].get(col) for col in all_columns}
 
     numeric_max_fields = {"APC Euros", "H index", "Scimago Rank"}
     merged = {}
     conflicts = []
 
-    # Process each field across all entries
+    # Process each field across all entries for the expected output columns
     for field in EXPECTED_COLUMNS:
+        if field not in all_columns:
+            continue
         values = collect_valid_values(entries, field)
 
         if not values:
@@ -137,7 +140,13 @@ def merge_duplicates(entries: list[dict]) -> dict:
             if conflict:
                 conflicts.append(conflict)
 
-    # Log conflicts if any
+    # For any remaining columns, keep the first non-null entry
+    for field in all_columns:
+        if field in merged:
+            continue
+        values = collect_valid_values(entries, field)
+        merged[field] = values[0] if values else None
+
     if conflicts:
         journal_name = merged.get("Journal", "Unknown")
         print(f"\t[merge_duplicates] WARNING: Conflicts for Journal='{journal_name}':")
@@ -224,7 +233,7 @@ def dedupe_by_journal_and_website(df: pl.DataFrame, source_name: str) -> pl.Data
         for indices in groups.values():
             if len(indices) > 1 and not any(idx in processed_indices for idx in indices):
                 entries = [all_rows[idx] for idx in indices]
-                merged = merge_duplicates(entries)
+                merged = merge_duplicates(entries, list(df.columns))
                 first_idx = min(indices)
                 all_rows[first_idx] = merged
                 kept_indices.append(first_idx)
@@ -240,7 +249,7 @@ def dedupe_by_journal_and_website(df: pl.DataFrame, source_name: str) -> pl.Data
     result_rows = [all_rows[idx] for idx in kept_indices]
 
     # Convert back to DataFrame
-    return pl.DataFrame(result_rows, schema=df.columns)
+    return pl.DataFrame(result_rows, schema=df.schema)
 
 
 def main():
@@ -255,6 +264,7 @@ def main():
         df = load_csv(csv_path)
         # Drop rows with empty/null Journal
         df = drop_empty_journals(df, os.path.basename(csv_path))
+        df = project_to_final_string_schema(df)
 
         # Backfill Field
         df = df.with_columns(

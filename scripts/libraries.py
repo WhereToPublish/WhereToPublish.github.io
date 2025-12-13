@@ -20,6 +20,7 @@ FINAL_COLUMNS = [
     "Scimago Quartile",
     "H index",
     "PCI partner",
+    "Scimago Journal Title"
 ]
 
 NUMERIC_COLUMNS = [
@@ -29,9 +30,24 @@ NUMERIC_COLUMNS = [
 ]
 
 
+def ensure_columns(df: pl.DataFrame) -> pl.DataFrame:
+    # Ensure all FINAL_COLUMNS exist; add missing as nulls
+    for c in FINAL_COLUMNS:
+        if c not in df.columns:
+            df = df.with_columns(pl.lit(None).alias(c))
+    return df
+
+
+def project_to_final_string_schema(df: pl.DataFrame) -> pl.DataFrame:
+    """Ensure all final columns are present and cast them to Utf8 for safe concatenation/merging."""
+    df = ensure_columns(df)
+    return df.select([pl.col(c).cast(pl.Utf8).alias(c) for c in FINAL_COLUMNS])
+
+
 def load_csv(file_path, **kwargs):
     """
     Load a CSV file, handling both compressed (.gz) and uncompressed files.
+    By default, all columns are read as Utf8 to avoid type inference issues.
     """
     if file_path.endswith(".gz"):
         with gzip.open(file_path, "rb") as f:
@@ -678,20 +694,6 @@ def normalize_publisher_type(name: str) -> str:
     else:
         print(f"Unknown publisher type: '{name}'")
         return s
-
-
-def ensure_columns(df: pl.DataFrame) -> pl.DataFrame:
-    # Ensure all FINAL_COLUMNS exist; add missing as nulls
-    for c in FINAL_COLUMNS:
-        if c not in df.columns:
-            df = df.with_columns(pl.lit(None).alias(c))
-    return df
-
-
-def project_to_final_string_schema(df: pl.DataFrame) -> pl.DataFrame:
-    """Ensure all final columns are present and cast them to Utf8 for safe concatenation/merging."""
-    df = ensure_columns(df)
-    return df.select([pl.col(c).cast(pl.Utf8).alias(c) for c in FINAL_COLUMNS])
 
 
 def write_ordered(df: pl.DataFrame, out_path: str) -> None:

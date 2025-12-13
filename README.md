@@ -79,9 +79,7 @@ The data sources are:
 - Scimago: Journal ranking data, providing information about journal ranks and quartiles, in the file `data_extraction/scimagor.csv`.
 - OpenAPC: Open Article Processing Charges data, providing information about APCs and business, in the file `data_extraction/openapc.csv`.
 
-Second, the script `scripts/data_merge_dafnee.py` is used to merge the DAFNEE data (data_extracted/dafnee.csv) with the other data sources (data_extracted/*.csv). Mainly it spreads the DAFNEE data the csv files ecology_evolution.csv and generalist.csv. The input csv files are in the folder `data_extracted/` and the output csv are in the folder `data_merged/`.
-
-Third, the script `scripts/data_process.py` is used to process the merged data and generate the final CSV files used by the JS code. Mainly it formats and cleans the data, removes duplicates, and concatenates the various csv files into a single csv file `data/all_biology.csv`. The input csv files are in the folder `data_merged/` (`data_merged/*.csv`) and the output csv files are in the folder (`data/*.csv`).
+Then, the script `scripts/data_process.py` is used to process the merged data and generate the final CSV files used by the JS code. Mainly it formats and cleans the data, removes duplicates, and concatenates the various csv files into a single csv file `data/all_biology.csv`. The input csv files are in the folder `data_extracted/` (`data_extracted/*.csv`) and the output csv files are in the folder (`data/*.csv`).
 
 The file `scipts/libraries.py` contains helper functions used by the other scripts (e.g., formatting functions, etc.).
 

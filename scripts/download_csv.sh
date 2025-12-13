@@ -1,6 +1,5 @@
 # Download csv file from a given URL and save it to a specified directory
 URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vTw97FS3eOFbYlqY8j7wWrBd3yrDaG6hqPclYJdPrnvd7t9U2DNz5xXNK4F0iesyHIKEkx9weLz-69a/pub"
-GID_DAFNEE="49692810"
 GID_GENERALIST="897920130"
 GID_CANCER="14394643"
 GID_DEVELOPMENT="1596020802"
@@ -13,7 +12,6 @@ GID_NEUROSCIENCES="312916140"
 GID_PLANTS="818438400"
 rm -rf ./data_extracted
 mkdir -p ./data_extracted
-wget -O ./data_extracted/dafnee.csv "${URL}?gid=${GID_DAFNEE}&single=true&output=csv"
 wget -O ./data_extracted/generalist.csv "${URL}?gid=${GID_GENERALIST}&single=true&output=csv"
 wget -O ./data_extracted/cancer.csv "${URL}?gid=${GID_CANCER}&single=true&output=csv"
 wget -O ./data_extracted/development.csv "${URL}?gid=${GID_DEVELOPMENT}&single=true&output=csv"

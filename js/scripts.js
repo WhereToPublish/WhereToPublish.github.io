@@ -1,6 +1,6 @@
 /**
  * WhereToPublish - Journal Selection Tool
- * 
+ *
  * Performance Optimizations Applied:
  * 1. Pre-computed APC bins during CSV parsing (reduces O(n*m) to O(n))
  * 2. Single-pass count calculations (merged publisher + business model loops)
@@ -20,7 +20,7 @@ function parseCSV(csvText) {
     const lines = csvText.split('\n');
     const data = [];
     const domains = new Set();
-    
+
     // Pre-compute APC bins for histogram
     const apcBins = [0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];
 
@@ -81,7 +81,7 @@ function parseCSV(csvText) {
                 .attr('tabindex', '0')
                 .text(headerText);
             $th.append($icon);
-            
+
             // Initialize tippy tooltip on this element
             tippy($icon[0], {
                 content: columnDefs[index],
@@ -160,7 +160,7 @@ function parseCSV(csvText) {
             cols[12] || '', // H index
             cols[13] || ''  // PCI partner
         ];
-        
+
         // Pre-compute APC bin index for histogram optimization
         const apcValue = row[5].replace(/[^\d]/g, '');
         if (apcValue !== '') {
@@ -179,7 +179,14 @@ function parseCSV(csvText) {
     }
 
     console.timeEnd('parseCSV');
-    return {data, domains: Array.from(domains).sort(), allHeadersText, defaultVisibleHeaders, mandatoryHeaders, apcBins};
+    return {
+        data,
+        domains: Array.from(domains).sort(),
+        allHeadersText,
+        defaultVisibleHeaders,
+        mandatoryHeaders,
+        apcBins
+    };
 }
 
 // Escape a string for use inside a RegExp
@@ -512,12 +519,12 @@ $(document).ready(function () {
         // Single iteration to compute both publisher and business model counts
         allRows.forEach((row) => {
             if (!rowPassesApcAndField(row)) return;
-            
+
             const publisherType = row && row[3] ? String(row[3]) : '';
             const businessModel = row && row[4] ? String(row[4]) : '';
             const matchesBM = matchesBusinessModelFilter(row, currentBusinessModelFilter);
             const matchesPub = matchesPublisherFilter(row, currentPublisherTypeFilter);
-            
+
             if (matchesBM) {
                 publisherConsidered++;
                 if (publisherType === 'Non-profit') publisherTypeCounts['Non-profit']++;
@@ -540,7 +547,7 @@ $(document).ready(function () {
         $('#universityPressPublishers').text('University Press (' + (publisherTypeCounts['University Press'] || 0) + ')');
 
         $('#allBusinessModels').text('All Business Models (' + businessConsidered + ')');
-        
+
         // Update business model buttons and handle visibility
         const modelButtons = [
             {id: '#diamondOABusinessModel', label: 'OA diamond', key: 'OA diamond'},
@@ -548,12 +555,12 @@ $(document).ready(function () {
             {id: '#hybridBusinessModel', label: 'Hybrid', key: 'Hybrid'},
             {id: '#subscriptionBusinessModel', label: 'Subscription', key: 'Subscription'}
         ];
-        
-        modelButtons.forEach(function(btn) {
+
+        modelButtons.forEach(function (btn) {
             const count = businessModelCounts[btn.key] || 0;
             const $button = $(btn.id);
             $button.text(btn.label + ' (' + count + ')');
-            
+
             if (count === 0) {
                 $button.addClass('hidden');
                 // If this button is currently active, reset to "All Business Models"
@@ -574,14 +581,14 @@ $(document).ready(function () {
     $('#apcSlider').off('input').on('input', function () {
         currentMaxAPC = $(this).val();
         $('#apcValue').text(currentMaxAPC === '10000' ? 'All APCs' : '≤ ' + currentMaxAPC + ' €');
-        
+
         // Clear previous debounce timer
         if (searchDebounceTimer) {
             clearTimeout(searchDebounceTimer);
         }
-        
+
         // Debounce the expensive operations
-        searchDebounceTimer = setTimeout(function() {
+        searchDebounceTimer = setTimeout(function () {
             if (dataTable) {
                 dataTable.draw();
             }
@@ -613,10 +620,10 @@ $(document).ready(function () {
             if (dataTable) {
                 console.time('DataTable cleanup');
                 currentSearch = dataTable.search(); // Save global search
-                
+
                 // Remove event handlers before destroying
                 dataTable.off('column-visibility.dt');
-                
+
                 // Destroy without removing from DOM - we'll clear tbody manually
                 dataTable.destroy(false);
                 $('#journalTable tbody').empty();
@@ -651,7 +658,7 @@ $(document).ready(function () {
             const parsed = await fetchCSVFile(dataSource);
             console.timeEnd('fetchCSVFile');
             const {data: tableData, domains, allHeadersText, defaultVisibleHeaders, mandatoryHeaders, apcBins} = parsed;
-            
+
             // Store bins for later use
             if (apcBins) {
                 cachedApcBins = apcBins;
@@ -671,7 +678,7 @@ $(document).ready(function () {
                     scrollX: false,
                     scroller: false,
                     paging: false,
-                    deferRender: true, 
+                    deferRender: true,
                     search: {
                         smart: true,
                         regex: false,
@@ -794,11 +801,10 @@ $(document).ready(function () {
                     responsive: false, // Disable responsive - it's expensive and we handle it with CSS
                     columnDefs: [
                         {
-                            targets: [1, 3, 4], columnControl: [
-                                {
-                                    extend: 'order',
-                                }
-                            ]
+                            targets: [1, 3, 4], columnControl: ['order']
+                        },
+                        {
+                            targets: [6, 8, 13], columnControl: ['order', ['searchList']]
                         },
                         {targets: [0, 3], className: 'noVis'},
                         {
@@ -832,12 +838,12 @@ $(document).ready(function () {
                         // Optimized: use direct string comparison and early returns
                         const publisherType = data[3];
                         if (!publisherType) return;
-                        
+
                         const $row = $(row);
-                        
+
                         // Remove all classes at once
                         $row[0].className = $row[0].className.replace(/\b(for-profit-row|for-profit-society-run-row|university-press-row|university-press-society-run-row|non-profit-row)\b/g, '').trim();
-                        
+
                         // Add appropriate class based on publisher type
                         if (publisherType === 'For-profit') {
                             $row.addClass('for-profit-row');
@@ -1037,13 +1043,13 @@ $(document).ready(function () {
     modalTriggers.on('click', function () {
         openModal(aboutModal);
     });
-    
+
     // About link handler
     $('#aboutLink').on('click', function (event) {
         event.preventDefault();
         openModal(aboutModal);
     });
-    
+
     closeModalButton.on('click', function () {
         closeModal();
     });

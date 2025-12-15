@@ -84,10 +84,14 @@
 
         <div class="filters-column">
             <div id="apcSliderContainer" style="text-align: center; margin: 0 auto;">
-                <p class="apc-value-label"><span id="apcValue">All</span></p>
+                <p class="apc-value-label"><span id="apcValue">All APCs</span></p>
                 <div id="apcHistogram"></div>
-                <input type="range" id="apcSlider" min="0" max="10000" value="10000"
-                       aria-label="Filter maximum APC in Euros">
+                <div class="range-slider">
+                    <input type="range" id="apcSliderMin" min="0" max="10000" value="0"
+                           aria-label="Filter minimum APC in Euros">
+                    <input type="range" id="apcSliderMax" min="0" max="10000" value="10000"
+                           aria-label="Filter maximum APC in Euros">
+                </div>
                 <div class="apc-range-labels" aria-hidden="true">
                     <span>0 €</span>
                     <span>2.5k €</span>

@@ -658,35 +658,157 @@ table.dataTable tr.university-press-row:hover {
     box-shadow: none;
     margin: 0 auto;
     width: 100%;
+    vertical-align: center;
 }
 
 .slider-container {
-    margin-bottom: 10px; /* Add margin to ensure proper spacing */
+    margin-bottom: 10px;
     position: relative;
-    padding-top: 10px; /* Add padding to make space for the slider */
+    padding-top: 10px;
 }
 
-#apcSlider {
+.range-slider {
+    position: relative;
+    width: 100%;
+    height: 20px;
+    margin: 15px 0;
+    display: flex;
+    align-items: center;
+}
+
+.range-slider input[type="range"] {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 100%;
+    height: 4px;
+    background: transparent;
+    pointer-events: none;
     -webkit-appearance: none;
     appearance: none;
-    height: 8px;
-    background: #e2e8f0;
-    border-radius: 4px;
-    outline: none;
     margin: 0;
-    width: 100%;
+    padding: 0;
+    outline: none;
+}
+
+.range-slider input[type="range"]::-webkit-slider-thumb {
+    pointer-events: all;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: #3182ce;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     position: relative;
+    z-index: 4;
+    margin-top: 0;
+}
+
+.range-slider input[type="range"]::-moz-range-thumb {
+    pointer-events: all;
+    width: 20px;
+    height: 20px;
+    background: #3182ce;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid white;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    position: relative;
+    z-index: 4;
+    margin-top: 0;
+}
+
+.range-slider input[type="range"]::-webkit-slider-thumb:hover {
+    background: #2c5282;
+    transform: scale(1.15);
+}
+
+.range-slider input[type="range"]::-moz-range-thumb:hover {
+    background: #2c5282;
+    transform: scale(1.15);
+}
+
+.range-slider input[type="range"]::-webkit-slider-thumb:active {
+    background: #1e4e8c;
+    transform: scale(1.2);
+}
+
+.range-slider input[type="range"]::-moz-range-thumb:active {
+    background: #1e4e8c;
+    transform: scale(1.2);
+}
+
+.range-slider input[type="range"]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 2px;
+}
+
+.range-slider input[type="range"]::-moz-range-track {
+    width: 100%;
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 2px;
+}
+
+/* Min slider - bottom layer with dynamic background showing selected range */
+#apcSliderMin {
+    z-index: 1;
+    --min-percent: 0%;
+    --max-percent: 100%;
+}
+
+#apcSliderMin::-webkit-slider-runnable-track {
+    background: linear-gradient(to right, 
+        #e2e8f0 0%, 
+        #e2e8f0 var(--min-percent), 
+        #3182ce var(--min-percent), 
+        #3182ce var(--max-percent), 
+        #e2e8f0 var(--max-percent), 
+        #e2e8f0 100%);
+}
+
+#apcSliderMin::-moz-range-track {
+    background: linear-gradient(to right, 
+        #e2e8f0 0%, 
+        #e2e8f0 var(--min-percent), 
+        #3182ce var(--min-percent), 
+        #3182ce var(--max-percent), 
+        #e2e8f0 var(--max-percent), 
+        #e2e8f0 100%);
+}
+
+/* Max slider - top layer with transparent track */
+#apcSliderMax {
+    z-index: 2;
+}
+
+#apcSliderMax::-webkit-slider-runnable-track {
+    background: transparent;
+}
+
+#apcSliderMax::-moz-range-track {
+    background: transparent;
 }
 
 .apc-value-label {
-    margin-bottom: 5px;
+    margin-top: 0;
+    margin-bottom: 15px;
     font-weight: 500;
     color: #4a5568;
     text-align: center;
+    font-size: 13px;
 }
 
 #apcHistogram {
-    height: 40px;
+    height: 60px;
     margin-bottom: 5px;
     position: relative;
     width: 100%;
@@ -717,40 +839,9 @@ table.dataTable tr.university-press-row:hover {
 .apc-range-labels {
     display: flex;
     justify-content: space-between;
-    margin-top: 0px; /* Increased margin to avoid overlap with tick labels */
+    margin-top: 5px;
     font-size: 12px;
     color: #718096;
-}
-
-#apcSlider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 20px;
-    height: 20px;
-    background: #3182ce;
-    border-radius: 50%;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-#apcSlider::-moz-range-thumb {
-    width: 20px;
-    height: 20px;
-    background: #3182ce;
-    border-radius: 50%;
-    cursor: pointer;
-    border: none;
-    transition: all 0.2s ease;
-}
-
-#apcSlider::-webkit-slider-thumb:hover {
-    background: #2c5282;
-    transform: scale(1.1);
-}
-
-#apcSlider::-moz-range-thumb:hover {
-    background: #2c5282;
-    transform: scale(1.1);
 }
 
 /* Modal styles */

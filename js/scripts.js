@@ -4,7 +4,7 @@
  * Performance Optimizations Applied:
  * 1. Pre-computed APC bins during CSV parsing (reduces O(n*m) to O(n))
  * 2. Single-pass count calculations (merged publisher + business model loops)
- * 3. Debounced search input (150ms) and APC slider (20ms)
+ * 3. Debounced search input (150ms) and APC sliders (20ms)
  * 4. Proper event handler cleanup on DataTable destroy
  * 5. Optimized table header rendering (only once per page load)
  * 6. Limited localStorage state to prevent bloat
@@ -209,6 +209,7 @@ $(document).ready(function () {
     DataTable.type('num-fmt', 'className', 'dt-body-right');
     DataTable.type('date', 'className', 'dt-body-right');
     // Track APC slider state for persistent filtering
+    let currentMinAPC = '0';
     let currentMaxAPC = '10000';
     // Track selected Field (domain) for counts logic
     let selectedField = '';
@@ -232,11 +233,15 @@ $(document).ready(function () {
     function rowPassesApcAndField(row) {
         if (!row) return false;
         if (selectedField && String(row[1]) !== String(selectedField)) return false;
-        if (currentMaxAPC !== '10000') {
+        // Apply APC filter if it's not the full range
+        if (currentMinAPC !== '0' || currentMaxAPC !== '10000') {
             const apcRaw = row[5] ? String(row[5]) : '';
             const apcValue = apcRaw.replace(/[^\d]/g, '');
             if (apcValue === '') return false;
-            if (parseInt(apcValue, 10) > parseInt(currentMaxAPC, 10)) return false;
+            const apc = parseInt(apcValue, 10);
+            const minApc = parseInt(currentMinAPC, 10);
+            const maxApc = parseInt(currentMaxAPC, 10);
+            if (apc < minApc || apc > maxApc) return false;
         }
         return true;
     }
@@ -577,10 +582,79 @@ $(document).ready(function () {
         });
     }
 
-    // APC slider filter with debouncing
-    $('#apcSlider').off('input').on('input', function () {
-        currentMaxAPC = $(this).val();
-        $('#apcValue').text(currentMaxAPC === '10000' ? 'All APCs' : '≤ ' + currentMaxAPC + ' €');
+    // Function to update APC label display
+    function updateApcLabel() {
+        if (currentMinAPC === '0' && currentMaxAPC === '10000') {
+            $('#apcValue').text('All APCs');
+        } else if (currentMinAPC === '0') {
+            $('#apcValue').text('≤ ' + currentMaxAPC + ' €');
+        } else if (currentMaxAPC === '10000') {
+            $('#apcValue').text('≥ ' + currentMinAPC + ' €');
+        } else {
+            $('#apcValue').text(currentMinAPC + ' € - ' + currentMaxAPC + ' €');
+        }
+    }
+
+    // Function to update range slider background
+    function updateRangeSliderBackground() {
+        const min = parseInt(currentMinAPC);
+        const max = parseInt(currentMaxAPC);
+        const rangeMin = 0;
+        const rangeMax = 10000;
+        
+        const percentMin = ((min - rangeMin) / (rangeMax - rangeMin)) * 100;
+        const percentMax = ((max - rangeMin) / (rangeMax - rangeMin)) * 100;
+        
+        // Update CSS custom properties for the gradient
+        const minSlider = $('#apcSliderMin')[0];
+        if (minSlider) {
+            minSlider.style.setProperty('--min-percent', percentMin + '%');
+            minSlider.style.setProperty('--max-percent', percentMax + '%');
+        }
+    }
+
+    // APC min slider filter with debouncing
+    $('#apcSliderMin').off('input').on('input', function () {
+        let minVal = parseInt($(this).val());
+        let maxVal = parseInt($('#apcSliderMax').val());
+        
+        // Ensure min doesn't exceed max
+        if (minVal > maxVal) {
+            minVal = maxVal;
+            $(this).val(minVal);
+        }
+        
+        currentMinAPC = String(minVal);
+        updateApcLabel();
+        updateRangeSliderBackground();
+
+        // Clear previous debounce timer
+        if (searchDebounceTimer) {
+            clearTimeout(searchDebounceTimer);
+        }
+
+        // Debounce the expensive operations
+        searchDebounceTimer = setTimeout(function () {
+            if (dataTable) {
+                dataTable.draw();
+            }
+        }, 20); // 20ms debounce for slider (faster feedback than search)
+    });
+
+    // APC max slider filter with debouncing
+    $('#apcSliderMax').off('input').on('input', function () {
+        let maxVal = parseInt($(this).val());
+        let minVal = parseInt($('#apcSliderMin').val());
+        
+        // Ensure max doesn't go below min
+        if (maxVal < minVal) {
+            maxVal = minVal;
+            $(this).val(maxVal);
+        }
+        
+        currentMaxAPC = String(maxVal);
+        updateApcLabel();
+        updateRangeSliderBackground();
 
         // Clear previous debounce timer
         if (searchDebounceTimer) {
@@ -640,11 +714,15 @@ $(document).ready(function () {
                 $.fn.dataTable.ext.search.push(function (settings, data/*, dataIndex*/) {
                     // Apply only to our main table
                     if (!settings.nTable || settings.nTable.id !== 'journalTable') return true;
-                    if (currentMaxAPC === '10000') return true;
+                    // If showing all APCs, return true
+                    if (currentMinAPC === '0' && currentMaxAPC === '10000') return true;
                     const apcRaw = data && data[5] ? data[5] : '';
                     const apcValue = apcRaw.replace(/[^\d]/g, '');
                     if (apcValue === '') return false; // exclude non-numeric/missing APC when filter is applied
-                    return parseInt(apcValue, 10) <= parseInt(currentMaxAPC, 10);
+                    const apc = parseInt(apcValue, 10);
+                    const minApc = parseInt(currentMinAPC, 10);
+                    const maxApc = parseInt(currentMaxAPC, 10);
+                    return apc >= minApc && apc <= maxApc;
                 });
                 apcSearchRegistered = true;
             } else {
@@ -776,6 +854,7 @@ $(document).ready(function () {
                     stateSaveParams: function (settings, data) {
                         // Persist custom filters
                         data.custom = data.custom || {};
+                        data.custom.apcMin = currentMinAPC;
                         data.custom.apcMax = currentMaxAPC;
                     },
                     stateLoadParams: function (settings, data) {
@@ -786,22 +865,40 @@ $(document).ready(function () {
                             data.columns[1].search.smart = true;
                         }
                         // Restore APC from saved state if present
-                        if (data && data.custom && data.custom.apcMax) {
-                            currentMaxAPC = String(data.custom.apcMax);
-                            $('#apcSlider').val(currentMaxAPC);
-                            $('#apcValue').text(currentMaxAPC === '10000' ? 'All APCs' : '≤ ' + currentMaxAPC + ' €');
+                        if (data && data.custom) {
+                            if (data.custom.apcMin !== undefined) {
+                                currentMinAPC = String(data.custom.apcMin);
+                                $('#apcSliderMin').val(currentMinAPC);
+                            } else {
+                                currentMinAPC = '0';
+                                $('#apcSliderMin').val(0);
+                            }
+                            
+                            if (data.custom.apcMax !== undefined) {
+                                currentMaxAPC = String(data.custom.apcMax);
+                                $('#apcSliderMax').val(currentMaxAPC);
+                            } else {
+                                currentMaxAPC = '10000';
+                                $('#apcSliderMax').val(10000);
+                            }
+                            
+                            updateApcLabel();
+                            updateRangeSliderBackground();
                         } else {
                             // default APC
+                            currentMinAPC = '0';
                             currentMaxAPC = '10000';
-                            $('#apcSlider').val(10000);
-                            $('#apcValue').text('All APCs');
+                            $('#apcSliderMin').val(0);
+                            $('#apcSliderMax').val(10000);
+                            updateApcLabel();
+                            updateRangeSliderBackground();
                         }
                     },
                     autoWidth: false,
                     responsive: false, // Disable responsive - it's expensive and we handle it with CSS
                     columnDefs: [
                         {
-                            targets: [1, 3, 4], columnControl: ['order']
+                            targets: [1, 3, 4, 5], columnControl: ['order']
                         },
                         {
                             targets: [6, 8, 13], columnControl: ['order', ['searchList']]
@@ -996,6 +1093,10 @@ $(document).ready(function () {
                         }
                         // Reset flag once applied
                         resetFieldOnNextLoad = false;
+                        
+                        // Initialize range slider background
+                        updateRangeSliderBackground();
+                        
                         console.timeEnd('initComplete callback');
                     }
                 });

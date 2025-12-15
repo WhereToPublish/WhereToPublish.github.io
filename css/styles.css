@@ -393,65 +393,6 @@ table.dataTable tr.university-press-row:hover {
     clear: both;
 }
 
-/* Domain details styles */
-
-.domain-details {
-    padding: 20px;
-    background-color: #f8fafc;
-    margin: 15px;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
-    border: 1px solid #e2e8f0;
-}
-
-.domain-details h4 {
-    margin-top: 0;
-    color: #2d3748;
-    font-family: 'Source Sans Pro', sans-serif;
-    font-weight: 600;
-    margin-bottom: 15px;
-    font-size: 1.1rem;
-}
-
-.domain-details ul {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 12px;
-}
-
-.domain-details li {
-    padding: 8px 12px;
-    border-radius: 6px;
-    background-color: white;
-    border: 1px solid #edf2f7;
-    transition: all 0.2s ease;
-}
-
-.domain-details li:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    transform: translateY(-2px);
-}
-
-.domain-name {
-    font-weight: 500;
-    color: #4a5568;
-    display: inline-block;
-    margin-right: 5px;
-}
-
-.domain-yes {
-    color: #38a169;
-    font-weight: 500;
-}
-
-.domain-no {
-    color: #e53e3e;
-    font-weight: 500;
-}
-
 .dt-button-background {
     display: none !important;
 }
@@ -477,7 +418,6 @@ table.dataTable tr.university-press-row:hover {
 .data-source-button,
 .profit-status-button,
 .business-model-button,
-.domain-filter-button,
 #journalTable_wrapper .buttons-html5,
 #journalTable_wrapper .buttons-colvis {
     display: inline-flex;
@@ -502,7 +442,6 @@ table.dataTable tr.university-press-row:hover {
 .data-source-button:hover,
 .profit-status-button:hover,
 .business-model-button:hover,
-.domain-filter-button:hover,
 #journalTable_wrapper .buttons-html5:hover,
 #journalTable_wrapper .buttons-html5:focus-visible,
 #journalTable_wrapper .buttons-colvis:hover,
@@ -513,8 +452,7 @@ table.dataTable tr.university-press-row:hover {
 
 .data-source-button.active,
 .profit-status-button.active,
-.business-model-button.active,
-.domain-filter-button.active {
+.business-model-button.active {
     background-color: #3182ce !important;
     color: #ffffff !important;
     border-color: #2b6cb0 !important;
@@ -539,50 +477,6 @@ table.dataTable tr.university-press-row:hover {
 #journalTable_wrapper .dt-button-active {
     background-color: #3182ce;
     color: #ffffff;
-}
-
-/* Domain filter buttons */
-
-.domain-filters-container {
-    margin-bottom: 20px;
-    text-align: center;
-}
-
-.domain-filter-button {
-    margin: 0 3px 4px 0;
-    padding: 4px 8px;
-    border: 1px solid #e2e8f0;
-    background-color: #f8fafc;
-    cursor: pointer;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 500;
-    color: #4a5568;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.domain-filter-button:hover {
-    background-color: #ebf8ff;
-    border-color: #bee3f8;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
-}
-
-.domain-filter-button.active {
-    background-color: #3182ce;
-    color: white;
-    border-color: #2b6cb0;
-    box-shadow: 0 2px 5px rgba(49, 130, 206, 0.2);
-}
-
-/* Compact variant when many domain filter buttons exist */
-
-#domainFilters.compact .domain-filter-button {
-    margin: 0 2px 2px 0;
-    padding: 2px 6px;
-    font-size: 11px;
-    border-radius: 4px;
 }
 
 /* Data source filter buttons styles */
@@ -1060,35 +954,6 @@ p.modal-trigger:after{
 
 .hidden {
     display: none !important;
-}
-
-/* Domain filter dropdown (used when too many fields) */
-
-.domain-filter-select {
-    display: inline-block;
-    min-width: 220px;
-    max-width: 100%;
-    padding: 6px 10px;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    background: #ffffff;
-    color: #2d3748;
-    font-size: 13px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.domain-filter-select:focus {
-    outline: none;
-    border-color: #4299e1;
-    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
-}
-
-@media (max-width: 480px) {
-    .domain-filter-select {
-        width: 100%;
-        min-width: 0;
-        font-size: 14px;
-    }
 }
 
 /* Ensure header cells don’t clip tooltips */

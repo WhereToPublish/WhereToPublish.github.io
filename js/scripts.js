@@ -32,12 +32,11 @@ function parseCSV(csvText) {
     // 10: Scimago Rank, 11: Scimago Quartile, 12: H index, 13: PCI partner
     const lines = csvText.split('\n');
     const data = [];
-    const domains = new Set();
 
     // Pre-compute APC bins for histogram
     const apcBins = generateApcBins(APC_HISTOGRAM_BINS);
 
-    if (!lines.length) return {data: [], domains: []};
+    if (!lines.length) return {data: []};
 
     // Define all headers in the internal data order
     const allHeadersText = [
@@ -153,9 +152,6 @@ function parseCSV(csvText) {
         const cols = splitCSVLine(raw);
         if (!cols.length || !cols[0]) continue; // need at least Journal
 
-        // Collect Field values for domain filters
-        if (cols[1]) domains.add(cols[1]);
-
         // Build the row in the internal data order for DataTables
         const row = [
             cols[0] || '', // Journal
@@ -194,7 +190,6 @@ function parseCSV(csvText) {
     console.timeEnd('parseCSV');
     return {
         data,
-        domains: Array.from(domains).sort(),
         allHeadersText,
         defaultVisibleHeaders,
         mandatoryHeaders,
@@ -214,7 +209,6 @@ $(document).ready(function () {
     let dataTable; // Variable to store the DataTable instance
     let currentDataSource = null; // Track current CSV file
     let currentDatasetLabel = '';
-    let resetFieldOnNextLoad = false; // Only reset Field filter when switching CSV
     // Clear existing saved state on first load
     localStorage.removeItem('wtp_global_state_v1');
 
@@ -224,8 +218,6 @@ $(document).ready(function () {
     // Track APC slider state for persistent filtering
     let currentMinAPC = '0';
     let currentMaxAPC = '10000';
-    // Track selected Field (domain) for counts logic
-    let selectedField = '';
     let apcSearchRegistered = false;
     let currentPublisherTypeFilter = 'all';
     let currentBusinessModelFilter = 'all';
@@ -242,10 +234,9 @@ $(document).ready(function () {
         return 'No matching journals.<br> You currently have the &quot;' + label + '&quot; dataset loaded.';
     }
 
-    // Helper: whether a row passes current APC and Field selection only
+    // Helper: whether a row passes current APC filter only
     function rowPassesApcAndField(row) {
         if (!row) return false;
-        if (selectedField && String(row[1]) !== String(selectedField)) return false;
         // Apply APC filter if it's not the full range
         if (currentMinAPC !== '0' || currentMaxAPC !== '10000') {
             const apcRaw = row[5] ? String(row[5]) : '';
@@ -294,7 +285,6 @@ $(document).ready(function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         const src = ALL_FIELDS_SOURCE;
-        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
         currentDatasetLabel = 'All fields';
         loadTable(src);
@@ -303,7 +293,6 @@ $(document).ready(function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         const src = 'data/anatomy_physiology.csv';
-        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
         currentDatasetLabel = 'Anatomy & Physiology';
         loadTable(src);
@@ -312,7 +301,6 @@ $(document).ready(function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         const src = 'data/generalist.csv';
-        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
         currentDatasetLabel = 'Generalist';
         loadTable(src);
@@ -321,7 +309,6 @@ $(document).ready(function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         const src = 'data/cancer.csv';
-        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
         currentDatasetLabel = 'Cancer';
         loadTable(src);
@@ -330,7 +317,6 @@ $(document).ready(function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         const src = 'data/development.csv';
-        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
         currentDatasetLabel = 'Development';
         loadTable(src);
@@ -339,7 +325,6 @@ $(document).ready(function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         const src = 'data/ecology_evolution.csv';
-        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
         currentDatasetLabel = 'Ecology & Evolution';
         loadTable(src);
@@ -348,7 +333,6 @@ $(document).ready(function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         const src = 'data/genetics_genomics.csv';
-        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
         currentDatasetLabel = 'Genetics & Genomics';
         loadTable(src);
@@ -357,7 +341,6 @@ $(document).ready(function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         const src = 'data/immunology.csv';
-        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
         currentDatasetLabel = 'Immunology';
         loadTable(src);
@@ -366,7 +349,6 @@ $(document).ready(function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         const src = 'data/molecular_cellular_biology.csv';
-        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
         currentDatasetLabel = 'Molecular & Cellular Biology';
         loadTable(src);
@@ -375,7 +357,6 @@ $(document).ready(function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         const src = 'data/neurosciences.csv';
-        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
         currentDatasetLabel = 'Neurosciences';
         loadTable(src);
@@ -384,7 +365,6 @@ $(document).ready(function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
         const src = 'data/plants.csv';
-        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
         currentDatasetLabel = 'Plants';
         loadTable(src);
@@ -688,13 +668,13 @@ $(document).ready(function () {
             const response = await fetch(csvFile);
             if (!response.ok) {
                 console.error(`Failed to fetch ${csvFile}: ${response.statusText}`);
-                return {data: [], domains: []};
+                return {data: []};
             }
             const csvText = await response.text();
             return parseCSV(csvText);
         } catch (error) {
             console.error('Error fetching CSV file:', error);
-            return {data: [], domains: []};
+            return {data: []};
         }
     }
 
@@ -708,18 +688,33 @@ $(document).ready(function () {
                 console.time('DataTable cleanup');
                 currentSearch = dataTable.search(); // Save global search
 
+                // Close any open ColControl dropdowns by triggering a click outside
+                if ($('.dtcc-dropdown').length > 0) {
+                    $(document).trigger('click');
+                    // Wait for dropdown to be removed from DOM
+                    await new Promise(resolve => {
+                        const checkRemoved = setInterval(() => {
+                            if ($('.dtcc-dropdown').length === 0) {
+                                clearInterval(checkRemoved);
+                                resolve();
+                            }
+                        }, 5);
+                        // Fallback timeout after 200ms
+                        setTimeout(() => {
+                            clearInterval(checkRemoved);
+                            resolve();
+                        }, 200);
+                    });
+                }
+                
                 // Remove event handlers before destroying
                 dataTable.off('column-visibility.dt');
 
-                // Destroy without removing from DOM - we'll clear tbody manually
+                // Destroy DataTable
                 dataTable.destroy(false);
                 $('#journalTable tbody').empty();
-                $('#domainFilters').empty();
                 console.timeEnd('DataTable cleanup');
             }
-
-            // Only reset the Field filter; other filters will be restored from saved state
-            selectedField = '';
 
             // Ensure APC search is registered once and applies to our table only
             if (!apcSearchRegistered) {
@@ -748,7 +743,7 @@ $(document).ready(function () {
             console.time('fetchCSVFile');
             const parsed = await fetchCSVFile(dataSource);
             console.timeEnd('fetchCSVFile');
-            const {data: tableData, domains, allHeadersText, defaultVisibleHeaders, mandatoryHeaders, apcBins} = parsed;
+            const {data: tableData, allHeadersText, defaultVisibleHeaders, mandatoryHeaders, apcBins} = parsed;
 
             // Store bins for later use
             if (apcBins) {
@@ -872,11 +867,6 @@ $(document).ready(function () {
                     },
                     stateLoadParams: function (settings, data) {
                         // Reset Field filter when switching CSV files
-                        if (resetFieldOnNextLoad && data && data.columns && data.columns[1] && data.columns[1].search) {
-                            data.columns[1].search.search = '';
-                            data.columns[1].search.regex = false;
-                            data.columns[1].search.smart = true;
-                        }
                         // Restore APC from saved state if present
                         if (data && data.custom) {
                             if (data.custom.apcMin !== undefined) {
@@ -989,7 +979,6 @@ $(document).ready(function () {
                         console.timeEnd('DataTable initialization');
                         console.time('initComplete callback');
                         var table = this.api();
-                        var domainFiltersContainer = $('#domainFilters');
 
                         // Add placeholder to search input
                         $('.dt-input').attr('placeholder', 'Search journals...');
@@ -1041,71 +1030,6 @@ $(document).ready(function () {
                             settings.aoColumns[column].bSearchable = state;
                             table.rows().invalidate().draw();
                         });
-
-                        // Render domain filter as dropdown if too many domains, else as buttons
-                        const tooManyDomains = Array.isArray(domains) && domains.length > 10;
-                        domainFiltersContainer.empty();
-                        if (tooManyDomains) {
-                            // Dropdown select to save vertical space
-                            const select = $('<select class="domain-filter-select" aria-label="Filter by field"></select>');
-                            // Default option: show all
-                            select.append($('<option value="">All Subfields</option>'));
-                            domains.forEach(function (domainName) {
-                                select.append($('<option></option>').val(domainName).text(domainName));
-                            });
-
-                            select.on('change', function () {
-                                const val = $(this).val();
-                                if (!val) {
-                                    selectedField = '';
-                                    table.column(1).search('');
-                                } else {
-                                    selectedField = val;
-                                    const pattern = '^' + escapeRegExp(val) + '$';
-                                    table.column(1).search(pattern, true, false);
-                                }
-                                table.draw();
-                            });
-
-                            domainFiltersContainer.removeClass('compact').append(select);
-                        } else {
-                            // Fewer domains: render as clickable buttons
-                            domainFiltersContainer.toggleClass('compact', false);
-
-                            var showAllButton = $('<button class="domain-filter-button">All Subfields</button>')
-                                .on('click', function () {
-                                    selectedField = '';
-                                    table.column(1).search('');
-                                    table.draw();
-                                    domainFiltersContainer.find('.domain-filter-button').removeClass('active');
-                                    $(this).addClass('active');
-                                });
-                            domainFiltersContainer.append(showAllButton);
-
-                            domains.forEach(function (domainName) {
-                                var button = $('<button class="domain-filter-button">' + domainName + '</button>')
-                                    .on('click', function () {
-                                        var isActive = $(this).hasClass('active');
-                                        table.column(1).search('');
-                                        domainFiltersContainer.find('.domain-filter-button').removeClass('active');
-                                        if (isActive) {
-                                            selectedField = '';
-                                            showAllButton.addClass('active');
-                                        } else {
-                                            selectedField = domainName;
-                                            const pattern = '^' + escapeRegExp(domainName) + '$';
-                                            table.column(1).search(pattern, true, false);
-                                            $(this).addClass('active');
-                                        }
-                                        table.draw();
-                                    });
-                                domainFiltersContainer.append(button);
-                            });
-                            // Default to SHOW ALL (Field reset on data source change)
-                            showAllButton.addClass('active');
-                        }
-                        // Reset flag once applied
-                        resetFieldOnNextLoad = false;
                         
                         // Initialize range slider background
                         updateRangeSliderBackground();

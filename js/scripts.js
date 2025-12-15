@@ -11,6 +11,19 @@
  * 7. Console profiling markers for performance monitoring
  */
 
+// Configuration: Number of bins for APC histogram (change this value to adjust histogram granularity)
+const APC_HISTOGRAM_BINS = 16;
+
+// Generate APC bins array based on the number of bins
+function generateApcBins(numBins, maxApc = 10000) {
+    const bins = [];
+    const step = maxApc / numBins;
+    for (let i = 0; i <= numBins; i++) {
+        bins.push(Math.round(i * step));
+    }
+    return bins;
+}
+
 function parseCSV(csvText) {
     console.time('parseCSV');
     // We know the exact column order in the CSV:
@@ -22,7 +35,7 @@ function parseCSV(csvText) {
     const domains = new Set();
 
     // Pre-compute APC bins for histogram
-    const apcBins = [0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];
+    const apcBins = generateApcBins(APC_HISTOGRAM_BINS);
 
     if (!lines.length) return {data: [], domains: []};
 
@@ -217,7 +230,7 @@ $(document).ready(function () {
     let currentPublisherTypeFilter = 'all';
     let currentBusinessModelFilter = 'all';
     let lastHistogramSnapshot = null;
-    let cachedApcBins = [0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];
+    let cachedApcBins = generateApcBins(APC_HISTOGRAM_BINS);
     let searchDebounceTimer = null;
 
     function buildZeroRecordsMessage() {

@@ -1133,3 +1133,24 @@ p.modal-trigger:after{
 .dtcc-button-icon:hover, .dtcc-button-icon:focus, dtcc-button:hover, .dtcc-button:focus {
     opacity: 1 !important;
 }
+
+/* Custom styling for searchList ColControl dropdowns */
+/* The dropdown wrapping searchList now has class dtcc-button_searchList */
+
+/* Style searchList dropdown items to match colvis dropdown */
+/* Active/selected items: white text on blue background */
+div.dtcc-dropdown div.dtcc-list button.dtcc-button.dtcc-button_active {
+    background-color: #3182ce !important;
+    color: #ffffff !important;
+}
+
+/* Non-selected items: black text on white background */
+div.dtcc-dropdown div.dtcc-list button.dtcc-button:not(.dtcc-button_active) {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+}
+
+/* Hover state for searchList items */
+div.dtcc-dropdown div.dtcc-list button.dtcc-button:not(.dtcc-button_active):hover {
+    background-color: rgba(0, 0, 0, 0.05) !important;
+}

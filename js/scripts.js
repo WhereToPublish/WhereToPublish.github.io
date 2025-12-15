@@ -911,10 +911,10 @@ $(document).ready(function () {
                     responsive: false, // Disable responsive - it's expensive and we handle it with CSS
                     columnDefs: [
                         {
-                            targets: [1, 3, 4, 5], columnControl: ['order']
+                            targets: [3, 4, 5], columnControl: ['order']
                         },
                         {
-                            targets: [6, 8, 13], columnControl: ['order', ['searchList']]
+                            targets: [1, 6, 8, 13], columnControl: ['order', {extend: 'dropdown', icon: 'search', className: 'searchList', content: ['searchList']}]
                         },
                         {targets: [0, 3], className: 'noVis'},
                         {

@@ -281,6 +281,15 @@ $(document).ready(function () {
         currentDatasetLabel = 'All fields';
         loadTable(src);
     });
+    $('#anatomy_physiology').on('click', function () {
+        $('.data-source-button').removeClass('active');
+        $(this).addClass('active');
+        const src = 'data/anatomy_physiology.csv';
+        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
+        currentDataSource = src;
+        currentDatasetLabel = 'Anatomy & Physiology';
+        loadTable(src);
+    });
     $('#generalist').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
@@ -324,15 +333,6 @@ $(document).ready(function () {
         resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
         currentDataSource = src;
         currentDatasetLabel = 'Genetics & Genomics';
-        loadTable(src);
-    });
-    $('#health').on('click', function () {
-        $('.data-source-button').removeClass('active');
-        $(this).addClass('active');
-        const src = 'data/health.csv';
-        resetFieldOnNextLoad = currentDataSource !== null && currentDataSource !== src;
-        currentDataSource = src;
-        currentDatasetLabel = 'Health';
         loadTable(src);
     });
     $('#immunology').on('click', function () {

@@ -68,6 +68,7 @@ The columns in each CSV file are as follows in this order:
     "Scimago Quartile",
     "H index",
     "PCI partner"
+    "Scimago Journal Title"
 
 The raw data is downloaded and stored in the data_extracted/ directory, using the scripts/download_csv.sh script.
 The data is processed using Python scripts located in the `scripts/` directory, using mainly the polars library.

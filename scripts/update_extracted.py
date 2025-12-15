@@ -338,9 +338,33 @@ def update_and_log_statistics(df: pl.DataFrame, totals: dict, source: str = "sci
     return df
 
 
+def two_pass_join(target_df: pl.DataFrame, lookup_df: pl.DataFrame, right_on: str, totals: dict, source: str,
+                  left_on: str = "norm_journal", fallback_col: str = "alt_journal_norm") -> tuple[pl.DataFrame, dict]:
+    """Perform a two-pass join: first on primary key, then on fallback key for unmatched rows.
+    """
+    print(f"  Performing two-pass join for {source}...")
+    has_fallback = (pl.col(fallback_col).is_not_null() & (pl.col(fallback_col).cast(pl.Utf8).str.strip_chars() != ""))
+    print(f"    - Total rows before join: {target_df.height}, {target_df.filter(has_fallback).height} with fallback.")
+    # First pass: Join on primary key
+    result_df = target_df.join(lookup_df, left_on=left_on, right_on=right_on, how="left", coalesce=False)
+    print(f"    - 1st pass matches: {result_df.filter(pl.col(right_on).is_not_null()).height}")
+    result_df = update_and_log_statistics(result_df, totals, source=source)
+    nbr_fallback = result_df.filter(pl.col(right_on).is_null() & has_fallback).height
+    if nbr_fallback > 0:
+        # Second pass: Join on fallback column
+        result_df = target_df.join(lookup_df, left_on=fallback_col, right_on=right_on, how="left", coalesce=False)
+        nbr_matches = result_df.filter(pl.col(right_on).is_not_null()).height
+        print(f"    - 2nd pass matches: {nbr_matches} while {nbr_fallback} where unmatched.")
+        result_df = update_and_log_statistics(result_df, totals, source=source)
+    else:
+        print(f"    - No rows to process in 2nd pass (all matched in 1st pass).")
+    print("  Two-pass join completed.")
+    return result_df
+
+
 def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup: pl.DataFrame,
                      doaj_lookup: pl.DataFrame, pci_friendly_set: set, totals: dict) -> None:
-    """Process a single CSV file with Scimago, OpenAPC, and DOAJ data.
+    """Process a single CSV file with Scimago, OpenAPC, and DOAJ data using two-pass joins.
 
     Args:
         csv_path: Path to the CSV file to process
@@ -356,52 +380,27 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
     # Keep track of original columns to avoid persisting helper columns
     original_cols = target_df.columns.copy()
 
-    # Add normalized journal name for joining
-    target_df = target_df.with_columns(
-        pl.col("Journal").map_elements(norm_name, return_dtype=pl.Utf8)
-        .alias("norm_journal")
-    )
+    # Add normalized journal names for joining
+    target_df = target_df.with_columns([
+        pl.col("Journal").map_elements(norm_name, return_dtype=pl.Utf8).alias("norm_journal"),
+        pl.when(pl.col("Scimago Journal Title").is_not_null())
+        .then(pl.col("Scimago Journal Title").map_elements(norm_name, return_dtype=pl.Utf8))
+        .otherwise(None)
+        .alias("alt_journal_norm")
+    ])
+
     # Get the set of keys that will be used for joining
     left_keys = set(target_df["norm_journal"].unique().to_list())
+    left_keys = left_keys.union(set(target_df["alt_journal_norm"].unique().to_list()))
 
-    # Validate Scimago lookup has no duplicates for keys that will be joined
     validate_no_duplicates_for_join(scimago_lookup, "norm_journal_scimago", left_keys, "Scimago")
-    # Join with Scimago data
-    updated_df = target_df.join(
-        scimago_lookup,
-        left_on="norm_journal",
-        right_on="norm_journal_scimago",
-        how="left",
-        coalesce=False,
-    )
-    # Update columns from Scimago
-    updated_df = update_and_log_statistics(updated_df, totals, source="scimago")
+    updated_df = two_pass_join(target_df, scimago_lookup, right_on="norm_journal_scimago", source="scimago", totals=totals)
 
-    # Validate OpenAPC lookup has no duplicates for keys that will be joined
     validate_no_duplicates_for_join(openapc_lookup, "norm_journal_openapc", left_keys, "OpenAPC")
-    # Join with OpenAPC data
-    updated_df = updated_df.join(
-        openapc_lookup,
-        left_on="norm_journal",
-        right_on="norm_journal_openapc",
-        how="left",
-        coalesce=False,
-    )
-    # Update APC Euros from OpenAPC
-    updated_df = update_and_log_statistics(updated_df, totals, source="openapc")
+    updated_df = two_pass_join(updated_df, openapc_lookup, right_on="norm_journal_openapc", source="openapc", totals=totals)
 
-    # Validate DOAJ lookup has no duplicates for keys that will be joined
     validate_no_duplicates_for_join(doaj_lookup, "norm_journal_doaj", left_keys, "DOAJ")
-    # Join with DOAJ data
-    updated_df = updated_df.join(
-        doaj_lookup,
-        left_on="norm_journal",
-        right_on="norm_journal_doaj",
-        how="left",
-        coalesce=False,
-    )
-    # Update columns from DOAJ
-    updated_df = update_and_log_statistics(updated_df, totals, source="doaj")
+    updated_df = two_pass_join(updated_df, doaj_lookup, right_on="norm_journal_doaj", source="doaj", totals=totals)
 
     # Apply formatting and normalization
     updated_df = format_table(updated_df)
@@ -413,7 +412,7 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
     # Overwrite the existing file
     check_consistency(final_df)
     final_df.write_csv(csv_path)
-    print(f"Successfully updated and saved {csv_path}")
+    print(f"Successfully updated and saved {csv_path}\n")
 
 
 def main():
@@ -445,7 +444,7 @@ def main():
 
     # Print summary
     print("\nScript finished.")
-    if sum(totals.values()) > 0:
+    if sum(totals.values()) == 0:
         print("\t- No updates were made.")
     for col, total in totals.items():
         if total > 0:

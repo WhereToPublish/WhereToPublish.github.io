@@ -28,6 +28,20 @@ EXPECTED_COLUMNS = [
     "PCI partner",
 ]
 
+dico_field_normalization = {
+    "all_biology": "All Fields",
+    "anatomy_physiology": "Anatomy & Physiology",
+    "cancer": "Cancer",
+    "development": "Development",
+    "ecology_evolution": "Ecology & Evolution",
+    "generalist": "Generalist",
+    "genetics_genomics": "Genetics & Genomics",
+    "immunology": "Immunology",
+    "molecular_cellular_biology": "Molecular & Cellular Biology",
+    "neurosciences": "Neurosciences",
+    "plants": "Plants",
+}
+
 
 def ensure_columns_and_order(df: pl.DataFrame) -> pl.DataFrame:
     """Ensure the dataframe has exactly the EXPECTED_COLUMNS in order, adding missing columns with nulls."""
@@ -60,6 +74,33 @@ def is_valid_value(val) -> bool:
 def collect_valid_values(entries: list[dict], field: str) -> list:
     """Collect all valid values for a field from entries."""
     return [entry.get(field) for entry in entries if is_valid_value(entry.get(field))]
+
+
+def merge_field_values(values: list) -> str:
+    """Merge Field values by collecting unique values and joining alphabetically with '; '.
+    Skip None/empty values.
+    Returns concatenated string.
+    """
+    # Collect unique non-empty field values
+    unique_fields = set()
+    for v in values:
+        if is_valid_value(v):
+            unique_fields.add(str(v).strip())
+
+    if len(unique_fields) > 3:
+        print(f"\t[merge_field_values] WARNING: More than 3 unique Field values found: {unique_fields} from options={values}")
+        unique_fields = set([f.split("-")[0].strip() for f in unique_fields])
+        print(f"\t[merge_field_values] After simplification, unique Field values: {unique_fields}")
+
+    # Sort alphabetically and join with "; "
+    if not unique_fields:
+        return None
+
+    sorted_fields = sorted(unique_fields)
+    conflict = None
+    if len(unique_fields) > 1:
+        conflict = f"Field: concat='{'; '.join(sorted_fields)}' from options={values}"
+    return "; ".join(sorted_fields), conflict
 
 
 def merge_numeric_field(values: list, field: str) -> tuple[any, str | None]:
@@ -101,11 +142,12 @@ def merge_text_field(values: list, field: str) -> tuple[str, str | None]:
     return best_val, conflict
 
 
-def merge_duplicates(entries: list[dict], all_columns: list[str]) -> dict:
+def merge_duplicates(entries: list[dict], all_columns: list[str], concat_fields: bool) -> dict:
     """Merge duplicate entries by keeping the best information from all duplicates.
     Args:
         entries: List of dictionaries representing duplicate rows
         all_columns: Optional ordered list of all columns to preserve in results
+        concat_fields: Whether to concatenate Field values instead of picking one
     Returns:
         Merged dictionary with the best values from all entries
     """
@@ -120,32 +162,38 @@ def merge_duplicates(entries: list[dict], all_columns: list[str]) -> dict:
     conflicts = []
 
     # Process each field across all entries for the expected output columns
-    for field in EXPECTED_COLUMNS:
-        if field not in all_columns:
+    for col in EXPECTED_COLUMNS:
+        if col not in all_columns:
             continue
-        values = collect_valid_values(entries, field)
+        values = collect_valid_values(entries, col)
 
         if not values:
-            merged[field] = None
+            merged[col] = None
         elif len(values) == 1:
-            merged[field] = values[0]
-        elif field in numeric_max_fields:
-            best_val, conflict = merge_numeric_field(values, field)
-            merged[field] = best_val
+            merged[col] = values[0]
+        elif col == "Field" and concat_fields:
+            # Special handling: concatenate unique Field values alphabetically
+            concat_val, conflict = merge_field_values(values)
+            merged[col] = concat_val
+            if conflict:
+                conflicts.append(conflict)
+        elif col in numeric_max_fields:
+            best_val, conflict = merge_numeric_field(values, col)
+            merged[col] = best_val
             if conflict:
                 conflicts.append(conflict)
         else:
-            best_val, conflict = merge_text_field(values, field)
-            merged[field] = best_val
+            best_val, conflict = merge_text_field(values, col)
+            merged[col] = best_val
             if conflict:
                 conflicts.append(conflict)
 
     # For any remaining columns, keep the first non-null entry
-    for field in all_columns:
-        if field in merged:
+    for col in all_columns:
+        if col in merged:
             continue
-        values = collect_valid_values(entries, field)
-        merged[field] = values[0] if values else None
+        values = collect_valid_values(entries, col)
+        merged[col] = values[0] if values else None
 
     if conflicts:
         journal_name = merged.get("Journal", "Unknown")
@@ -196,7 +244,7 @@ def identify_duplicate_groups(df_norm: pl.DataFrame, source_name: str) -> tuple[
     return duplicate_groups_by_url, duplicate_groups_by_name, url_removed_count, name_removed_count
 
 
-def dedupe_by_journal_and_website(df: pl.DataFrame, source_name: str) -> pl.DataFrame:
+def dedupe_by_journal_and_website(df: pl.DataFrame, source_name: str, concat_fields: bool) -> pl.DataFrame:
     """Deduplicate entries using OR logic and merge duplicate information.
     Logging:
     - Print one line per removed row: reason (URL/Name), normalized key, kept row (Journal/Website), removed row (Journal/Website).
@@ -233,7 +281,7 @@ def dedupe_by_journal_and_website(df: pl.DataFrame, source_name: str) -> pl.Data
         for indices in groups.values():
             if len(indices) > 1 and not any(idx in processed_indices for idx in indices):
                 entries = [all_rows[idx] for idx in indices]
-                merged = merge_duplicates(entries, list(df.columns))
+                merged = merge_duplicates(entries, list(df.columns), concat_fields=concat_fields)
                 first_idx = min(indices)
                 all_rows[first_idx] = merged
                 kept_indices.append(first_idx)
@@ -250,6 +298,20 @@ def dedupe_by_journal_and_website(df: pl.DataFrame, source_name: str) -> pl.Data
 
     # Convert back to DataFrame
     return pl.DataFrame(result_rows, schema=df.schema)
+
+
+def prefix_field_with_source(field_value: str, source_field_name: str) -> str:
+    """Prefix a field value with its source field name.
+    """
+    if not is_valid_value(field_value):
+        return None
+    field_str = str(field_value).strip()
+    # If field value matches source field name, return as-is (simplify)
+    if norm_name(field_str) == norm_name(source_field_name):
+        return source_field_name
+
+    # Otherwise, prefix with source field name
+    return f"{source_field_name} - {field_str}"
 
 
 def main():
@@ -279,7 +341,7 @@ def main():
         df = mark_pci_friendly(df, pci_friendly_set)
 
         # Deduplicate by Journal (case-insensitive, trimmed)
-        df = dedupe_by_journal_and_website(df, os.path.basename(csv_path))
+        df = dedupe_by_journal_and_website(df, os.path.basename(csv_path), concat_fields=False)
         df = format_table(df)
 
         # Sort alphabetically by Journal
@@ -295,13 +357,22 @@ def main():
         df.write_csv(out_path, quote_char='"', quote_style="always")
         print(f"Wrote formatted data to: {out_path}")
 
+        # Extract source field name from filename for all_biology.csv processing
+        filename_base = os.path.basename(csv_path).replace(".csv", "")
+        source_field_name = dico_field_normalization.get(filename_base, filename_base.capitalize().replace("_", " "))
+        df = df.with_columns(
+            pl.col("Field").map_elements(
+                lambda x: prefix_field_with_source(x, source_field_name),
+                return_dtype=pl.Utf8
+            ).alias("Field")
+        )
         processed_frames.append(df)
 
     # Create all_biology.csv as the concatenation of all processed frames, deduplicated by Journal
     if processed_frames:
         all_df = pl.concat(processed_frames, how="vertical_relaxed")
         # Deduplicate using OR logic (same normalized journal OR same normalized website)
-        all_df = dedupe_by_journal_and_website(all_df, "all_biology.csv").sort("Journal")
+        all_df = dedupe_by_journal_and_website(all_df, "all_biology.csv", concat_fields=True).sort("Journal")
         all_df = format_table(all_df)
         all_df = ensure_columns_and_order(all_df)
         check_consistency(all_df)

@@ -15,7 +15,7 @@
 const APC_HISTOGRAM_BINS = 16;
 
 // Generate APC bins array based on the number of bins
-function generateApcBins(numBins, maxApc = 10000) {
+function generateApcBins(numBins, maxApc = 5000) {
     const bins = [];
     const step = maxApc / numBins;
     for (let i = 0; i <= numBins; i++) {
@@ -179,6 +179,7 @@ function parseCSV(csvText) {
                     row.__apcBin = i;
                     break;
                 }
+                row.__apcBin = apcBins.length - 2; // Assign to last bin if exceeds max
             }
         } else {
             row.__apcBin = -1; // No valid APC
@@ -217,7 +218,7 @@ $(document).ready(function () {
     DataTable.type('date', 'className', 'dt-body-right');
     // Track APC slider state for persistent filtering
     let currentMinAPC = '0';
-    let currentMaxAPC = '10000';
+    let currentMaxAPC = '5000';
     let apcSearchRegistered = false;
     let currentPublisherTypeFilter = 'all';
     let currentBusinessModelFilter = 'all';
@@ -238,7 +239,7 @@ $(document).ready(function () {
     function rowPassesApcAndField(row) {
         if (!row) return false;
         // Apply APC filter if it's not the full range
-        if (currentMinAPC !== '0' || currentMaxAPC !== '10000') {
+        if (currentMinAPC !== '0' || currentMaxAPC !== '5000') {
             const apcRaw = row[5] ? String(row[5]) : '';
             const apcValue = apcRaw.replace(/[^\d]/g, '');
             if (apcValue === '') return false;
@@ -577,11 +578,11 @@ $(document).ready(function () {
 
     // Function to update APC label display
     function updateApcLabel() {
-        if (currentMinAPC === '0' && currentMaxAPC === '10000') {
+        if (currentMinAPC === '0' && currentMaxAPC === '5000') {
             $('#apcValue').text('All APCs');
         } else if (currentMinAPC === '0') {
             $('#apcValue').text('≤ ' + currentMaxAPC + ' €');
-        } else if (currentMaxAPC === '10000') {
+        } else if (currentMaxAPC === '5000') {
             $('#apcValue').text('≥ ' + currentMinAPC + ' €');
         } else {
             $('#apcValue').text(currentMinAPC + ' € - ' + currentMaxAPC + ' €');
@@ -593,7 +594,7 @@ $(document).ready(function () {
         const min = parseInt(currentMinAPC);
         const max = parseInt(currentMaxAPC);
         const rangeMin = 0;
-        const rangeMax = 10000;
+        const rangeMax = 5000;
         
         const percentMin = ((min - rangeMin) / (rangeMax - rangeMin)) * 100;
         const percentMax = ((max - rangeMin) / (rangeMax - rangeMin)) * 100;
@@ -723,7 +724,7 @@ $(document).ready(function () {
                     // Apply only to our main table
                     if (!settings.nTable || settings.nTable.id !== 'journalTable') return true;
                     // If showing all APCs, return true
-                    if (currentMinAPC === '0' && currentMaxAPC === '10000') return true;
+                    if (currentMinAPC === '0' && currentMaxAPC === '5000') return true;
                     const apcRaw = data && data[5] ? data[5] : '';
                     const apcValue = apcRaw.replace(/[^\d]/g, '');
                     if (apcValue === '') return false; // exclude non-numeric/missing APC when filter is applied
@@ -881,8 +882,8 @@ $(document).ready(function () {
                                 currentMaxAPC = String(data.custom.apcMax);
                                 $('#apcSliderMax').val(currentMaxAPC);
                             } else {
-                                currentMaxAPC = '10000';
-                                $('#apcSliderMax').val(10000);
+                                currentMaxAPC = '5000';
+                                $('#apcSliderMax').val(5000);
                             }
                             
                             updateApcLabel();
@@ -890,9 +891,9 @@ $(document).ready(function () {
                         } else {
                             // default APC
                             currentMinAPC = '0';
-                            currentMaxAPC = '10000';
+                            currentMaxAPC = '5000';
                             $('#apcSliderMin').val(0);
-                            $('#apcSliderMax').val(10000);
+                            $('#apcSliderMax').val(5000);
                             updateApcLabel();
                             updateRangeSliderBackground();
                         }

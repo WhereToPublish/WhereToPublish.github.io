@@ -246,7 +246,12 @@ $(document).ready(function () {
             const apc = parseInt(apcValue, 10);
             const minApc = parseInt(currentMinAPC, 10);
             const maxApc = parseInt(currentMaxAPC, 10);
-            if (apc < minApc || apc > maxApc) return false;
+            // When maxApc is 5000 (slider max), include all journals >= minApc (including 5k+ category)
+            if (maxApc === 5000) {
+                if (apc < minApc) return false;
+            } else {
+                if (apc < minApc || apc > maxApc) return false;
+            }
         }
         return true;
     }
@@ -731,6 +736,10 @@ $(document).ready(function () {
                     const apc = parseInt(apcValue, 10);
                     const minApc = parseInt(currentMinAPC, 10);
                     const maxApc = parseInt(currentMaxAPC, 10);
+                    // When maxApc is 5000 (slider max), include all journals >= minApc (including 5k+ category)
+                    if (maxApc === 5000) {
+                        return apc >= minApc;
+                    }
                     return apc >= minApc && apc <= maxApc;
                 });
                 apcSearchRegistered = true;

@@ -907,8 +907,8 @@ $(document).ready(function () {
                             updateRangeSliderBackground();
                         }
                     },
-                    autoWidth: false,
-                    responsive: false, // Disable responsive - it's expensive and we handle it with CSS
+                    autoWidth: true,
+                    responsive: true,
                     columnDefs: [
                         {
                             targets: [3, 4, 5], columnControl: ['order']

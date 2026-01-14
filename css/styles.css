@@ -4,7 +4,6 @@ body {
     padding: 0;
     color: #333;
     line-height: 1.6;
-    overflow-x: hidden; /* Prevent horizontal scrolling */
     width: 100%;
     box-sizing: border-box;
 }
@@ -109,15 +108,6 @@ table.dataTable {
     table-layout: auto;
 }
 
-/* Responsive table container */
-
-#journalTable_wrapper {
-    width: 100%;
-    overflow: visible;
-    max-width: 100%;
-    margin: 0 auto;
-    box-sizing: border-box;
-}
 
 @media (max-width: 768px) {
     #journalTable_wrapper {
@@ -133,6 +123,7 @@ table.dataTable th, table.dataTable td {
     word-wrap: break-word;
     word-break: break-word;
     max-width: 300px;
+    min-width: 120px; 
 }
 
 @media (max-width: 1200px) {
@@ -143,17 +134,23 @@ table.dataTable th, table.dataTable td {
 
 @media (max-width: 768px) {
     table.dataTable th, table.dataTable td {
-        max-width: 150px;
+        max-width: 180px;
         padding: 8px 10px;
-        font-size: 0.9rem;
+        font-size: 0.7rem;
     }
 }
 
 @media (max-width: 480px) {
     table.dataTable th, table.dataTable td {
-        max-width: 120px;
+        max-width: 150px;
         padding: 6px 8px;
-        font-size: 0.85rem;
+        font-size: 0.6rem;
+    }
+    
+    /* Make header text more compact */
+    table.dataTable th {
+        font-size: 0.6rem;
+        letter-spacing: 0;
     }
 
     /* Ensure the table doesn't overflow the container */
@@ -171,7 +168,7 @@ table.dataTable th {
     font-weight: 500;
     letter-spacing: 0.5px;
     text-transform: uppercase;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
 }
 
 table.dataTable th select {

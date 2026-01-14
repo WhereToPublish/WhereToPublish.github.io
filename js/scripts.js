@@ -14,6 +14,10 @@
 // Configuration: Number of bins for APC histogram (change this value to adjust histogram granularity)
 const APC_HISTOGRAM_BINS = 16;
 
+// Configuration: Breakpoint for disabling FixedHeader on small screens (in pixels)
+// FixedHeader is disabled at or below this width to prevent alignment issues on mobile
+const FIXEDHEADER_BREAKPOINT = 768;
+
 // Generate APC bins array based on the number of bins
 function generateApcBins(numBins, maxApc = 5000) {
     const bins = [];
@@ -225,6 +229,7 @@ $(document).ready(function () {
     let lastHistogramSnapshot = null;
     let cachedApcBins = generateApcBins(APC_HISTOGRAM_BINS);
     let searchDebounceTimer = null;
+    let fixedHeaderResizeHandler = null; // Track resize handler for cleanup
 
     function buildZeroRecordsMessage() {
         const contributeLink = '<a href="' + CONTRIBUTION_FORM_URL + '" target="_blank" rel="noopener noreferrer">contribute to the database</a>';
@@ -715,6 +720,12 @@ $(document).ready(function () {
                 
                 // Remove event handlers before destroying
                 dataTable.off('column-visibility.dt');
+                
+                // Remove FixedHeader resize handler
+                if (fixedHeaderResizeHandler) {
+                    $(window).off('resize', fixedHeaderResizeHandler);
+                    fixedHeaderResizeHandler = null;
+                }
 
                 // Destroy DataTable
                 dataTable.destroy(false);
@@ -772,7 +783,7 @@ $(document).ready(function () {
                 dataTable = $('#journalTable').DataTable({
                     data: tableData,
                     scrollX: false,
-                    scroller: false,
+                    scroller: true,
                     paging: false,
                     deferRender: true,
                     search: {
@@ -826,7 +837,7 @@ $(document).ready(function () {
                             return null;
                         }
                     },
-                    fixedHeader: true,
+                    fixedHeader: window.innerWidth > FIXEDHEADER_BREAKPOINT,
                     buttons: [
                         {
                             extend: 'csvHtml5',
@@ -1043,6 +1054,21 @@ $(document).ready(function () {
                         
                         // Initialize range slider background
                         updateRangeSliderBackground();
+                        
+                        // Set up responsive FixedHeader handling
+                        // Disable FixedHeader on small screens to prevent alignment issues
+                        var fixedHeaderDebounceTimer = null;
+                        fixedHeaderResizeHandler = function() {
+                            clearTimeout(fixedHeaderDebounceTimer);
+                            fixedHeaderDebounceTimer = setTimeout(function() {
+                                if (window.innerWidth <= FIXEDHEADER_BREAKPOINT) {
+                                    table.fixedHeader.disable();
+                                } else {
+                                    table.fixedHeader.enable();
+                                }
+                            }, 150);
+                        };
+                        $(window).on('resize', fixedHeaderResizeHandler);
                         
                         console.timeEnd('initComplete callback');
                     }

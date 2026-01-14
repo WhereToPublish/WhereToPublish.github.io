@@ -439,6 +439,12 @@ table.dataTable tr.university-press-row:hover {
 
 /* Data source filter buttons styles */
 
+#dataSourceFilters {
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .data-source-button {
     margin: 0 6px 8px 0;
 }
@@ -467,6 +473,7 @@ table.dataTable tr.university-press-row:hover {
     flex-wrap: wrap;
     margin-bottom: 15px;
     gap: 10px;
+    justify-content: center;
 }
 
 .filters-column {
@@ -477,6 +484,7 @@ table.dataTable tr.university-press-row:hover {
     padding: 10px;
     flex: 1;
     min-width: 200px;
+    max-width: 350px;
 }
 
 /* APC slider styles */

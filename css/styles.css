@@ -69,6 +69,7 @@ h1 {
     margin-top: 0;
     padding-bottom: 10px;
 }
+
 .line {
     position: relative;
     text-align: center;
@@ -76,6 +77,7 @@ h1 {
     margin-top: 0 !important;
     padding: 0 !important;
 }
+
 .line:after {
     content: "";
     position: absolute;
@@ -108,13 +110,6 @@ table.dataTable {
     table-layout: auto;
 }
 
-
-@media (max-width: 768px) {
-    #journalTable_wrapper {
-        padding-right: 5px; /* Add some padding on the right side */
-    }
-}
-
 table.dataTable th, table.dataTable td {
     white-space: normal;
     padding: 12px 15px;
@@ -123,42 +118,7 @@ table.dataTable th, table.dataTable td {
     word-wrap: break-word;
     word-break: break-word;
     max-width: 300px;
-    min-width: 120px; 
-}
-
-@media (max-width: 1200px) {
-    table.dataTable th, table.dataTable td {
-        max-width: 200px;
-    }
-}
-
-@media (max-width: 768px) {
-    table.dataTable th, table.dataTable td {
-        max-width: 180px;
-        padding: 8px 10px;
-        font-size: 0.7rem;
-    }
-}
-
-@media (max-width: 480px) {
-    table.dataTable th, table.dataTable td {
-        max-width: 150px;
-        padding: 6px 8px;
-        font-size: 0.6rem;
-    }
-    
-    /* Make header text more compact */
-    table.dataTable th {
-        font-size: 0.6rem;
-        letter-spacing: 0;
-    }
-
-    /* Ensure the table doesn't overflow the container */
-    table.dataTable {
-        width: 100% !important;
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-    }
+    min-width: 120px;
 }
 
 table.dataTable th {
@@ -195,6 +155,7 @@ table.dataTable td a {
     text-decoration: none;
     transition: color 0.2s ease;
 }
+
 /* Row coloring based on status */
 
 table.dataTable tr.for-profit-row {
@@ -499,8 +460,8 @@ table.dataTable tr.university-press-row:hover {
     width: 100%;
     text-align: center;
 }
-/* Filters row and columns styles */
 
+/* Filters row and columns styles */
 .filters-row {
     display: flex;
     flex-wrap: wrap;
@@ -518,29 +479,7 @@ table.dataTable tr.university-press-row:hover {
     min-width: 200px;
 }
 
-@media (max-width: 1200px) {
-    .filters-row {
-        flex-wrap: wrap;
-    }
-
-    .filters-column {
-        flex-basis: calc(50% - 10px);
-        min-width: 200px;
-    }
-}
-
-@media (max-width: 768px) {
-    .filters-row {
-        flex-direction: column;
-    }
-
-    .filters-column {
-        width: 100%;
-    }
-}
-
 /* APC slider styles */
-
 #apcSliderContainer {
     padding: 0;
     background-color: transparent;
@@ -657,23 +596,23 @@ table.dataTable tr.university-press-row:hover {
 }
 
 #apcSliderMin::-webkit-slider-runnable-track {
-    background: linear-gradient(to right, 
-        #e2e8f0 0%, 
-        #e2e8f0 var(--min-percent), 
-        #3182ce var(--min-percent), 
-        #3182ce var(--max-percent), 
-        #e2e8f0 var(--max-percent), 
-        #e2e8f0 100%);
+    background: linear-gradient(to right,
+    #e2e8f0 0%,
+    #e2e8f0 var(--min-percent),
+    #3182ce var(--min-percent),
+    #3182ce var(--max-percent),
+    #e2e8f0 var(--max-percent),
+    #e2e8f0 100%);
 }
 
 #apcSliderMin::-moz-range-track {
-    background: linear-gradient(to right, 
-        #e2e8f0 0%, 
-        #e2e8f0 var(--min-percent), 
-        #3182ce var(--min-percent), 
-        #3182ce var(--max-percent), 
-        #e2e8f0 var(--max-percent), 
-        #e2e8f0 100%);
+    background: linear-gradient(to right,
+    #e2e8f0 0%,
+    #e2e8f0 var(--min-percent),
+    #3182ce var(--min-percent),
+    #3182ce var(--max-percent),
+    #e2e8f0 var(--max-percent),
+    #e2e8f0 100%);
 }
 
 /* Max slider - top layer with transparent track */
@@ -820,6 +759,7 @@ table.dataTable tr.university-press-row:hover {
 .modal-trigger {
     color: #2b6cb0; /* Default color */
 }
+
 .modal-trigger:hover {
     color: #3182ce; /* Change to blue on hover */
 }
@@ -830,7 +770,7 @@ h1.modal-trigger {
 }
 
 /* Add info icon after paragraph with modal-trigger class */
-p.modal-trigger:after{
+p.modal-trigger:after {
     content: "ⓘ"; /* Unicode for information icon */
     font-size: 0.8em;
     color: #3182ce;
@@ -988,10 +928,12 @@ p.modal-trigger:after{
 .tippy-box[data-theme~='light-border'][data-placement^='right'] > .tippy-arrow::before {
     border-right-color: #cbd5e0;
 }
+
 .dtcc-button-icon, .dtcc-button {
     color: #ffffff !important;
     opacity: 0.8 !important;
 }
+
 .dtcc-button-icon:hover, .dtcc-button-icon:focus, dtcc-button:hover, .dtcc-button:focus {
     opacity: 1 !important;
 }

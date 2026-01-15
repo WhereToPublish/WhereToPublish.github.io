@@ -48,8 +48,8 @@ function parseCSV(csvText) {
         'Subfield',           // 1
         'Publisher',          // 2
         'Publisher Type',     // 3 (mandatory visible)
-        'Business Model',     // 4
-        'APC (€)',            // 5 (from APC Euros)
+        'Business Model',     // 4 (mandatory visible)
+        'APC (€)',            // 5 (mandatory visible)
         'Country (Publisher)',// 6
         'Institution',        // 7
         'Institution Type',   // 8
@@ -82,7 +82,7 @@ function parseCSV(csvText) {
     };
 
     // Mandatory columns that cannot be hidden
-    const mandatoryHeaders = new Set(['Journal', 'Publisher Type', 'Business Model']);
+    const mandatoryHeaders = new Set(['Journal', 'Publisher Type', 'Business Model', 'APC (€)']);
 
     // Default visible columns at load
     const defaultVisibleHeaders = new Set(['Journal', 'Subfield', 'Publisher', 'Publisher Type', 'Business Model', 'APC (€)']);
@@ -200,11 +200,6 @@ function parseCSV(csvText) {
         mandatoryHeaders,
         apcBins
     };
-}
-
-// Escape a string for use inside a RegExp
-function escapeRegExp(string) {
-    return String(string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 $(document).ready(function () {
@@ -605,10 +600,10 @@ $(document).ready(function () {
         const max = parseInt(currentMaxAPC);
         const rangeMin = 0;
         const rangeMax = 5000;
-        
+
         const percentMin = ((min - rangeMin) / (rangeMax - rangeMin)) * 100;
         const percentMax = ((max - rangeMin) / (rangeMax - rangeMin)) * 100;
-        
+
         // Update CSS custom properties for the gradient
         const minSlider = $('#apcSliderMin')[0];
         if (minSlider) {
@@ -621,13 +616,13 @@ $(document).ready(function () {
     $('#apcSliderMin').off('input').on('input', function () {
         let minVal = parseInt($(this).val());
         let maxVal = parseInt($('#apcSliderMax').val());
-        
+
         // Ensure min doesn't exceed max
         if (minVal > maxVal) {
             minVal = maxVal;
             $(this).val(minVal);
         }
-        
+
         currentMinAPC = String(minVal);
         updateApcLabel();
         updateRangeSliderBackground();
@@ -649,13 +644,13 @@ $(document).ready(function () {
     $('#apcSliderMax').off('input').on('input', function () {
         let maxVal = parseInt($(this).val());
         let minVal = parseInt($('#apcSliderMin').val());
-        
+
         // Ensure max doesn't go below min
         if (maxVal < minVal) {
             maxVal = minVal;
             $(this).val(maxVal);
         }
-        
+
         currentMaxAPC = String(maxVal);
         updateApcLabel();
         updateRangeSliderBackground();
@@ -717,10 +712,10 @@ $(document).ready(function () {
                         }, 200);
                     });
                 }
-                
+
                 // Remove event handlers before destroying
                 dataTable.off('column-visibility.dt');
-                
+
                 // Remove FixedHeader resize handler
                 if (fixedHeaderResizeHandler) {
                     $(window).off('resize', fixedHeaderResizeHandler);
@@ -897,7 +892,7 @@ $(document).ready(function () {
                                 currentMinAPC = '0';
                                 $('#apcSliderMin').val(0);
                             }
-                            
+
                             if (data.custom.apcMax !== undefined) {
                                 currentMaxAPC = String(data.custom.apcMax);
                                 $('#apcSliderMax').val(currentMaxAPC);
@@ -905,7 +900,7 @@ $(document).ready(function () {
                                 currentMaxAPC = '5000';
                                 $('#apcSliderMax').val(5000);
                             }
-                            
+
                             updateApcLabel();
                             updateRangeSliderBackground();
                         } else {
@@ -925,9 +920,19 @@ $(document).ready(function () {
                             targets: [3, 4, 5], columnControl: ['order']
                         },
                         {
-                            targets: [1, 6, 8, 13], columnControl: ['order', {extend: 'dropdown', icon: 'search', className: 'searchList', content: ['searchList']}]
+                            targets: [1, 6, 8, 13],
+                            columnControl: ['order', {
+                                extend: 'dropdown',
+                                icon: 'search',
+                                className: 'searchList',
+                                content: ['searchList']
+                            }]
                         },
-                        {targets: [0, 3], className: 'noVis'},
+                        {targets: [0, 3, 4, 5], className: 'noVis'},
+                        {targets: 0, responsivePriority: 1},
+                        {targets: 1, responsivePriority: 2},
+                        {targets: 5, responsivePriority: 1000000},
+                        {targets: [3, 4], responsivePriority: 10000000},
                         {
                             targets: 0,
                             render: function (data, type, row) {
@@ -1051,16 +1056,16 @@ $(document).ready(function () {
                             settings.aoColumns[column].bSearchable = state;
                             table.rows().invalidate().draw();
                         });
-                        
+
                         // Initialize range slider background
                         updateRangeSliderBackground();
-                        
+
                         // Set up responsive FixedHeader handling
                         // Disable FixedHeader on small screens to prevent alignment issues
                         var fixedHeaderDebounceTimer = null;
-                        fixedHeaderResizeHandler = function() {
+                        fixedHeaderResizeHandler = function () {
                             clearTimeout(fixedHeaderDebounceTimer);
-                            fixedHeaderDebounceTimer = setTimeout(function() {
+                            fixedHeaderDebounceTimer = setTimeout(function () {
                                 if (window.innerWidth <= FIXEDHEADER_BREAKPOINT) {
                                     table.fixedHeader.disable();
                                 } else {
@@ -1069,7 +1074,7 @@ $(document).ready(function () {
                             }, 150);
                         };
                         $(window).on('resize', fixedHeaderResizeHandler);
-                        
+
                         console.timeEnd('initComplete callback');
                     }
                 });

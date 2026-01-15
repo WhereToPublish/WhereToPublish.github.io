@@ -836,6 +836,7 @@ $(document).ready(function () {
                     buttons: [
                         {
                             extend: 'csvHtml5',
+                            text: '📥 CSV',
                             title: 'WhereToPublish',
                             exportOptions: {
                                 // export only visible columns by default
@@ -844,6 +845,7 @@ $(document).ready(function () {
                         },
                         {
                             extend: 'colvis',
+                            text: 'Extra columns',
                             columns: ':not(.noVis)',
                             postfixButtons: [
                                 {
@@ -1075,6 +1077,8 @@ $(document).ready(function () {
                         };
                         $(window).on('resize', fixedHeaderResizeHandler);
 
+                        // Adjust column widths after table initialization
+                        table.columns.adjust();
                         console.timeEnd('initComplete callback');
                     }
                 });

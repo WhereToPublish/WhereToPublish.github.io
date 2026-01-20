@@ -1,87 +1,136 @@
 # Where to Publish?
 
-![Logo](https://raw.githubusercontent.com/WhereToPublish/WhereToPublish.github.io/main/img/logo128px.png)
+An interactive database of for-profit and non-profit scientific journals in biology.
 
-An interactive table that helps researchers identify suitable journals for their publications or whether to review for them. The  visually distinguishes between for-profit, not-for-profit, and university press journals.
+🌐 **Website**: [wheretopublish.github.io](https://wheretopublish.github.io/)
 
-## Data Sources
+📖 **Documentation**: [Wiki](https://github.com/WhereToPublish/WhereToPublish.github.io/wiki)
 
-This tool uses data from our own curated database as well as several external sources:
+---
 
-- **[DAFNEE](https://dafnee.isem-evolution.fr/) database for Ecology and Evolution**: provides comprehensive information about academia-friendly journals in the fields of Ecology and Evolution.
-- **[DOAJ](https://doaj.org/) (Directory of Open Access Journals)**: provides information about open access journals, including publisher and country.
-- **[Scimago](https://www.scimagojr.com/) Journal & Country Rank**: Provides journal ranking data, including journal ranks and quartiles.
-- **[OpenAPC](https://openapc.net/) database**: Provides information about Article Processing Charges (APCs) and business models of journals.
-- **[SU list of non-predatory journals](https://sante.sorbonne-universite.fr/recherche/liste-des-revues-presumees-non-predatrices)**: List of journals recommended by the conference of deans.
+## Quick Links
 
-## Contributing to the database
+| Resource | Link                                                                                                                     |
+|----------|--------------------------------------------------------------------------------------------------------------------------|
+| About the Project | [Wiki: About](https://github.com/WhereToPublish/WhereToPublish.github.io/wiki/1.-About)                                  |
+| Using the Website | [Wiki: Using the Website](https://github.com/WhereToPublish/WhereToPublish.github.io/wiki/2.-Using-the-Website)          |
+| Data Sources | [Wiki: The Data](https://github.com/WhereToPublish/WhereToPublish.github.io/wiki/3.-Data)                                |
+| Contributing | [Wiki: Contributing](https://github.com/WhereToPublish/WhereToPublish.github.io/wiki/4.-Contributing)                    |
+| Add a Journal | [Google Form](https://docs.google.com/forms/d/e/1FAIpQLSfTWQ8PaFCL_zabYwUidZZlh8GR_SZJ1rWaQfZWX3ZS98pm3g/viewform)       |
+| Edit Data | [Google Sheets](https://docs.google.com/spreadsheets/d/1PRXViyQlo5ZMjpCJ_XpcHfsnZEJmmdCiXjnkazMyua8/edit?gid=897920130#gid=897920130) |
+| Report Issues | [GitHub Issues](https://github.com/WhereToPublish/WhereToPublish.github.io/issues)                                       |
 
-There are several ways to contribute to this project, either by adding new journals or editing, this requires a Google account and no coding skills.
+---
 
-**Add new journals**
-Add a new journal to the database by filling out the form below. The journal will be reviewed and added to the database:
-https://docs.google.com/forms/d/e/1FAIpQLSfTWQ8PaFCL_zabYwUidZZlh8GR_SZJ1rWaQfZWX3ZS98pm3g/viewform
-The scimago rank and quartile will be added automatically based on the journal name.
+## Developer Documentation
 
-**Edit existing data**
-Edit the database directly in suggestion mode. The changes will be reviewed and merged by the maintainers:
-https://docs.google.com/spreadsheets/d/1PRXViyQlo5ZMjpCJ_XpcHfsnZEJmmdCiXjnkazMyua8/edit?resourcekey=&gid=1775942038#gid=1775942038
+### Technology Stack
 
-### Contributing to the codebase
+- **Frontend**: HTML, CSS, JavaScript
+- **Libraries**: [DataTables](https://datatables.net/) with extensions (responsive, buttons, column visibility, fixed header)
+- **Data Processing**: Python 3 with [Polars](https://pola.rs/)
+- **Hosting**: GitHub Pages
 
-**Report issues**
-Create an issue to report a problem or suggest a new feature:
-https://github.com/WhereToPublish/WhereToPublish.github.io/issues
+### Project Structure
 
-**Submit a pull request**
-Fork the repository, make your changes, and submit a pull request:
-https://github.com/WhereToPublish/WhereToPublish.github.io/pulls
+```
+├── index.html              # Main webpage
+├── css/styles.css          # Stylesheet
+├── js/scripts.js           # Application logic
+├── data/                   # Processed CSV files (used by website)
+├── data_extracted/         # Raw CSV files from Google Sheets
+├── data_extraction/        # External data sources (Scimago, OpenAPC, DOAJ)
+├── scripts/                # Python and shell scripts for data processing
+├── vendor/                 # Third-party libraries (DataTables, jQuery, etc.)
+└── img/                    # Images and logo
+```
 
-**Become a maintainer**
-Become a maintainer by contacting us at:
-thibault.latrille@ens-lyon.org
+### CSV Column Schema
 
-### Developper instructions and documentation
+Output CSV files in `data/` contain these columns in order:
 
-The website is built using plain HTML, CSS, and JS, using only [DataTables](https://datatables.net/) library for the interactive table along with some of its extensions.
-The main files are:
+```
+Journal, Field, Publisher, Publisher type, Business model,
+Institution, Institution type, Country, Website, APC Euros,
+Scimago Rank, Scimago Quartile, H index, PCI partner
+```
 
-- `index.html`: The main HTML file that contains the structure of the webpage.
-- `css/styles.css`: The CSS file that contains the styles for the webpage.
-- `js/script.js`: The JS file that contains the logic for filtering journals based on user input and rendering the results.
-- `data/`: A directory that contains the processed CSV files used by the JS code to display journal information.
-- `img/`: A directory that contains images used in the webpage (e.g., logo).
-- `vendor/`: A directory that contains third-party libraries as .css or .js files (e.g., DataTables, DataTables extensions, hint.css).
+### Data Pipeline
 
-The columns in each CSV file are as follows in this order:
-    "Journal",
-    "Field",
-    "Publisher",
-    "Publisher type",
-    "Business model",
-    "Institution",
-    "Institution type",
-    "Country",
-    "Website",
-    "APC Euros",
-    "Scimago Rank",
-    "Scimago Quartile",
-    "H index",
-    "PCI partner"
-    "Scimago Journal Title"
+The data is updated monthly via GitHub Actions:
 
-The raw data is downloaded and stored in the data_extracted/ directory, using the scripts/download_csv.sh script.
-The data is processed using Python scripts located in the `scripts/` directory, using mainly the polars library.
+```bash
+# 1. Download raw data from Google Sheets
+bash scripts/download_csv.sh
 
-First, the script `scripts/update_extracted.py` is used to update the raw data from various sources (DOAJ, Scimago, OpenAPC) and complete missing information or correct existing information. The input csv files are in the folder `data_extracted/` and the output csv are re-written in the same folder.
-The data sources are:
+# 2. Enrich with external sources (Scimago, OpenAPC, DOAJ)
+python scripts/update_extracted.py
 
-- DOAJ: Directory of Open Access Journals, providing information about open access journals, including publisher and country, in the file `data_extraction/DOAJ.csv`.
-- Scimago: Journal ranking data, providing information about journal ranks and quartiles, in the file `data_extraction/scimagor.csv`.
-- OpenAPC: Open Article Processing Charges data, providing information about APCs and business, in the file `data_extraction/openapc.csv`.
+# 3. Process, clean, and deduplicate
+python scripts/data_process.py
+```
 
-Then, the script `scripts/data_process.py` is used to process the merged data and generate the final CSV files used by the JS code. Mainly it formats and cleans the data, removes duplicates, and concatenates the various csv files into a single csv file `data/all_biology.csv`. The input csv files are in the folder `data_extracted/` (`data_extracted/*.csv`) and the output csv files are in the folder (`data/*.csv`).
+**Important**: Run Python scripts from the repository root (not from `scripts/`):
 
-The file `scipts/libraries.py` contains helper functions used by the other scripts (e.g., formatting functions, etc.).
+```bash
+# Correct
+python scripts/data_process.py
 
-For python scripts, run scripts using the relative path including the `script` directory, for example, run `python3 scripts/data_process.py` instead of `cd scripts && python3 data_process.py ` due to relative paths import.
+# Incorrect
+cd scripts && python data_process.py
+```
+
+### Key Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/download_csv.sh` | Downloads data from Google Sheets to `data_extracted/` |
+| `scripts/download_extraction.sh` | Downloads external data sources to `data_extraction/` |
+| `scripts/update_extracted.py` | Enriches raw data with Scimago, OpenAPC, DOAJ |
+| `scripts/data_process.py` | Cleans, normalizes, deduplicates, and outputs to `data/` |
+| `scripts/libraries.py` | Shared utility functions |
+| `scripts/run.sh` | Runs the full pipeline |
+| `scripts/clean_run.sh` | Clean run (removes intermediate files first) |
+
+### External Data Sources
+
+| Source | File | Description |
+|--------|------|-------------|
+| [Scimago](https://www.scimagojr.com/) | `data_extraction/scimagojr.csv.gz` | Journal rankings, quartiles, H-index |
+| [OpenAPC](https://openapc.net/) | `data_extraction/openapc.csv.gz` | Article Processing Charges |
+| [DOAJ](https://doaj.org/) | `data_extraction/DOAJ.csv.gz` | Open access journal metadata |
+
+### Local Development
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/WhereToPublish/WhereToPublish.github.io.git
+   cd WhereToPublish.github.io
+   ```
+
+2. Install Python dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Run the data pipeline:
+   ```bash
+   bash scripts/run.sh
+   ```
+
+4. Serve locally (any static file server):
+   ```bash
+   python -m http.server 8000
+   ```
+
+5. Open [http://localhost:8000](http://localhost:8000)
+
+---
+
+## License
+
+This project is open source. See the repository for license details.
+
+## Contact
+
+For maintainer inquiries: [thibault.latrille@ens-lyon.org](mailto:thibault.latrille@ens-lyon.org)

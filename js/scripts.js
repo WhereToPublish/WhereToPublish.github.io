@@ -840,7 +840,7 @@ $(document).ready(function () {
                         },
                         {
                             extend: 'colvis',
-                            text: '<i class="fas fa-columns"></i> Show/Hide Columns',
+                            text: '<i class="fas fa-columns"></i> Show/Hide more columns',
                             columns: ':not(.noVis)',
                             postfixButtons: [
                                 {

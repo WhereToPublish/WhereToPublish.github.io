@@ -710,7 +710,7 @@ table.dataTable tr.university-press-row:hover {
     border-radius: 12px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
     width: 80%;
-    max-width: 900px;
+    max-width: 850px;
     transform: translateY(-20px);
     transition: transform 0.3s ease;
     position: relative;

@@ -62,8 +62,8 @@ function parseCSV(csvText) {
     const columnDefs = {
         0: 'Official journal names might differ from the name on the list.',
         1: 'Scientific field(s) based on journal aims and scope',
-        2: 'The company or organization that publishes the journal. In some cases, societies or institutions are in charge of editorial content but delegate publishing and archiving to a (often for-profit) publishing company.',
-        3: 'For-profit, Non-profit, or University Press. These can be further qualified as "Associated with a society" or "Associated with a university or government institution" to indicate relationships where the publisher handles production but an institution maintains editorial oversight.',    
+        2: 'The company or organization that publishes the journal. In some cases, societies are in charge of editorial content but delegate publishing to a publishing company. ',
+        3: 'Main: For-profit, Non-profit, or University Press. Subcases: "Associated with" to indicate when the publisher who handles production differs from the institution which maintains editorial oversight.',
         4: 'Revenue model of the publisher: Subscription, Hybrid, OA (Open Access), or OA Diamond (free for authors and readers)',
         5: 'Article Processing Charges in euros (3–5 year average based on OpenAPC)',
         6: 'Country where the publisher is headquartered',

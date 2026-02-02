@@ -836,7 +836,7 @@ $(document).ready(function () {
                     buttons: [
                         {
                             extend: 'csvHtml5',
-                            text: '📥 CSV',
+                            text: '<i class="fas fa-download"></i> Download CSV',
                             title: 'WhereToPublish',
                             exportOptions: {
                                 // export only visible columns by default
@@ -845,7 +845,7 @@ $(document).ready(function () {
                         },
                         {
                             extend: 'colvis',
-                            text: 'Extra columns',
+                            text: '<i class="fas fa-columns"></i> Show/Hide Columns',
                             columns: ':not(.noVis)',
                             postfixButtons: [
                                 {

@@ -717,6 +717,26 @@ $(document).ready(function () {
                     fixedHeaderResizeHandler = null;
                 }
 
+                // Manually clean up FixedHeader and Responsive extensions.
+                // The Buttons extension's ColVis popover close() calls dt.off('destroy'),
+                // which strips the destroy handlers registered by FixedHeader and Responsive.
+                // Without explicit cleanup, stale DOM elements and event listeners persist
+                // and interfere with width calculations when a new DataTable is created.
+                try {
+                    var fhInstance = dataTable.settings()[0]._fixedHeader;
+                    if (fhInstance && typeof fhInstance.destroy === 'function') {
+                        fhInstance.destroy();
+                    }
+                } catch (e) { /* FixedHeader cleanup failed - continue */ }
+
+                try {
+                    // Clean up Responsive's window listeners and table state
+                    $(window).off('resize.dtr orientationchange.dtr');
+                    dataTable.off('.dtr');
+                    $(dataTable.table().body()).off('.dtr');
+                    $(dataTable.table().node()).removeClass('dtr-inline collapsed');
+                } catch (e) { /* Responsive cleanup failed - continue */ }
+
                 // Destroy DataTable
                 dataTable.destroy(false);
                 $('#journalTable tbody').empty();
@@ -1073,7 +1093,7 @@ $(document).ready(function () {
                         $(window).on('resize', fixedHeaderResizeHandler);
 
                         // Adjust column widths after table initialization
-                        table.columns.adjust();
+                        table.columns.adjust().responsive.recalc();
                         console.timeEnd('initComplete callback');
                     }
                 });

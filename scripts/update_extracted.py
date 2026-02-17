@@ -275,90 +275,76 @@ def load_doaj_lookup() -> pl.DataFrame:
     ]).unique(subset=["norm_journal_doaj"], keep="first")
 
 
-def update_column_from_source(df: pl.DataFrame, col: str, source_col: str,
-                              always_overwrite: bool = False) -> tuple[pl.DataFrame, int]:
-    """Update a column from a source column, optionally overwriting existing values.
+def join_and_update(df: pl.DataFrame, lookup_df: pl.DataFrame, left_on: str, right_on: str,
+                    source: str, totals: dict, only_fill_nulls: bool = False, label: str = "") -> pl.DataFrame:
+    """Join a lookup table, update target columns from it, then drop lookup columns.
 
     Args:
-        df: DataFrame to update
-        col: Target column name
-        source_col: Source column name (with suffix like _scimago or _openapc)
-        always_overwrite: If True, always overwrite with source when available
+        df: Target DataFrame.
+        lookup_df: Lookup DataFrame (columns suffixed with _<source>).
+        left_on: Join key in df.
+        right_on: Join key in lookup_df.
+        source: Data source name ("scimago", "openapc", "doaj").
+        totals: Dict accumulating update counts per column.
+        only_fill_nulls: If True, never overwrite existing values (for fallback joins).
+        label: Label for log messages (e.g. "1st pass", "2nd pass").
 
     Returns:
-        Tuple of (updated DataFrame, number of updates made)
+        Updated DataFrame with lookup columns removed.
     """
-    # Fill null values
-    filled = df.filter(pl.col(col).is_null() & pl.col(source_col).is_not_null()).height
-    df = df.with_columns(
-        pl.when(pl.col(col).is_null())
-        .then(pl.col(source_col))
-        .otherwise(pl.col(col))
-        .alias(col)
-    )
+    result = df.join(lookup_df, left_on=left_on, right_on=right_on, how="left", coalesce=False)
+    matches = result.filter(pl.col(right_on).is_not_null()).height
+    print(f"    - {label} matches: {matches}")
 
-    updates = filled
-    # Optionally overwrite existing values
-    if always_overwrite:
-        changed = df.filter(
-            pl.col(source_col).is_not_null() &
-            (pl.col(col).cast(pl.Utf8) != pl.col(source_col).cast(pl.Utf8))
-        ).height
-        updates += changed
-        df = df.with_columns(
-            pl.when(pl.col(source_col).is_not_null())
-            .then(pl.col(source_col))
-            .otherwise(pl.col(col))
-            .alias(col)
-        )
-
-    return df, updates
-
-
-def update_and_log_statistics(df: pl.DataFrame, totals: dict, source: str = "scimago") -> pl.DataFrame:
-    """Update columns from data source and log statistics.
-
-    Args:
-        df: The DataFrame to update
-        totals: Dictionary to store total update counts
-        source: The data source ("scimago" or "openapc")
-
-    Returns:
-        Updated DataFrame
-    """
-
-    list_cols = FILE_COLS.get(source, [])
-    # For OpenAPC, only update APC Euros when it's null
-    for col, overwrite in list_cols:
-        df, updates = update_column_from_source(df, col, f"{col}_{source}", always_overwrite=overwrite)
+    for col, overwrite in FILE_COLS.get(source, []):
+        source_col = f"{col}_{source}"
+        do_overwrite = overwrite and not only_fill_nulls
+        if do_overwrite:
+            updates = result.filter(pl.col(source_col).is_not_null() &
+                                    (pl.col(col).is_null() |
+                                     (pl.col(col).cast(pl.Utf8) != pl.col(source_col).cast(pl.Utf8)))).height
+            result = result.with_columns(
+                pl.when(pl.col(source_col).is_not_null()).then(pl.col(source_col)).otherwise(pl.col(col)).alias(col)
+            )
+        else:
+            updates = result.filter(pl.col(col).is_null() & pl.col(source_col).is_not_null()).height
+            result = result.with_columns(
+                pl.when(pl.col(col).is_null()).then(pl.col(source_col)).otherwise(pl.col(col)).alias(col)
+            )
         totals[col] += updates
         if updates > 0:
-            action = "updates" if overwrite else "empty filled"
-            print(f"\t- '{col}' {action} from {source}: {updates}")
-    return df
+            print(f"\t- '{col}' {'updates' if do_overwrite else 'empty filled'} from {source}: {updates}")
+
+    # Drop lookup columns to keep DataFrame clean for subsequent joins
+    return result.drop([c for c in lookup_df.columns if c in result.columns])
 
 
 def two_pass_join(target_df: pl.DataFrame, lookup_df: pl.DataFrame, right_on: str, totals: dict, source: str,
-                  left_on: str = "norm_journal", fallback_col: str = "alt_journal_norm") -> tuple[pl.DataFrame, dict]:
-    """Perform a two-pass join: first on primary key, then on fallback key for unmatched rows.
+                  left_on: str = "norm_journal", fallback_col: str = "alt_journal_norm") -> pl.DataFrame:
+    """Join on primary key, then on fallback key for unmatched rows.
+
+    The fallback (2nd pass) only fills null values and never overwrites
+    values already set by the primary match.
     """
     print(f"  Performing two-pass join for {source}...")
-    has_fallback = (pl.col(fallback_col).is_not_null() & (pl.col(fallback_col).cast(pl.Utf8).str.strip_chars() != ""))
-    print(f"    - Total rows before join: {target_df.height}, {target_df.filter(has_fallback).height} with fallback.")
-    # First pass: Join on primary key
-    result_df = target_df.join(lookup_df, left_on=left_on, right_on=right_on, how="left", coalesce=False)
-    print(f"    - 1st pass matches: {result_df.filter(pl.col(right_on).is_not_null()).height}")
-    result_df = update_and_log_statistics(result_df, totals, source=source)
-    nbr_fallback = result_df.filter(pl.col(right_on).is_null() & has_fallback).height
+    has_fallback = pl.col(fallback_col).is_not_null() & (pl.col(fallback_col).cast(pl.Utf8).str.strip_chars() != "")
+    print(f"    - Total rows: {target_df.height}, {target_df.filter(has_fallback).height} with fallback.")
+
+    # First pass: join on primary key
+    result_df = join_and_update(target_df, lookup_df, left_on, right_on, source, totals, label="1st pass")
+
+    # Second pass: join unmatched rows on fallback key
+    matched_keys = set(lookup_df[right_on].to_list())
+    nbr_fallback = result_df.filter(
+        has_fallback & ~pl.col(left_on).is_in(list(matched_keys))
+    ).height
     if nbr_fallback > 0:
-        # Second pass: Join on fallback column
-        result_df = target_df.join(lookup_df, left_on=fallback_col, right_on=right_on, how="left", coalesce=False)
-        nbr_matches = result_df.filter(pl.col(right_on).is_not_null()).height
-        print(f"    - 2nd pass matches: {nbr_matches} while {nbr_fallback} where unmatched.")
-        result_df = update_and_log_statistics(result_df, totals, source=source)
+        print(f"    - 2nd pass on '{fallback_col}' for {nbr_fallback} unmatched rows...")
+        result_df = join_and_update(result_df, lookup_df, fallback_col, right_on, source, totals,
+                                    only_fill_nulls=True, label="2nd pass")
     else:
-        print(f"    - No rows to process in 2nd pass (all matched in 1st pass).")
-    print("  Two-pass join completed.")
+        print(f"    - No rows for 2nd pass (all matched in 1st pass).")
+    print(f"  Two-pass join for {source} completed.")
     return result_df
 
 
@@ -394,10 +380,12 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
     left_keys = left_keys.union(set(target_df["alt_journal_norm"].unique().to_list()))
 
     validate_no_duplicates_for_join(scimago_lookup, "norm_journal_scimago", left_keys, "Scimago")
-    updated_df = two_pass_join(target_df, scimago_lookup, right_on="norm_journal_scimago", source="scimago", totals=totals)
+    updated_df = two_pass_join(target_df, scimago_lookup, right_on="norm_journal_scimago", source="scimago",
+                               totals=totals)
 
     validate_no_duplicates_for_join(openapc_lookup, "norm_journal_openapc", left_keys, "OpenAPC")
-    updated_df = two_pass_join(updated_df, openapc_lookup, right_on="norm_journal_openapc", source="openapc", totals=totals)
+    updated_df = two_pass_join(updated_df, openapc_lookup, right_on="norm_journal_openapc", source="openapc",
+                               totals=totals)
 
     validate_no_duplicates_for_join(doaj_lookup, "norm_journal_doaj", left_keys, "DOAJ")
     updated_df = two_pass_join(updated_df, doaj_lookup, right_on="norm_journal_doaj", source="doaj", totals=totals)
@@ -408,7 +396,6 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
     updated_df = mark_pci_friendly(updated_df, pci_friendly_set)
     # Select original columns only (avoid helper/join columns)
     final_df = updated_df.select(original_cols)
-
     # Overwrite the existing file
     check_consistency(final_df)
     final_df.write_csv(csv_path)

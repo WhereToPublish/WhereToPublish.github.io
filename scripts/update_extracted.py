@@ -8,6 +8,7 @@ DATA_EXTRACTED_DIR = "data_extracted"
 SCIMAGO_FILE = os.path.join("data_extraction", "scimagojr.csv.gz")
 OPENAPC_FILE = os.path.join("data_extraction", "openapc.csv.gz")
 DOAJ_FILE = os.path.join("data_extraction", "DOAJ.csv.gz")
+DATAVERSE_FILE = os.path.join("data_extraction", "APC_dataverse.txt.gz")
 FILES_TO_SKIP = []
 
 # Columns that should be updated from each data source
@@ -23,7 +24,10 @@ FILE_COLS = {"scimago": [("Scimago Rank", True),
                       ("Country", False),
                       ("Website", False),
                       ("Institution", False),
-                      ("APC Euros", False)]}
+                      ("APC Euros", False)],
+             "dataverse": [("APC Euros", False),
+                           ("Publisher", False),
+                           ("Business model", False)]}
 
 COLUMNS_TO_UPDATE = set([col for cols in FILE_COLS.values() for col, _ in cols])
 print(f"Columns to update: {COLUMNS_TO_UPDATE}")
@@ -213,6 +217,64 @@ def load_openapc_lookup() -> pl.DataFrame:
     return format_APC_Euros(openapc_df, "APC Euros_openapc")
 
 
+def load_dataverse_lookup() -> pl.DataFrame:
+    """Load and process APC Dataverse data into a lookup table.
+
+    Returns:
+        pl.DataFrame: Processed Dataverse lookup table with normalized journal names and aggregated data from last 5 years.
+    """
+    dataverse_df = load_csv(DATAVERSE_FILE, separator='\t', encoding="utf8-lossy")
+
+    # Only keep rows where APC was actually provided
+    dataverse_df = dataverse_df.filter(pl.col("APC_provided") == "yes")
+
+    # Rename columns to our convention
+    dataverse_df = dataverse_df.rename({
+        "Journal": "Journal_dataverse",
+        "Publisher": "Publisher_dataverse",
+        "APC_EUR": "APC Euros_dataverse",
+        "APC_year": "period_dataverse",
+    })
+
+    # Normalize journal names
+    dataverse_df = dataverse_df.with_columns(
+        pl.col("Journal_dataverse").map_elements(norm_name, return_dtype=pl.Utf8).alias("norm_journal_dataverse")
+    )
+
+    # Map OA_status to Business model
+    dataverse_df = dataverse_df.with_columns(
+        pl.when(pl.col("OA_status") == "Gold")
+        .then(pl.lit("OA"))
+        .when(pl.col("OA_status") == "Hybrid")
+        .then(pl.lit("Hybrid"))
+        .otherwise(None)
+        .alias("Business model_dataverse")
+    )
+
+    # For each journal, keep only last 5 years of data
+    max_periods = dataverse_df.group_by("norm_journal_dataverse").agg(
+        pl.col("period_dataverse").max().alias("max_period")
+    )
+    dataverse_df = dataverse_df.join(max_periods, on="norm_journal_dataverse", how="left")
+    dataverse_df = dataverse_df.filter(
+        pl.col("period_dataverse") > (pl.col("max_period") - 5)
+    )
+
+    # Aggregate per journal: mean APC, mode publisher and business model
+    dataverse_df = dataverse_df.group_by("norm_journal_dataverse").agg([
+        pl.col("APC Euros_dataverse").mean().alias("APC Euros_dataverse"),
+        pl.col("Publisher_dataverse").mode().first().alias("Publisher_dataverse"),
+        pl.col("Business model_dataverse").mode().first().alias("Business model_dataverse"),
+    ])
+
+    # Normalize publisher names
+    dataverse_df = dataverse_df.with_columns(
+        pl.col("Publisher_dataverse").map_elements(normalize_publisher, return_dtype=pl.Utf8).alias("Publisher_dataverse")
+    )
+
+    return format_APC_Euros(dataverse_df, "APC Euros_dataverse")
+
+
 def load_doaj_lookup() -> pl.DataFrame:
     """Load and process DOAJ data into a lookup table.
 
@@ -349,14 +411,16 @@ def two_pass_join(target_df: pl.DataFrame, lookup_df: pl.DataFrame, right_on: st
 
 
 def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup: pl.DataFrame,
-                     doaj_lookup: pl.DataFrame, pci_friendly_set: set, totals: dict) -> None:
-    """Process a single CSV file with Scimago, OpenAPC, and DOAJ data using two-pass joins.
+                     doaj_lookup: pl.DataFrame, dataverse_lookup: pl.DataFrame,
+                     pci_friendly_set: set, totals: dict) -> None:
+    """Process a single CSV file with Scimago, OpenAPC, DOAJ, and Dataverse data using two-pass joins.
 
     Args:
         csv_path: Path to the CSV file to process
         scimago_lookup: Scimago lookup table
         openapc_lookup: OpenAPC lookup table
         doaj_lookup: DOAJ lookup table
+        dataverse_lookup: APC Dataverse lookup table
         pci_friendly_set: Set of PCI-friendly journal names
         totals: Dictionary to accumulate update counts
     """
@@ -390,6 +454,10 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
     validate_no_duplicates_for_join(doaj_lookup, "norm_journal_doaj", left_keys, "DOAJ")
     updated_df = two_pass_join(updated_df, doaj_lookup, right_on="norm_journal_doaj", source="doaj", totals=totals)
 
+    validate_no_duplicates_for_join(dataverse_lookup, "norm_journal_dataverse", left_keys, "Dataverse")
+    updated_df = two_pass_join(updated_df, dataverse_lookup, right_on="norm_journal_dataverse", source="dataverse",
+                               totals=totals)
+
     # Apply formatting and normalization
     updated_df = format_table(updated_df)
     # Mark PCI friendly journals
@@ -417,6 +485,9 @@ def main():
     doaj_lookup = load_doaj_lookup()
     print(f"Successfully loaded and processed DOAJ data from {DOAJ_FILE}")
 
+    dataverse_lookup = load_dataverse_lookup()
+    print(f"Successfully loaded and processed Dataverse data from {DATAVERSE_FILE}")
+
     # Initialize totals for tracking updates
     totals = {col: 0 for col in COLUMNS_TO_UPDATE}
 
@@ -427,7 +498,8 @@ def main():
             print(f"Skipping file: {filename}")
             continue
 
-        process_csv_file(csv_path, scimago_lookup, openapc_lookup, doaj_lookup, pci_friendly_set, totals)
+        process_csv_file(csv_path, scimago_lookup, openapc_lookup, doaj_lookup, dataverse_lookup, pci_friendly_set,
+                         totals)
 
     # Print summary
     print("\nScript finished.")

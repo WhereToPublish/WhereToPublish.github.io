@@ -4,6 +4,7 @@
 .DS_store
 __pycache__
 data_legacy
+logs
 node_modules/
 TODO.md
 wiki

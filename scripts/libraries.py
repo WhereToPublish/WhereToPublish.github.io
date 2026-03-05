@@ -643,6 +643,13 @@ def format_table(df: pl.DataFrame) -> pl.DataFrame:
     df = df.with_columns(
         pl.col("Publisher").map_elements(normalize_publisher, return_dtype=pl.Utf8).alias("Publisher")
     )
+    # Force Business model to 'OA diamond' for all "Peer Community In" journals
+    df = df.with_columns(
+        pl.when(pl.col("Journal").cast(pl.Utf8).str.starts_with("Peer Community In"))
+        .then(pl.lit("OA diamond"))
+        .otherwise(pl.col("Business model"))
+        .alias("Business model")
+    )
     df = df.with_columns(
         pl.col("Business model").map_elements(normalize_business_model, return_dtype=pl.Utf8).alias("Business model")
     )

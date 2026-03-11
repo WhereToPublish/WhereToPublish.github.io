@@ -99,6 +99,7 @@ cd scripts && python data_process.py
 | [Scimago](https://www.scimagojr.com/) | `data_extraction/scimagojr.csv.gz` | Journal rankings, quartiles, H-index |
 | [OpenAPC](https://openapc.net/) | `data_extraction/openapc.csv.gz` | Article Processing Charges |
 | [DOAJ](https://doaj.org/) | `data_extraction/DOAJ.csv.gz` | Open access journal metadata |
+| [Dataverse](https://doi.org/10.7910/DVN/CR1MMV) | `data_extraction/APC_dataverse.txt.gz` | Open dataset of annual APCs |
 
 ### Local Development
 

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APC Explorer - Article Processing Charges</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="alternate icon" href="favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" type="text/css" href="vendor/dataTables.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="vendor/responsive.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="vendor/buttons.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="vendor/stateRestore.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="vendor/columnControl.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="vendor/fixedHeader.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="vendor/tippy.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap"
+          rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+          integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"/>
+    <link rel="stylesheet" type="text/css" href="css/styles.css">
+    <style>
+        /* Publisher-specific colors */
+        .publisher-button[data-publisher="Elsevier"] { background-color: #ffebee; border-color: #ef9a9a; }
+        .publisher-button[data-publisher="Frontiers"] { background-color: #e8f5e9; border-color: #a5d6a7; }
+        .publisher-button[data-publisher="MDPI"] { background-color: #e3f2fd; border-color: #90caf9; }
+        .publisher-button[data-publisher="PLOS"] { background-color: #fff3e0; border-color: #ffcc80; }
+        .publisher-button[data-publisher="Springer Nature"] { background-color: #f3e5f5; border-color: #ce93d8; }
+        .publisher-button[data-publisher="Wiley"] { background-color: #e0f2f1; border-color: #80cbc4; }
+
+        .publisher-button.active {
+            background-color: #3182ce !important;
+            color: #ffffff !important;
+            border-color: #2b6cb0 !important;
+            box-shadow: 0 2px 8px rgba(49, 130, 206, 0.25);
+        }
+
+        /* Row colors by publisher */
+        table.dataTable tr.publisher-Elsevier { background-color: #ffebee; }
+        table.dataTable tr.publisher-Frontiers { background-color: #e8f5e9; }
+        table.dataTable tr.publisher-MDPI { background-color: #e3f2fd; }
+        table.dataTable tr.publisher-PLOS { background-color: #fff3e0; }
+        table.dataTable tr.publisher-Springer_Nature { background-color: #f3e5f5; }
+        table.dataTable tr.publisher-Wiley { background-color: #e0f2f1; }
+
+        table.dataTable tr.publisher-Elsevier:hover,
+        table.dataTable tr.publisher-Frontiers:hover,
+        table.dataTable tr.publisher-MDPI:hover,
+        table.dataTable tr.publisher-PLOS:hover,
+        table.dataTable tr.publisher-Springer_Nature:hover,
+        table.dataTable tr.publisher-Wiley:hover {
+            background-color: #ebf4ff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1><span class="modal-trigger">APC Explorer</span></h1>
+    <p id="intro-p" class="modal-trigger">Article Processing Charges from six large scholarly publishers (2019&ndash;2023).</p>
+    <p class="line"></p>
+    <div id="dataSourceFilters" style="margin-bottom: 5px; text-align: center;">
+        <!-- Publisher selector buttons -->
+        <button class="data-source-button publisher-button active" data-publisher="all" id="allPublishersBtn">All Publishers</button>
+        <button class="data-source-button publisher-button" data-publisher="Elsevier" id="elsevier">Elsevier</button>
+        <button class="data-source-button publisher-button" data-publisher="Frontiers" id="frontiers">Frontiers</button>
+        <button class="data-source-button publisher-button" data-publisher="MDPI" id="mdpi">MDPI</button>
+        <button class="data-source-button publisher-button" data-publisher="PLOS" id="plos">PLOS</button>
+        <button class="data-source-button publisher-button" data-publisher="Springer Nature" id="springerNature">Springer Nature</button>
+        <button class="data-source-button publisher-button" data-publisher="Wiley" id="wiley">Wiley</button>
+    </div>
+    <div style="position: relative; margin-bottom: 20px; margin-top: 10px;">
+        <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 80px; height: 3px; background: linear-gradient(90deg, #3182ce, #63b3ed); border-radius: 3px;"></div>
+    </div>
+
+    <div class="filters-row">
+        <div class="filters-column">
+            <div id="businessModelFilters" style="text-align: center;">
+                <button id="allBusinessModels" class="business-model-button active">All OA Status</button>
+                <button id="oaBusinessModel" class="business-model-button" style="background-color: #e8eaf6;">OA
+                </button>
+                <button id="hybridBusinessModel" class="business-model-button" style="background-color: #e8eaf6;">
+                    Hybrid
+                </button>
+            </div>
+        </div>
+
+        <div class="filters-column">
+            <div id="apcSliderContainer" style="text-align: center; margin: 0 auto;">
+                <p class="apc-value-label"><span id="apcValue">All APCs</span></p>
+                <div id="apcHistogram"></div>
+                <div class="range-slider">
+                    <input type="range" id="apcSliderMin" min="0" max="5000" value="0"
+                           aria-label="Filter minimum APC in Euros">
+                    <input type="range" id="apcSliderMax" min="0" max="5000" value="5000"
+                           aria-label="Filter maximum APC in Euros">
+                </div>
+                <div class="apc-range-labels" aria-hidden="true">
+                    <span>0 €</span>
+                    <span>1k €</span>
+                    <span>2k €</span>
+                    <span>3k €</span>
+                    <span>4k €</span>
+                    <span>+5k €</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div style="position: relative; margin-bottom: 30px;">
+        <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 80px; height: 3px; background: linear-gradient(90deg, #3182ce, #63b3ed); border-radius: 3px;"></div>
+    </div>
+
+    <!-- Buttons (export & column visibility) will be added above the table by DataTables Buttons -->
+
+    <table id="journalTable" class="display" style="width:100%; margin-top: 0;">
+        <thead>
+        <tr>
+            <!-- Headers will be populated by JavaScript -->
+        </tr>
+        </thead>
+        <tbody>
+        <!-- Data will be populated by DataTables -->
+        </tbody>
+        <tfoot>
+        <tr>
+            <td colspan="14" style="text-align: center; padding: 15px;"></td>
+        </tr>
+        </tfoot>
+    </table>
+    <div style="text-align: right; margin-top: 10px;">
+        <a href="index.html" style="text-decoration: none; font-weight: 900; margin-right: 15px;">Back to Where to Publish?</a>
+        <a href="#" id="aboutLink" class="modal-trigger" style="text-decoration: none; font-weight: 900;">About this page</a>
+    </div>
+</div>
+
+<!-- Modal -->
+<div id="aboutModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h2>About APC Explorer</h2>
+        <p>
+            This page displays Article Processing Charges (APCs) data from six large scholarly publishers
+            (Elsevier, Frontiers, MDPI, PLOS, Springer Nature, and Wiley) covering the period 2019&ndash;2023.
+        </p>
+        <p>
+            The data comes from an open dataset by
+            Butler, L.-A., Hare, M., Sch&ouml;nfelder, N., Schares, E., Alperin, J. P., &amp; Haustein, S. (2024).
+            <em>An open dataset of article processing charges from six large scholarly publishers (2019&ndash;2023)</em>.
+            <br>
+            <a href="http://arxiv.org/abs/2406.08356" target="_blank" rel="noopener noreferrer">arXiv:2406.08356</a>
+            &mdash;
+            <a href="https://doi.org/10.7910/DVN/CR1MMV" target="_blank" rel="noopener noreferrer">Harvard Dataverse</a>
+        </p>
+        <p>
+            This interactive explorer is part of the <a href="index.html">Where to Publish?</a> project.
+            <br>
+            Contact us: <a href="mailto:wheretopublish-contact@protonmail.com" style="text-decoration: none;">wheretopublish-contact@protonmail.com</a>
+        </p>
+    </div>
+</div>
+
+<script src="vendor/jquery.min.js"></script>
+<script src="vendor/popper.min.js"></script>
+<script src="vendor/tippy-bundle.umd.min.js"></script>
+<script src="vendor/dataTables.min.js"></script>
+<script src="vendor/dataTables.buttons.min.js"></script>
+<script src="vendor/buttons.html5.min.js"></script>
+<script src="vendor/buttons.colVis.min.js"></script>
+<script src="vendor/dataTables.stateRestore.min.js"></script>
+<script src="vendor/dataTables.responsive.min.js"></script>
+<script src="vendor/dataTables.fixedHeader.min.js"></script>
+<script src="vendor/dataTables.columnControl.min.js"></script>
+<script src="js/APC.js"></script>
+
+</body>
+</html>

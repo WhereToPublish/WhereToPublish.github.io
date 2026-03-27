@@ -6,6 +6,7 @@ __pycache__
 data_legacy
 logs
 node_modules/
+.github/*.md
 TODO.md
 wiki
 

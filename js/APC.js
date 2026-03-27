@@ -62,8 +62,15 @@ function parseCSV(csvText, isAllPublishers) {
     // Mandatory columns that cannot be hidden
     const mandatoryHeaders = new Set(['Journal', 'Business model', 'APC (€)']);
 
-    // Default visible columns
-    const defaultVisibleHeaders = new Set(['Journal', 'Publisher', 'Business model', 'APC (€)']);
+    // Default visible columns:
+    // - Per-publisher mode: all columns except Publisher (redundant when viewing one publisher)
+    // - All-publishers mode: all columns
+    let defaultVisibleHeaders;
+    if (isAllPublishers) {
+        defaultVisibleHeaders = new Set(allHeadersText);
+    } else {
+        defaultVisibleHeaders = new Set(allHeadersText.filter(h => h !== 'Publisher'));
+    }
 
     // Column tooltips
     const columnDefs = {
@@ -690,7 +697,8 @@ $(document).ready(function () {
 
     // Load default table
     currentDataSource = DEFAULT_DATA_SOURCE;
-    currentDatasetLabel = 'All Publishers';
-    isAllPublishersMode = true;
+    currentDatasetLabel = 'PLOS';
+    currentPublisher = 'PLOS';
+    isAllPublishersMode = false;
     loadTable(DEFAULT_DATA_SOURCE);
 });

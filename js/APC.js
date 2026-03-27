@@ -9,15 +9,6 @@
 const APC_HISTOGRAM_BINS = 16;
 const FIXEDHEADER_BREAKPOINT = 768;
 
-// Publisher configuration with colors
-const PUBLISHER_CONFIG = {
-    'Elsevier': {color: '#f5ebff', cssClass: 'publisher-Elsevier'},
-    'Frontiers': {color: '#ffe0e0', cssClass: 'publisher-Frontiers'},
-    'MDPI': {color: '#fde3f2', cssClass: 'publisher-MDPI'},
-    'PLOS': {color: '#e8f5e9', cssClass: 'publisher-PLOS'},
-    'Springer Nature': {color: '#eae5f5', cssClass: 'publisher-Springer_Nature'},
-    'Wiley': {color: '#f2ece0', cssClass: 'publisher-Wiley'},
-};
 
 function generateApcBins(numBins, maxApc = 5000) {
     const bins = [];
@@ -194,7 +185,7 @@ function splitCSVLine(line) {
 
 $(document).ready(function () {
     const ALL_PUBLISHERS_SOURCE = 'data/APC_all.csv';
-    const DEFAULT_DATA_SOURCE = ALL_PUBLISHERS_SOURCE;
+    const DEFAULT_DATA_SOURCE = 'data/APC_PLOS.csv';
     let dataTable;
     let currentDataSource = null;
     let currentDatasetLabel = '';

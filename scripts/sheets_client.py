@@ -14,6 +14,9 @@ from typing import Any
 
 SPREADSHEET_ID = "1PRXViyQlo5ZMjpCJ_XpcHfsnZEJmmdCiXjnkazMyua8"
 
+# Name of the auxiliary tab containing configuration variables (country, publisher mappings, etc.)
+VARIABLES_TAB_NAME = "variables"
+
 # Minimum number of data rows (excluding header) required before any upload is allowed.
 MIN_DATA_ROWS = 15
 

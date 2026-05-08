@@ -1,7 +1,9 @@
+import json
 import polars as pl
 import re
 import unicodedata
 import gzip
+from pathlib import Path
 
 # Expected columns and their final order
 FINAL_COLUMNS = [
@@ -20,8 +22,13 @@ FINAL_COLUMNS = [
     "Scimago Quartile",
     "H index",
     "PCI partner",
-    "Scimago Journal Title"
+    "Alternative journal name",
+    "e-ISSN",
+    "p-ISSN",
+    "ISSN-L",
 ]
+
+COUNTRY_FORMATTING_PATH = Path("config/country_formatting.json")
 
 NUMERIC_COLUMNS = [
     "APC Euros",
@@ -197,6 +204,31 @@ def format_urls(df: pl.DataFrame, col: str = "Website") -> pl.DataFrame:
     )
 
 
+def format_issn(issn: str) -> str | None:
+    """Normalize an ISSN string to standard XXXX-XXXX format.
+    - Strips whitespace and non-alphanumeric characters except dashes
+    - If 8 consecutive digits (no dash), inserts dash at position 4
+    - Returns None if the result is not a valid-looking ISSN (not 9 chars XXXX-XXXX)
+    """
+    if issn is None:
+        return None
+    s = str(issn).strip()
+    if not s or s.upper() == "NA":
+        return None
+    # Remove all non-alphanumeric chars except dash
+    s = re.sub(r"[^0-9Xx]", "", s)
+    if len(s) == 8:
+        s = s[:4] + "-" + s[4:]
+    elif len(s) == 9 and s[4] == "-":
+        pass  # already formatted
+    else:
+        return None
+    # Validate: XXXX-XXXX where X is digit or 'X'
+    if not re.match(r"^[0-9]{4}-[0-9]{3}[0-9Xx]$", s):
+        return None
+    return s.upper()
+
+
 def format_APC(apc: str) -> str:
     """Format a single APC value to extract the integer part before any comma or period, removing non-digit characters."""
     if apc is None:
@@ -353,44 +385,36 @@ def normalize_publisher(name: str) -> str:
     return str(clean_string(name))
 
 
-def derive_country_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
-    """ Derive 'Country' from known 'Publisher' names when 'Country' is missing/empty.
+def load_country_formatting() -> dict[str, dict[str, str]]:
+    """Load publisher→country mappings from config/country_formatting.json.
+
+    Returns a nested dict with keys 'for_profit', 'university_press', 'non_profit',
+    each mapping publisher name → country string.
     """
+    with open(COUNTRY_FORMATTING_PATH, encoding="utf-8") as f:
+        data = json.load(f)
+    assert isinstance(data, dict) and "for_profit" in data and "non_profit" in data and "university_press" in data, (
+        "Expected keys 'for_profit', 'university_press', and 'non_profit' in country formatting data"
+    )
+    assert isinstance(data["for_profit"], dict) and isinstance(data["non_profit"], dict) and isinstance(
+        data["university_press"], dict), (
+        "Expected 'for_profit', 'university_press', and 'non_profit' to be dicts in country formatting data"
+    )
+    assert len(data["for_profit"]) > 0, (
+        f"'for_profit' dict is empty in {COUNTRY_FORMATTING_PATH}"
+    )
+    return data
+
+
+def derive_country_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
+    """Derive 'Country' from known 'Publisher' names when 'Country' is missing/empty.
+    Publisher→country mapping is loaded from config/country_formatting.json (all 3 groups).
+    """
+    formatting = load_country_formatting()
     country_map = {
-        "American Association for the Advancement of Science (AAAS)": "USA",
-        "American Psychological Association (APA)": "USA",
-        "American Medical Association (AMA)": "USA",
-        "BioOne": "USA",
-        "BMJ Group": "UK",
-        "Cambridge University Press (CUP)": "UK",
-        "De Gruyter Brill": "Germany",
-        "De Gruyter Brill (Brill)": "Germany / Netherlands",
-        "Elsevier": "Netherlands",
-        "Elsevier (Cell Press)": "USA",
-        "Frontiers Media SA": "Switzerland",
-        "Inderscience Publishers": "Switzerland",
-        "John Libbey Eurotext": "France",
-        "John Wiley & Sons": "USA",
-        "Karger Publishers": "Switzerland",
-        "MDPI": "Switzerland",
-        "Oxford University Press (OUP)": "UK",
-        "Peer Community In": "France",
-        "Sage Publishing": "USA",
-        "Sage Publishing (Mary Ann Liebert)": "USA",
-        "Sage Publishing (IOS Press)": "UK / Germany",
-        "Springer Nature": "Germany / UK",
-        "Springer Nature (BioMed Central)": "Germany / UK",
-        "Taylor & Francis Group": "UK",
-        "Taylor & Francis Group (Dovepress)": "UK",
-        "Taylor & Francis Group (F1000 research)": "UK",
-        "Taylor & Francis Group (Routledge)": "UK",
-        "Thieme Group": "Germany",
-        "The Royal Society": "UK",
-        "Public Library of Science (PLoS)": "USA",
-        "Wolters Kluwer": "Netherlands",
-        "Wolters Kluwer (Lippincott)": "Netherlands / USA",
-        "Wolters Kluwer (Akadémiai Kiadó Journals)": "Netherlands / Hungary",
-        "World Scientific Publishing": "Singapore",
+        **formatting["for_profit"],
+        **formatting.get("university_press", {}),
+        **formatting.get("non_profit", {}),
     }
     return df.with_columns(
         pl.when(
@@ -530,7 +554,7 @@ def infer_institution_type(df: pl.DataFrame) -> pl.DataFrame:
             (pl.col("Institution type").is_null() | (pl.col("Institution type").cast(pl.Utf8).str.strip_chars() == ""))
             & pl.col("inst_lower").str.contains(pattern)
         )
-        .then(pl.lit("Society"))
+        .then(pl.lit("Society/Association"))
         .otherwise(pl.col("Institution type"))
         .alias("Institution type")
     ).drop("inst_lower")
@@ -539,35 +563,37 @@ def infer_institution_type(df: pl.DataFrame) -> pl.DataFrame:
 
 def infer_publisher_type_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
     """Infer 'Publisher type' from known publisher names when Publisher type is empty/null.
-    - Recognized for-profit: set to 'For-profit'.
-    - Recognized university presses: set to 'University Press'.
+
+    Publisher name sets are loaded from config/country_formatting.json:
+      - 'for_profit' keys  → 'For-profit'
+      - 'university_press' keys → 'University Press'
+      - 'non_profit' keys  → 'Non-profit'
+
+    A catch-all fallback assigns 'University Press' to any publisher whose name
+    contains the substring 'University Press' (covers unlisted publishers).
     """
-    for_profit = {
-        "Elsevier",
-        "Elsevier (Cell Press)",
-        "Taylor & Francis Group",
-        "Springer Nature",
-        "John Wiley & Sons",
-        "Sage Publishing",
-        "Frontiers Media SA",
-        "MDPI",
-    }
-    df = df.with_columns(pub_lower=pl.col("Publisher").cast(pl.Utf8))
+    formatting = load_country_formatting()
+    for_profit_pubs = set(formatting["for_profit"].keys())
+    university_press_pubs = set(formatting.get("university_press", {}).keys())
+    non_profit_pubs = set(formatting.get("non_profit", {}).keys())
+
+    pub = pl.col("Publisher").cast(pl.Utf8)
     empty_pubtype = pl.col("Publisher type").is_null() | (
-            pl.col("Publisher type").cast(pl.Utf8).str.strip_chars() == "")
-    is_forprofit = pl.col("pub_lower").is_in(list(for_profit))
-    is_unipress = pl.col("pub_lower").cast(pl.Utf8).str.contains(r"University Press")
+            pl.col("Publisher type").cast(pl.Utf8).str.strip_chars() == ""
+    )
 
     df = df.with_columns(
-        pl.when(empty_pubtype & is_forprofit)
+        pl.when(empty_pubtype & pub.is_in(for_profit_pubs))
         .then(pl.lit("For-profit"))
-        .otherwise(
-            pl.when(empty_pubtype & is_unipress)
-            .then(pl.lit("University Press"))
-            .otherwise(pl.col("Publisher type"))
-        )
+        .when(empty_pubtype & pub.is_in(university_press_pubs))
+        .then(pl.lit("University Press"))
+        .when(empty_pubtype & pub.is_in(non_profit_pubs))
+        .then(pl.lit("Non-profit"))
+        .when(empty_pubtype & pub.str.contains(r"University Press"))
+        .then(pl.lit("University Press"))
+        .otherwise(pl.col("Publisher type"))
         .alias("Publisher type")
-    ).drop("pub_lower")
+    )
     return df
 
 
@@ -717,6 +743,7 @@ def check_consistency(df: pl.DataFrame) -> None:
     filter_err = df.filter(
         (pl.col("Business model") == "OA diamond") &
         (pl.col("APC Euros").is_not_null()) &
-        (pl.col("APC Euros") != 0)
+        (pl.col("APC Euros").cast(pl.Utf8).str.strip_chars() != "") &
+        (pl.col("APC Euros").cast(pl.Utf8).str.strip_chars() != "0")
     )
     assert filter_err.height == 0, f"Found {filter_err.height} rows with Business model 'OA diamond' but APC Euros not 0."

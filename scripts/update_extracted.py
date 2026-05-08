@@ -1,7 +1,11 @@
+import datetime
 import os
 from glob import glob
 from libraries import *
 import re
+
+# Current year used for openAPC recency check
+CURRENT_YEAR = datetime.datetime.now().year
 
 # Constants
 DATA_EXTRACTED_DIR = "data_extracted"
@@ -19,12 +23,17 @@ FILE_COLS = {"scimago": [("Scimago Rank", True),
                          ("H index", True)],
              "openapc": [("APC Euros", True),
                          ("Publisher", False),
-                         ("Business model", False)],
+                         ("Business model", False),
+                         ("e-ISSN", False),
+                         ("p-ISSN", False),
+                         ("ISSN-L", False)],
              "doaj": [("Publisher", False),
                       ("Country", False),
                       ("Website", False),
                       ("Institution", False),
-                      ("APC Euros", False)],
+                      ("APC Euros", False),
+                      ("e-ISSN", False),
+                      ("p-ISSN", False)],
              "dataverse": [("APC Euros", False),
                            ("Publisher", False),
                            ("Business model", False)]}
@@ -142,7 +151,7 @@ def load_scimago_lookup() -> pl.DataFrame:
         .when(pl.col("Open Access_scimago") == "Yes")
         .then(pl.lit("OA"))
         .otherwise(None)
-        .alias("Business model_scimago")
+        .alias("Business model_scimago"),
     ])
 
     # Format Scimago Rank to standard numeric format
@@ -167,21 +176,35 @@ def load_scimago_lookup() -> pl.DataFrame:
         "Business model_scimago",
         "Scimago Quartile_scimago",
         "H index_scimago",
-        "Country_scimago"
+        "Country_scimago",
     ]).unique(subset=["norm_journal_scimago"], keep="first")
 
 
 def load_openapc_lookup() -> pl.DataFrame:
     """Load and process OpenAPC data into a lookup table.
 
+    Uses only the most recent year's records per journal.
+    Journals whose most recent record is older than 3 years are excluded entirely
+    (their APC data is considered stale).
+
     Returns:
-        pl.DataFrame: Processed OpenAPC lookup table with normalized journal names and aggregated data from last 5 years.
+        pl.DataFrame: Processed OpenAPC lookup table with normalized journal names.
     """
     openapc_df = load_csv(OPENAPC_FILE)
     openapc_df = openapc_df.rename(
         {"journal_full_title": "Journal_openapc",
          "euro": "APC Euros_openapc",
-         "publisher": "Publisher_openapc"}
+         "publisher": "Publisher_openapc",
+         "issn_electronic": "e-ISSN_openapc",
+         "issn_l": "ISSN-L_openapc"}
+    )
+
+    # Treat "NA" as null for print ISSN
+    openapc_df = openapc_df.with_columns(
+        pl.when(pl.col("issn_print").cast(pl.Utf8).str.to_uppercase() == "NA")
+        .then(None)
+        .otherwise(pl.col("issn_print"))
+        .alias("p-ISSN_openapc")
     )
 
     # Normalize journal names first
@@ -189,22 +212,28 @@ def load_openapc_lookup() -> pl.DataFrame:
         pl.col("Journal_openapc").map_elements(norm_name, return_dtype=pl.Utf8).alias("norm_journal_openapc")
     )
 
-    # For each journal, determine the last 5 years with available data
-    # First, find the max period (latest year) for each journal
+    # For each journal, find the most recent year with data
     max_periods = openapc_df.group_by("norm_journal_openapc").agg(
         pl.col("period").max().alias("max_period")
     )
 
-    # Join back and filter to keep only last 5 years of data per journal
+    # Join back to get max_period per row
     openapc_df = openapc_df.join(max_periods, on="norm_journal_openapc", how="left")
-    openapc_df = openapc_df.filter(
-        pl.col("period") > (pl.col("max_period") - 5)
-    )
+
+    # Keep only records from the most recent year per journal
+    openapc_df = openapc_df.filter(pl.col("period") == pl.col("max_period"))
+
+    # Exclude journals whose most recent data is older than 3 years
+    openapc_df = openapc_df.filter(pl.col("max_period") >= (CURRENT_YEAR - 3))
+
+    assert openapc_df.filter(pl.col("max_period") < (CURRENT_YEAR - 3)).height == 0, \
+        "BUG: stale openAPC records still present after filtering"
 
     # Group by normalized journal name and aggregate:
-    # - Mean APC Euros from last 5 years
-    # - Most frequent publisher from last 5 years
+    # - Mean APC Euros from records in the most recent year
+    # - Most frequent publisher from the most recent year
     # - Majority vote for is_hybrid (if more than 50% are hybrid, mark as Hybrid)
+    # - First ISSN values (consistent within a journal)
     openapc_df = openapc_df.group_by("norm_journal_openapc").agg([
         pl.col("APC Euros_openapc").mean().alias("APC Euros_openapc"),
         pl.col("Publisher_openapc").mode().first().alias("Publisher_openapc"),
@@ -212,6 +241,16 @@ def load_openapc_lookup() -> pl.DataFrame:
         .then(pl.lit("Hybrid"))
         .otherwise(None)
         .alias("Business model_openapc"),
+        pl.col("e-ISSN_openapc").drop_nulls().first().alias("e-ISSN_openapc"),
+        pl.col("p-ISSN_openapc").drop_nulls().first().alias("p-ISSN_openapc"),
+        pl.col("ISSN-L_openapc").drop_nulls().first().alias("ISSN-L_openapc"),
+    ])
+
+    # Format ISSNs to standard XXXX-XXXX
+    openapc_df = openapc_df.with_columns([
+        pl.col("e-ISSN_openapc").map_elements(format_issn, return_dtype=pl.Utf8).alias("e-ISSN_openapc"),
+        pl.col("p-ISSN_openapc").map_elements(format_issn, return_dtype=pl.Utf8).alias("p-ISSN_openapc"),
+        pl.col("ISSN-L_openapc").map_elements(format_issn, return_dtype=pl.Utf8).alias("ISSN-L_openapc"),
     ])
 
     return format_APC_Euros(openapc_df, "APC Euros_openapc")
@@ -291,6 +330,8 @@ def load_doaj_lookup() -> pl.DataFrame:
         "Other organisation": "Institution_doaj",
         "Journal URL": "Website_doaj",
         "APC amount": "APC Euros_doaj",
+        "Journal ISSN (print version)": "p-ISSN_doaj",
+        "Journal EISSN (online version)": "e-ISSN_doaj",
     })
 
     # Normalize journal names
@@ -322,6 +363,12 @@ def load_doaj_lookup() -> pl.DataFrame:
         pl.col("Publisher_doaj").map_elements(normalize_publisher, return_dtype=pl.Utf8).alias("Publisher_doaj")
     )
 
+    # Format ISSNs to standard XXXX-XXXX
+    doaj_df = doaj_df.with_columns([
+        pl.col("e-ISSN_doaj").map_elements(format_issn, return_dtype=pl.Utf8).alias("e-ISSN_doaj"),
+        pl.col("p-ISSN_doaj").map_elements(format_issn, return_dtype=pl.Utf8).alias("p-ISSN_doaj"),
+    ])
+
     # Format APC Euros (extract numeric value)
     doaj_df = format_APC_Euros(doaj_df, "APC Euros_doaj")
     doaj_df = format_urls(doaj_df, "Website_doaj")
@@ -333,7 +380,9 @@ def load_doaj_lookup() -> pl.DataFrame:
         "Country_doaj",
         "Institution_doaj",
         "Website_doaj",
-        "APC Euros_doaj"
+        "APC Euros_doaj",
+        "e-ISSN_doaj",
+        "p-ISSN_doaj",
     ]).unique(subset=["norm_journal_doaj"], keep="first")
 
 
@@ -427,14 +476,22 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
     print(f"Processing file: {csv_path}")
     target_df = load_csv(csv_path, ignore_errors=True)
 
-    # Keep track of original columns to avoid persisting helper columns
-    original_cols = target_df.columns.copy()
+    # Migrate legacy column name "Scimago Journal Title" -> "Alternative journal name"
+    if "Scimago Journal Title" in target_df.columns and "Alternative journal name" not in target_df.columns:
+        print(f"  [migrate] Renaming 'Scimago Journal Title' -> 'Alternative journal name' in {csv_path}")
+        target_df = target_df.rename({"Scimago Journal Title": "Alternative journal name"})
+
+    # Ensure all FINAL_COLUMNS exist (adds missing columns as nulls, e.g. e-ISSN, p-ISSN, ISSN-L)
+    target_df = ensure_columns(target_df)
+
+    # Use the canonical FINAL_COLUMNS as the set of output columns
+    original_cols = FINAL_COLUMNS
 
     # Add normalized journal names for joining
     target_df = target_df.with_columns([
         pl.col("Journal").map_elements(norm_name, return_dtype=pl.Utf8).alias("norm_journal"),
-        pl.when(pl.col("Scimago Journal Title").is_not_null())
-        .then(pl.col("Scimago Journal Title").map_elements(norm_name, return_dtype=pl.Utf8))
+        pl.when(pl.col("Alternative journal name").is_not_null())
+        .then(pl.col("Alternative journal name").map_elements(norm_name, return_dtype=pl.Utf8))
         .otherwise(None)
         .alias("alt_journal_norm")
     ])

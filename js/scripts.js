@@ -31,9 +31,10 @@ function generateApcBins(numBins, maxApc = 5000) {
 function parseCSV(csvText) {
     console.time('parseCSV');
     // We know the exact column order in the CSV:
-    // 0: Journal, 1: Subfield, 2: Publisher, 3: Publisher type, 4: Business model,
+    // 0: Journal, 1: Field, 2: Publisher, 3: Publisher type, 4: Business model,
     // 5: Institution, 6: Institution type, 7: Country, 8: Website, 9: APC Euros,
-    // 10: Scimago Rank, 11: Scimago Quartile, 12: H index, 13: PCI partner
+    // 10: Scimago Rank, 11: Scimago Quartile, 12: H index, 13: PCI partner,
+    // 14: e-ISSN, 15: p-ISSN, 16: ISSN-L
     const lines = csvText.split('\n');
     const data = [];
 
@@ -57,7 +58,10 @@ function parseCSV(csvText) {
         'Scimago Rank',       // 10
         'Scimago Quartile',   // 11
         'H Index',            // 12
-        'PCI Partner'         // 13
+        'PCI Partner',        // 13
+        'e-ISSN',             // 14
+        'p-ISSN',             // 15
+        'ISSN-L'              // 16
     ];
     const columnDefs = {
         0: 'Official journal names might differ from the name on the list.',
@@ -65,7 +69,7 @@ function parseCSV(csvText) {
         2: 'The company or organization that publishes the journal. In some cases, societies are in charge of editorial content but delegate publishing to a publishing company. ',
         3: 'Main: For-profit, Non-profit, or University Press. Subcases: "Associated with" to indicate when the publisher who handles production differs from the institution which maintains editorial oversight.',
         4: 'Revenue model of the publisher: Subscription, Hybrid, OA (Open Access), or OA Diamond (free for authors and readers)',
-        5: 'Article Processing Charges in euros (3–5 year average based on OpenAPC)',
+        5: 'Article Processing Charges in euros (most recent year based on OpenAPC)',
         6: 'Country where the publisher is headquartered',
         7: 'The scientific society, university, or government institution associated with the journal, if any. For-profit journals may or may not be associated with an institution.',
         8: 'The type of associated institution: Society/Association, University/Government, or Museum',
@@ -73,7 +77,10 @@ function parseCSV(csvText) {
         10: 'SCImago Journal Rank (SJR): >1.0 = above average citation potential',
         11: 'Field ranking: Q1 (top 25%) to Q4 (bottom 25%)',
         12: 'Journal H-index: h papers from that journal were cited at least h times',
-        13: 'Partner of Peer Community In (free preprint peer review)'
+        13: 'Partner of Peer Community In (free preprint peer review)',
+        14: 'Electronic ISSN (e-ISSN) of the journal',
+        15: 'Print ISSN (p-ISSN) of the journal',
+        16: 'Linking ISSN (ISSN-L) — the canonical ISSN used to link across formats'
     };
 
     // Mandatory columns that cannot be hidden
@@ -166,7 +173,10 @@ function parseCSV(csvText) {
             cols[10] || '', // Scimago Rank
             cols[11] || '', // Scimago Quartile
             cols[12] || '', // H index
-            cols[13] || ''  // PCI partner
+            cols[13] || '', // PCI partner
+            cols[14] || '', // e-ISSN
+            cols[15] || '', // p-ISSN
+            cols[16] || ''  // ISSN-L
         ];
 
         // Pre-compute APC bin index for histogram optimization

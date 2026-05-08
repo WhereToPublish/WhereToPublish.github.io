@@ -26,6 +26,9 @@ EXPECTED_COLUMNS = [
     "Scimago Quartile",
     "H index",
     "PCI partner",
+    "e-ISSN",
+    "p-ISSN",
+    "ISSN-L",
 ]
 
 dico_field_normalization = {

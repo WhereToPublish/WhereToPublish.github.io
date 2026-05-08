@@ -29,8 +29,50 @@ import sheets_client
 INPUT_DIR = Path("data_extracted")
 METADATA_FILE = INPUT_DIR / ".metadata.json"
 
+# Desired column order for the uploaded tables.
+# Columns not present in a CSV are silently skipped.
+UPLOAD_COLUMN_ORDER: list[str] = [
+    "Journal's MAIN field",
+    "Field",
+    "Journal",
+    "Website",
+    "Publisher type",
+    "Publisher",
+    "Institution",
+    "Institution type",
+    "Country",
+    "Business model",
+    "Alternative journal name",
+    "APC Euros",
+    "Scimago Rank",
+    "Scimago Quartile",
+    "H index",
+    "PCI partner",
+    "e-ISSN",
+    "p-ISSN",
+    "ISSN-L",
+]
 
-def _read_journal_order(rows: list[list[str]]) -> list[str]:
+
+def reorder_columns(rows: list[list[str]], column_order: list[str]) -> list[list[str]]:
+    """Return rows with columns reordered to match column_order.
+
+    Columns absent from the CSV are skipped; columns in the CSV but not in
+    column_order are dropped.  Missing cells within a row are returned as empty
+    strings.
+    """
+    header = rows[0]
+    col_idx: dict[str, int] = {col: i for i, col in enumerate(header)}
+    # Only keep columns that actually exist in the header
+    new_header = [col for col in column_order if col in col_idx]
+    indices = [col_idx[col] for col in new_header]
+    result: list[list[str]] = [new_header]
+    for row in rows[1:]:
+        result.append([row[i] if i < len(row) else "" for i in indices])
+    return result
+
+
+def read_journal_order(rows: list[list[str]]) -> list[str]:
     """Return the ordered list of Journal values from CSV rows (header excluded).
 
     Locates the Journal column by name in the header row.
@@ -68,7 +110,7 @@ def validate_before_upload(slug: str, rows: list[list[str]], meta: dict) -> None
         "Upload aborted to avoid breaking sheet formatting."
     )
 
-    current_order = _read_journal_order(rows)
+    current_order = read_journal_order(rows)
     if current_order != original_order:
         # Find first diverging position for a useful error message
         first_div = next(
@@ -108,8 +150,13 @@ def upload_all_fields(credentials_path: Path | None = None) -> None:
         rows = sheets_client.read_csv_as_rows(csv_path)
         validate_before_upload(slug, rows, metadata[slug])
 
+        reordered = reorder_columns(rows, UPLOAD_COLUMN_ORDER)
+        n_cols = len(reordered[0])
+        padded = [row + [""] * (n_cols - len(row)) for row in reordered]
+
         print(f"  [{slug}] → '{tab_name}' ...")
-        n_rows = sheets_client.upload_tab_from_csv(service, csv_path=csv_path, tab_name=tab_name)
+        sheets_client.write_rows(service, sheets_client.SPREADSHEET_ID, tab_name, padded)
+        n_rows = len(reordered) - 1
         print(f"    {n_rows} data rows uploaded.")
 
     print(f"\nAll {len(sheets_client.SHEET_TAB_NAMES)} fields uploaded successfully.")

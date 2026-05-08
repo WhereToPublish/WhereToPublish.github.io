@@ -19,9 +19,10 @@ import sheets_client
 
 OUTPUT_DIR = Path("data_extracted")
 METADATA_FILE = OUTPUT_DIR / ".metadata.json"
+CONFIG_DIR = Path("config")
 
 
-def _extract_journal_order(rows: list[list[str]]) -> list[str]:
+def extract_journal_order(rows: list[list[str]]) -> list[str]:
     """Return the ordered list of Journal values from downloaded rows (header excluded).
 
     The Journal column is located by name so column position changes are handled
@@ -39,6 +40,78 @@ def _extract_journal_order(rows: list[list[str]]) -> list[str]:
     )
     journal_idx = header.index("Journal")
     return [row[journal_idx].strip() if len(row) > journal_idx else "" for row in rows[1:]]
+
+
+def download_country_formatting(service) -> None:
+    """Download publisher\u2192country mappings from the 'variables' tab and save to config/country_formatting.json.
+
+    Reads three publisher groups from the variables tab:
+      - "main For-profit Publishers"         + the column immediately to its right
+      - "main University Press Publishers"   + the column immediately to its right
+      - "main non-profit Publishers"         + the column immediately to its right
+
+    The country column is always pub_idx + 1, which avoids ambiguity when the
+    "Publisher Country" header appears multiple times in the same row.
+
+    Saves a nested JSON:
+        {"for_profit": {...}, "university_press": {...}, "non_profit": {...}}
+
+    Args:
+        service: Authenticated Sheets API service (from sheets_client.get_sheets_service).
+    """
+    dest = CONFIG_DIR / "_variables_raw.csv"  # temp file, not kept
+    rows = sheets_client.download_tab_as_csv(service, sheets_client.VARIABLES_TAB_NAME, dest)
+    assert len(rows) >= 2, (
+        f"Tab '{sheets_client.VARIABLES_TAB_NAME}' has fewer than 2 rows "
+        f"(expected header + data), got {len(rows)}"
+    )
+
+    header = rows[0]
+
+    def _build_dict(pub_col_name: str) -> dict[str, str]:
+        """Build a publisher\u2192country dict using the column immediately right of pub_col_name."""
+        assert pub_col_name in header, (
+            f"Column '{pub_col_name}' not found in '{sheets_client.VARIABLES_TAB_NAME}' header: {header}"
+        )
+        pub_idx = header.index(pub_col_name)
+        country_idx = pub_idx + 1
+        assert country_idx < len(header), (
+            f"No column to the right of '{pub_col_name}' (index {pub_idx}) in header: {header}"
+        )
+        result: dict[str, str] = {}
+        for row in rows[1:]:
+            pub = row[pub_idx].strip() if len(row) > pub_idx else ""
+            country = row[country_idx].strip() if len(row) > country_idx else ""
+            if pub and country:
+                result[pub] = country
+        return result
+
+    for_profit = _build_dict("main For-profit Publishers")
+    university_press = _build_dict("main University Press Publishers")
+    non_profit = _build_dict("main non-profit Publishers")
+
+    assert len(for_profit) >= 1, (
+        f"For-profit publisher dict is empty after reading '{sheets_client.VARIABLES_TAB_NAME}' tab."
+    )
+
+    country_data = {
+        "for_profit": for_profit,
+        "university_press": university_press,
+        "non_profit": non_profit,
+    }
+
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = CONFIG_DIR / "country_formatting.json"
+    out_path.write_text(json.dumps(country_data, ensure_ascii=False, indent=2), encoding="utf-8")
+    total = len(for_profit) + len(university_press) + len(non_profit)
+    print(
+        f"  Saved {total} publisher\u2192country entries to {out_path} "
+        f"({len(for_profit)} for-profit, {len(university_press)} university press, {len(non_profit)} non-profit)"
+    )
+
+    # Remove temp raw CSV
+    if dest.exists():
+        dest.unlink()
 
 
 def download_all_fields(credentials_path: Path | None = None) -> None:
@@ -62,7 +135,7 @@ def download_all_fields(credentials_path: Path | None = None) -> None:
             f"expected at least a header row plus one data row, got {len(rows)}"
         )
         data_rows = len(rows) - 1
-        journal_order = _extract_journal_order(rows)
+        journal_order = extract_journal_order(rows)
         assert len(journal_order) == data_rows
         metadata[slug] = {
             "data_rows": data_rows,
@@ -73,6 +146,10 @@ def download_all_fields(credentials_path: Path | None = None) -> None:
     METADATA_FILE.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\nAll {len(sheets_client.SHEET_TAB_NAMES)} tabs downloaded to {OUTPUT_DIR}/")
     print(f"Metadata saved to {METADATA_FILE}")
+
+    print(f"\nDownloading country formatting from '{sheets_client.VARIABLES_TAB_NAME}' tab ...")
+    download_country_formatting(service)
+    print("Country formatting download complete.")
 
 
 def main() -> None:

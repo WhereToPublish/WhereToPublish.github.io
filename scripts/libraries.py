@@ -310,7 +310,7 @@ def normalize_publisher(name: str) -> str:
         return "Springer Nature"
     elif "wiley" in name_lower:
         return "John Wiley & Sons"
-    elif "de gruyter" in name_lower:
+    elif "de gruyter" in name_lower or "brill" in name_lower:
         return "De Gruyter Brill"
     elif "karger" in name_lower:
         return "Karger Publishers"
@@ -363,7 +363,8 @@ def derive_country_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
         "BioOne": "USA",
         "BMJ Group": "UK",
         "Cambridge University Press (CUP)": "UK",
-        "De Gruyter": "Germany",
+        "De Gruyter Brill": "Germany",
+        "De Gruyter Brill (Brill)": "Germany / Netherlands",
         "Elsevier": "Netherlands",
         "Elsevier (Cell Press)": "USA",
         "Frontiers Media SA": "Switzerland",
@@ -428,6 +429,7 @@ def standardize_country_name(name: str) -> str:
         "holland": "Netherlands",
         "germany": "Germany",
         "deutschland": "Germany",
+        "uk / germany": "Germany / UK",
         "france": "France",
         "switzerland": "Switzerland",
         "swiss": "Switzerland",
@@ -447,9 +449,9 @@ def standardize_country_name(name: str) -> str:
         "argentina": "Argentina",
         "russia": "Russia",
         "russian federation": "Russia",
-        "south korea": "South Korea",
-        "korea": "South Korea",
-        "republic of korea": "South Korea",
+        "south korea": "Republic of Korea",
+        "korea": "Republic of Korea",
+        "republic of korea": "Republic of Korea",
         "new zealand": "New Zealand",
         "poland": "Poland",
         "portugal": "Portugal",

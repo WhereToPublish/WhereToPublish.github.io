@@ -60,15 +60,21 @@ Scimago Rank, Scimago Quartile, H index, PCI partner
 The data is updated monthly via GitHub Actions:
 
 ```bash
-# 1. Download raw data from Google Sheets
-bash scripts/download_csv.sh
+# 1. Download raw data from Google Sheets (via Sheets API)
+python3 scripts/download_sheets.py
 
 # 2. Enrich with external sources (Scimago, OpenAPC, DOAJ)
-python scripts/update_extracted.py
+python3 scripts/update_extracted.py
 
 # 3. Process, clean, and deduplicate
-python scripts/data_process.py
+python3 scripts/data_process.py
+
+# 4. Upload enriched data back to all Google Sheets field tabs
+python3 scripts/upload_sheets.py
 ```
+
+A Google service-account key is required. See [API_SETUP.md](API_SETUP.md) for
+credential setup instructions (local and GitHub Actions).
 
 **Important**: Run Python scripts from the repository root (not from `scripts/`):
 
@@ -84,11 +90,14 @@ cd scripts && python data_process.py
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/download_csv.sh` | Downloads data from Google Sheets to `data_extracted/` |
+| `scripts/download_sheets.py` | Downloads all field tabs from Google Sheets API to `data_extracted/` |
+| `scripts/upload_sheets.py` | Uploads enriched `data_extracted/` data back to Google Sheets |
+| `scripts/fetch_sheet.py` | Downloads a single field tab (CLI helper) |
 | `scripts/download_extraction.sh` | Downloads external data sources to `data_extraction/` |
 | `scripts/update_extracted.py` | Enriches raw data with Scimago, OpenAPC, DOAJ |
 | `scripts/data_process.py` | Cleans, normalizes, deduplicates, and outputs to `data/` |
 | `scripts/libraries.py` | Shared utility functions |
+| `scripts/sheets_client.py` | Google Sheets API client (shared by download and upload scripts) |
 | `scripts/run.sh` | Runs the full pipeline |
 | `scripts/clean_run.sh` | Clean run (removes intermediate files first) |
 
@@ -114,7 +123,14 @@ cd scripts && python data_process.py
    pip install -r requirements.txt
    ```
 
-3. Run the data pipeline:
+3. Set up Google Sheets API credentials (required for download/upload steps):
+   ```bash
+   # See API_SETUP.md for full instructions
+   mkdir -p ~/.config/wheretopublish
+   cp /path/to/google_service_account.json ~/.config/wheretopublish/google_service_account.json
+   ```
+
+4. Run the data pipeline:
    ```bash
    bash scripts/run.sh
    ```

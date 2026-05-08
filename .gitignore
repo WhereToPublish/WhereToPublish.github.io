@@ -8,6 +8,7 @@ logs
 node_modules/
 .github/*.md
 TODO.md
+TODOs
 wiki
 
 # Add the data and data_extraction folders to .gitignore in main

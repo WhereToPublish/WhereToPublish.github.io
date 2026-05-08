@@ -29,6 +29,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Setup Google Sheets credentials
+        env:
+          GOOGLE_SHEETS_KEY_JSON: ${{ secrets.GOOGLE_SHEETS_KEY_JSON }}
+        run: |
+          echo "$GOOGLE_SHEETS_KEY_JSON" > /tmp/gsa_key.json
+          echo "GOOGLE_SERVICE_ACCOUNT_KEY=/tmp/gsa_key.json" >> $GITHUB_ENV
+
       - name: Rebase on main branch
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"

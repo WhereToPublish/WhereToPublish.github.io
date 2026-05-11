@@ -23,35 +23,11 @@ Set GOOGLE_SERVICE_ACCOUNT_KEY or place the key at
 import argparse
 import json
 from pathlib import Path
-
+from libraries import FINAL_COLUMNS
 import sheets_client
 
 INPUT_DIR = Path("data_extracted")
 METADATA_FILE = INPUT_DIR / ".metadata.json"
-
-# Desired column order for the uploaded tables.
-# Columns not present in a CSV are silently skipped.
-UPLOAD_COLUMN_ORDER: list[str] = [
-    "Journal's MAIN field",
-    "Field",
-    "Journal",
-    "Website",
-    "Publisher type",
-    "Publisher",
-    "Institution",
-    "Institution type",
-    "Country",
-    "Business model",
-    "Alternative journal name",
-    "APC Euros",
-    "Scimago Rank",
-    "Scimago Quartile",
-    "H index",
-    "PCI partner",
-    "e-ISSN",
-    "p-ISSN",
-    "ISSN-L",
-]
 
 
 def reorder_columns(rows: list[list[str]], column_order: list[str]) -> list[list[str]]:
@@ -150,7 +126,7 @@ def upload_all_fields(credentials_path: Path | None = None) -> None:
         rows = sheets_client.read_csv_as_rows(csv_path)
         validate_before_upload(slug, rows, metadata[slug])
 
-        reordered = reorder_columns(rows, UPLOAD_COLUMN_ORDER)
+        reordered = reorder_columns(rows, FINAL_COLUMNS)
         n_cols = len(reordered[0])
         padded = [row + [""] * (n_cols - len(row)) for row in reordered]
 

@@ -1,6 +1,6 @@
 """download_sheets.py — Download all Google Sheet field tabs as CSVs using the Sheets API.
 
-Replaces download_csv.sh. Downloads each field tab defined in sheets_client.SHEET_TAB_NAMES
+Downloads each field tab defined in sheets_client.SHEET_TAB_NAMES
 to data_extracted/<slug>.csv, then writes data_extracted/.metadata.json with original row
 counts and journal order — used by upload_sheets.py for safety validation before any upload.
 

@@ -60,7 +60,9 @@ e-ISSN, p-ISSN, ISSN-L
 
 The ISSN columns are filled from external sources (Scimago → ISSN-L; OpenAPC → e-ISSN, p-ISSN, ISSN-L; DOAJ → e-ISSN, p-ISSN) and are hidden by default in the frontend.
 
-Intermediate files in `data_extracted/` also carry an `Alternative journal name` column used as a fallback join key during enrichment.
+Intermediate files in `data_extracted/` also carry additional columns that are not published to the website:
+- `Alternative journal name` — used as a fallback join key during enrichment when the primary journal name does not match an external source.
+- `Present in Scimago`, `Present in DOAJ`, `Present in openAPC` — set to `"Yes"`, `"With alternative journal name"`, or `"No"` to record whether each journal was matched in the corresponding external source (and whether the match was on the primary or alternative name). These are discarded by `data_process.py`.
 
 ### Data Pipeline
 

@@ -6,11 +6,11 @@ import gzip
 from pathlib import Path
 
 # Expected columns and their final order
-FINAL_COLUMNS = [
-    "Journal",
-    "Website",
+FINAL_COLUMNS: list[str] = [
     "Journal's MAIN field",
     "Field",
+    "Journal",
+    "Website",
     "Publisher type",
     "Publisher",
     "Institution",
@@ -18,11 +18,14 @@ FINAL_COLUMNS = [
     "Country",
     "Business model",
     "APC Euros",
+    "Alternative journal name",
+    "Present in Scimago",
+    "Present in DOAJ",
+    "Present in openAPC",
     "Scimago Rank",
     "Scimago Quartile",
     "H index",
     "PCI partner",
-    "Alternative journal name",
     "e-ISSN",
     "p-ISSN",
     "ISSN-L",
@@ -473,9 +476,11 @@ def standardize_country_name(name: str) -> str:
         "argentina": "Argentina",
         "russia": "Russia",
         "russian federation": "Russia",
-        "south korea": "Republic of Korea",
-        "korea": "Republic of Korea",
-        "republic of korea": "Republic of Korea",
+        "south korea": "Republic of Korea (South Korea)",
+        "republic of Korea (south korea)": "Republic of Korea (South Korea)",
+        "korea": "Republic of Korea (South Korea)",
+        "republic of korea": "Republic of Korea (South Korea)",
+        "(republic of) korea": "Republic of Korea (South Korea)",
         "new zealand": "New Zealand",
         "poland": "Poland",
         "portugal": "Portugal",
@@ -544,15 +549,32 @@ def normalize_institution(name: str) -> str:
 
 
 # New inference and annotation helpers
+def normalize_institution_type(name: str) -> str:
+    """ Normalize institution type values.
+    """
+    if name is None or str(name).strip() == "":
+        return ""
+    s = str(name).strip().lower()
+
+    if "society" in s or "association" in s:
+        return "Society/Association"
+    elif "non-profit" in s or "non profit" in s or "nonprofit" in s:
+        return "Non-profit"
+    elif "university" in s or "government" in s or "université" in s or "universidad" in s or "università" in s or "universidade" in s:
+        return "University/Government"
+    else:
+        print(f"Unknown institution type: '{name}'")
+        return s
+
 
 def infer_institution_type(df: pl.DataFrame) -> pl.DataFrame:
     """Infer 'Institution type' as 'Society' when Institution name suggests a society and Institution type is empty/null."""
-    pattern = r"\b(society|société|societe|sociedad|società|sociedade|gesellschaft|association|associación|associação|vereniging|genootschap)\b"
+    pattern_assoc = r"\b(society|société|societe|sociedad|società|sociedade|gesellschaft|association|associación|associação|vereniging|genootschap)\b"
     df = df.with_columns(inst_lower=pl.col("Institution").cast(pl.Utf8).str.to_lowercase())
     df = df.with_columns(
         pl.when(
             (pl.col("Institution type").is_null() | (pl.col("Institution type").cast(pl.Utf8).str.strip_chars() == ""))
-            & pl.col("inst_lower").str.contains(pattern)
+            & pl.col("inst_lower").str.contains(pattern_assoc)
         )
         .then(pl.lit("Society/Association"))
         .otherwise(pl.col("Institution type"))
@@ -605,10 +627,11 @@ def annotate_publisher_type_from_institution_type(df: pl.DataFrame) -> pl.DataFr
     Log each change with journal, previous publisher type, institution, institution type, and new publisher type.
     """
     new_type_expr = (
-        pl.when((pl.col("Publisher type") == "For-profit") & (pl.col("Institution type") == "Society"))
+        pl.when((pl.col("Publisher type") == "For-profit") & (pl.col("Institution type") == "Society/Association"))
         .then(pl.lit("For-profit Society-Run"))
         .otherwise(
-            pl.when((pl.col("Publisher type") == "University Press") & (pl.col("Institution type") == "Society"))
+            pl.when((pl.col("Publisher type") == "University Press") & (
+                    pl.col("Institution type") == "Society/Association"))
             .then(pl.lit("University Press Society-Run"))
             .otherwise(pl.col("Publisher type"))
         )
@@ -679,13 +702,17 @@ def format_table(df: pl.DataFrame) -> pl.DataFrame:
         .alias("Business model")
     )
     df = df.with_columns(
-        pl.col("Business model").map_elements(normalize_business_model, return_dtype=pl.Utf8).alias("Business model")
+        pl.col("Business model").map_elements(normalize_business_model, return_dtype=pl.Utf8).alias("Business model"))
+    df = df.with_columns(
+        pl.col("Country").map_elements(standardize_country_name, return_dtype=pl.Utf8).alias("Country")
     )
     df = df.with_columns(
         pl.col("Institution").map_elements(normalize_institution, return_dtype=pl.Utf8).alias("Institution")
     )
+    # Infer types and annotate the publisher type based on the institution type
     df = df.with_columns(
-        pl.col("Country").map_elements(standardize_country_name, return_dtype=pl.Utf8).alias("Country")
+        pl.col("Institution type").map_elements(normalize_institution_type, return_dtype=pl.Utf8).alias(
+            "Institution type")
     )
     # Derive Country from Publisher when missing/empty
     df = derive_country_from_publisher(df)

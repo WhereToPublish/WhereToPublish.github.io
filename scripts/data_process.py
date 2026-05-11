@@ -372,6 +372,7 @@ def main():
         processed_frames.append(df)
 
     # Create all_biology.csv as the concatenation of all processed frames, deduplicated by Journal
+    print(f"\nCreating 'all_biology.csv' by concatenating and deduplicating {len(processed_frames)} source files...")
     if processed_frames:
         all_df = pl.concat(processed_frames, how="vertical_relaxed")
         # Deduplicate using OR logic (same normalized journal OR same normalized website)

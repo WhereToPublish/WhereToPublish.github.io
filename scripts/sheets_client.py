@@ -29,16 +29,16 @@ DEFAULT_CREDENTIALS_PATH = Path(
 
 # Map field slugs (used by CLI/gap_analysis) to Google Sheets tab names
 SHEET_TAB_NAMES: dict[str, str] = {
-    "generalist":                  "Generalists",
-    "anatomy_physiology":          "Anatomy & Physiology",
-    "cancer":                      "Cancer",
-    "development":                 "Development",
-    "ecology_evolution":           "Ecology & Evolution",
-    "genetics_genomics":           "Genetics & Genomics",
-    "immunology":                  "Immunology",
-    "molecular_cellular_biology":  "Molecular & Cellular Biology",
-    "neurosciences":               "Neurosciences",
-    "plants":                      "Plants",
+    "generalist": "Generalist",
+    "anatomy_physiology": "Anatomy & Physiology",
+    "cancer": "Cancer",
+    "development": "Development",
+    "ecology_evolution": "Ecology & Evolution",
+    "genetics_genomics": "Genetics & Genomics",
+    "immunology": "Immunology",
+    "molecular_cellular_biology": "Molecular & Cellular Biology",
+    "neurosciences": "Neurosciences",
+    "plants": "Plants",
 }
 
 # Scopes ─ use readonly when only downloading; use full when uploading too
@@ -46,10 +46,7 @@ _SCOPE_READONLY = "https://www.googleapis.com/auth/spreadsheets.readonly"
 _SCOPE_READWRITE = "https://www.googleapis.com/auth/spreadsheets"
 
 
-def get_sheets_service(
-    credentials_path: Path | None = None,
-    readonly: bool = True,
-) -> Any:
+def get_sheets_service(credentials_path: Path | None = None, readonly: bool = True) -> Any:
     """Return an authenticated Google Sheets API v4 service resource.
 
     Args:
@@ -76,12 +73,8 @@ def get_sheets_service(
     return build("sheets", "v4", credentials=creds)
 
 
-def download_tab_as_csv(
-    service: Any,
-    tab_name: str,
-    dest_path: Path,
-    spreadsheet_id: str = SPREADSHEET_ID,
-) -> list[list[str]]:
+def download_tab_as_csv(service: Any, tab_name: str,
+                        dest_path: Path, spreadsheet_id: str = SPREADSHEET_ID) -> list[list[str]]:
     """Download a single tab from the spreadsheet and write it as a CSV file.
 
     Args:
@@ -114,13 +107,8 @@ def download_tab_as_csv(
     return rows
 
 
-def write_rows(
-    service: Any,
-    spreadsheet_id: str,
-    tab_name: str,
-    rows: list[list[Any]],
-    value_input_option: str = "USER_ENTERED",
-) -> None:
+def write_rows(service: Any, spreadsheet_id: str, tab_name: str, rows: list[list[Any]],
+               value_input_option: str = "USER_ENTERED") -> None:
     """Write a list of rows to a tab starting at A1."""
     service.spreadsheets().values().update(
         spreadsheetId=spreadsheet_id,
@@ -149,12 +137,7 @@ def read_csv_as_rows(csv_path: Path) -> list[list[str]]:
     return rows
 
 
-def upload_tab_from_csv(
-    service: Any,
-    csv_path: Path,
-    tab_name: str,
-    spreadsheet_id: str = SPREADSHEET_ID,
-) -> int:
+def upload_tab_from_csv(service: Any, csv_path: Path, tab_name: str, spreadsheet_id: str = SPREADSHEET_ID) -> int:
     """Upload CSV data to a Google Sheets tab (values only — formatting is untouched).
 
     Writes all rows from the CSV starting at A1 of the target tab.  Only cell

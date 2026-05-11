@@ -41,6 +41,14 @@ FILE_COLS = {"scimago": [("Scimago Rank", True),
 COLUMNS_TO_UPDATE = set([col for cols in FILE_COLS.values() for col, _ in cols])
 print(f"Columns to update: {COLUMNS_TO_UPDATE}")
 
+# Maps source name -> presence column written in data_extracted CSVs
+# (Dataverse intentionally omitted — no presence column was requested for it)
+SOURCE_PRESENCE_COL = {
+    "scimago": "Present in Scimago",
+    "doaj":    "Present in DOAJ",
+    "openapc": "Present in openAPC",
+}
+
 
 def validate_no_duplicates_for_join(right_df: pl.DataFrame, join_key: str, left_keys: set, source_name: str) -> None:
     """Validate that the right DataFrame has no duplicates on the join key for keys that exist in the left DataFrame.
@@ -430,16 +438,73 @@ def join_and_update(df: pl.DataFrame, lookup_df: pl.DataFrame, left_on: str, rig
     return result.drop([c for c in lookup_df.columns if c in result.columns])
 
 
+def compute_presence(target_df: pl.DataFrame, lookup_df: pl.DataFrame, right_on: str,
+                     left_on: str, fallback_col: str, presence_col: str) -> pl.DataFrame:
+    """Compute a presence column for a data source before any join takes place.
+
+    The column is set to:
+    - "Yes"                         — primary name (norm_journal) matched in the lookup
+    - "With alternative journal name" — primary did NOT match, but alt name matched
+    - "No"                          — neither name matched
+
+    Args:
+        target_df:    Left DataFrame being enriched.
+        lookup_df:    Lookup table for this source.
+        right_on:     Join key column name in lookup_df.
+        left_on:      Primary join key column name in target_df (norm_journal).
+        fallback_col: Fallback join key column name in target_df (alt_journal_norm).
+        presence_col: Name to give the new presence column.
+
+    Returns:
+        target_df with the presence_col column added/overwritten.
+    """
+    lookup_keys = set(lookup_df[right_on].drop_nulls().to_list())
+    lookup_keys_list = list(lookup_keys)
+
+    has_alt = (
+        pl.col(fallback_col).is_not_null()
+        & (pl.col(fallback_col).cast(pl.Utf8).str.strip_chars() != "")
+    )
+    primary_matched = pl.col(left_on).is_in(lookup_keys_list)
+    alt_matched = has_alt & pl.col(fallback_col).is_in(lookup_keys_list)
+
+    result = target_df.with_columns(
+        pl.when(primary_matched)
+        .then(pl.lit("Yes"))
+        .when(alt_matched)
+        .then(pl.lit("With alternative journal name"))
+        .otherwise(pl.lit("No"))
+        .alias(presence_col)
+    )
+
+    yes_count = result.filter(pl.col(presence_col) == "Yes").height
+    alt_count  = result.filter(pl.col(presence_col) == "With alternative journal name").height
+    no_count   = result.filter(pl.col(presence_col) == "No").height
+    print(f"    - Presence '{presence_col}': Yes={yes_count}, With alternative journal name={alt_count}, No={no_count}")
+    assert yes_count + alt_count + no_count == result.height, \
+        f"BUG: presence counts don't sum to total rows for {presence_col}"
+    assert result.filter(pl.col(presence_col).is_null()).height == 0, \
+        f"BUG: null values in presence column '{presence_col}'"
+    return result
+
+
 def two_pass_join(target_df: pl.DataFrame, lookup_df: pl.DataFrame, right_on: str, totals: dict, source: str,
                   left_on: str = "norm_journal", fallback_col: str = "alt_journal_norm") -> pl.DataFrame:
     """Join on primary key, then on fallback key for unmatched rows.
 
     The fallback (2nd pass) only fills null values and never overwrites
     values already set by the primary match.
+    If the source has a presence column defined in SOURCE_PRESENCE_COL, it is
+    computed before the joins and preserved in the result.
     """
     print(f"  Performing two-pass join for {source}...")
     has_fallback = pl.col(fallback_col).is_not_null() & (pl.col(fallback_col).cast(pl.Utf8).str.strip_chars() != "")
     print(f"    - Total rows: {target_df.height}, {target_df.filter(has_fallback).height} with fallback.")
+
+    # Compute presence column (before any join, so it reflects name-match status)
+    presence_col = SOURCE_PRESENCE_COL.get(source)
+    if presence_col is not None:
+        target_df = compute_presence(target_df, lookup_df, right_on, left_on, fallback_col, presence_col)
 
     # First pass: join on primary key
     result_df = join_and_update(target_df, lookup_df, left_on, right_on, source, totals, label="1st pass")

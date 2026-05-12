@@ -10,6 +10,7 @@ CURRENT_YEAR = datetime.datetime.now().year
 # Constants
 DATA_EXTRACTED_DIR = "data_extracted"
 SCIMAGO_FILE = os.path.join("data_extraction", "scimagojr.csv.gz")
+ISSN_TYPE_FILE = os.path.join("config", "ISSN_type.csv")
 OPENAPC_FILE = os.path.join("data_extraction", "openapc.csv.gz")
 DOAJ_FILE = os.path.join("data_extraction", "DOAJ.csv.gz")
 DATAVERSE_FILE = os.path.join("data_extraction", "APC_dataverse.txt.gz")
@@ -20,7 +21,10 @@ FILE_COLS = {"scimago": [("Scimago Rank", True),
                          ("Publisher", False),
                          ("Business model", False),
                          ("Scimago Quartile", True),
-                         ("H index", True)],
+                         ("H index", True),
+                         ("e-ISSN", False),
+                         ("p-ISSN", False),
+                         ("ISSN-L", False)],
              "openapc": [("APC Euros", True),
                          ("Publisher", False),
                          ("Business model", False),
@@ -131,6 +135,60 @@ def format_scimago_quartile_from_categories(categories_str: str | None, best_qua
     return best_quartile
 
 
+def load_issn_type_lookup() -> dict[str, str]:
+    """Load config/ISSN_type.csv and return a dict mapping ISSN → combined type string.
+
+    The type string is a semicolon-joined set of type codes sorted by TYPE_ORDER,
+    e.g. "p;l", "e;l", "e", "p".
+    """
+    df = pl.read_csv(ISSN_TYPE_FILE)
+    assert list(df.columns) == ["ISSN", "Type"], (
+        f"Unexpected columns in {ISSN_TYPE_FILE}: {df.columns}"
+    )
+    assert df["ISSN"].n_unique() == df.height, (
+        f"{ISSN_TYPE_FILE} has duplicate ISSNs: {df.height} rows, {df['ISSN'].n_unique()} unique"
+    )
+    assert df.filter(pl.col("ISSN").is_null() | pl.col("Type").is_null()).height == 0, (
+        f"{ISSN_TYPE_FILE} has null ISSN or Type values"
+    )
+    return dict(zip(df["ISSN"].to_list(), df["Type"].to_list()))
+
+
+def classify_scimago_issns(
+    issns_str: str | None, issn_type_lookup: dict[str, str]
+) -> tuple[str | None, str | None, str | None]:
+    """Classify ISSNs from a Scimago 'Issn' cell into e-ISSN, p-ISSN, and ISSN-L.
+
+    The Scimago Issn cell contains comma-separated ISSNs, e.g. "1234-5678, 8765-4321".
+    Each ISSN is looked up in issn_type_lookup; the type string (e.g. "p;l") is split
+    on ";" to determine which categories (e, p, l) the ISSN belongs to.
+    Returns the first ISSN found for each category (e_issn, p_issn, issn_l).
+    """
+    if issns_str is None:
+        return None, None, None
+
+    e_issn = None
+    p_issn = None
+    issn_l = None
+
+    for part in str(issns_str).split(","):
+        formatted = format_issn(part.strip())
+        if formatted is None:
+            continue
+        type_str = issn_type_lookup.get(formatted)
+        if type_str is None:
+            continue
+        codes = set(type_str.split(";"))
+        if "e" in codes and e_issn is None:
+            e_issn = formatted
+        if "p" in codes and p_issn is None:
+            p_issn = formatted
+        if "l" in codes and issn_l is None:
+            issn_l = formatted
+
+    return e_issn, p_issn, issn_l
+
+
 def load_scimago_lookup() -> pl.DataFrame:
     """Load and process Scimago data into a lookup table.
 
@@ -149,6 +207,7 @@ def load_scimago_lookup() -> pl.DataFrame:
         "Categories": "Categories_scimago",
         "Open Access": "Open Access_scimago",
         "Open Access Diamond": "Open Access Diamond_scimago",
+        "Issn": "Issn_scimago",
     })
 
     scimago_df = scimago_df.with_columns([
@@ -176,6 +235,23 @@ def load_scimago_lookup() -> pl.DataFrame:
         ).alias("Scimago Quartile_scimago")
     )
 
+    # Classify ISSNs into e-ISSN, p-ISSN, ISSN-L using the ISSN type lookup
+    issn_type_lookup = load_issn_type_lookup()
+    scimago_df = scimago_df.with_columns(
+        pl.col("Issn_scimago").map_elements(
+            lambda issns: classify_scimago_issns(issns, issn_type_lookup)[0],
+            return_dtype=pl.Utf8,
+        ).alias("e-ISSN_scimago"),
+        pl.col("Issn_scimago").map_elements(
+            lambda issns: classify_scimago_issns(issns, issn_type_lookup)[1],
+            return_dtype=pl.Utf8,
+        ).alias("p-ISSN_scimago"),
+        pl.col("Issn_scimago").map_elements(
+            lambda issns: classify_scimago_issns(issns, issn_type_lookup)[2],
+            return_dtype=pl.Utf8,
+        ).alias("ISSN-L_scimago"),
+    )
+
     # Keep only necessary columns and remove duplicates
     return scimago_df.select([
         "norm_journal_scimago",
@@ -185,6 +261,9 @@ def load_scimago_lookup() -> pl.DataFrame:
         "Scimago Quartile_scimago",
         "H index_scimago",
         "Country_scimago",
+        "e-ISSN_scimago",
+        "p-ISSN_scimago",
+        "ISSN-L_scimago",
     ]).unique(subset=["norm_journal_scimago"], keep="first")
 
 

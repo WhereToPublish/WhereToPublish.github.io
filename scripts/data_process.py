@@ -28,7 +28,6 @@ EXPECTED_COLUMNS = [
     "PCI partner",
     "e-ISSN",
     "p-ISSN",
-    "ISSN-L",
 ]
 
 dico_field_normalization = {

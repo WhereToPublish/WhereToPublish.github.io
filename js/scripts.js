@@ -34,7 +34,7 @@ function parseCSV(csvText) {
     // 0: Journal, 1: Field, 2: Publisher, 3: Publisher type, 4: Business model,
     // 5: Institution, 6: Institution type, 7: Country, 8: Website, 9: APC Euros,
     // 10: Scimago Rank, 11: Scimago Quartile, 12: H index, 13: PCI partner,
-    // 14: e-ISSN, 15: p-ISSN, 16: ISSN-L
+    // 14: e-ISSN, 15: p-ISSN
     const lines = csvText.split('\n');
     const data = [];
 
@@ -61,7 +61,6 @@ function parseCSV(csvText) {
         'PCI Partner',        // 13
         'e-ISSN',             // 14
         'p-ISSN',             // 15
-        'ISSN-L'              // 16
     ];
     const columnDefs = {
         0: 'Official journal names might differ from the name on the list.',
@@ -80,7 +79,6 @@ function parseCSV(csvText) {
         13: 'Partner of Peer Community In (free preprint peer review)',
         14: 'Electronic ISSN (e-ISSN) of the journal',
         15: 'Print ISSN (p-ISSN) of the journal',
-        16: 'Linking ISSN (ISSN-L) — the canonical ISSN used to link across formats'
     };
 
     // Mandatory columns that cannot be hidden
@@ -176,7 +174,6 @@ function parseCSV(csvText) {
             cols[13] || '', // PCI partner
             cols[14] || '', // e-ISSN
             cols[15] || '', // p-ISSN
-            cols[16] || ''  // ISSN-L
         ];
 
         // Pre-compute APC bin index for histogram optimization

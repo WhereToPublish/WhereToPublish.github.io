@@ -45,7 +45,12 @@ jobs:
           git reset --soft HEAD~1
 
       - name: Process data
-        run: bash ./scripts/run.sh
+        run: |
+          python3 ./scripts/download_sheets.py
+          python3 ./scripts/update_extracted.py
+          python3 ./scripts/data_process.py
+          python3 ./scripts/APC_process.py
+          python3 ./scripts/upload_sheets.py
 
       - name: Commit and push
         run: |

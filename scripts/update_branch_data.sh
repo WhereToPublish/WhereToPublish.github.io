@@ -22,6 +22,7 @@ python3 ./scripts/download_sheets.py > logs/download_sheets.log 2>&1
 python3 ./scripts/update_extracted.py > logs/update_extracted.log 2>&1
 python3 ./scripts/data_process.py > logs/data_process.log 2>&1
 python3 ./scripts/APC_process.py > logs/APC_process.log 2>&1
+python3 ./scripts/upload_sheets.py > logs/upload_sheets.log 2>&1
 
 # Add data, data_extraction and data_extracted folders to the last commit and force push to origin
 git add data/

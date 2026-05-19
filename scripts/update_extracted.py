@@ -49,7 +49,7 @@ print(f"Columns to update: {COLUMNS_TO_UPDATE}")
 # (Dataverse intentionally omitted — no presence column was requested for it)
 SOURCE_PRESENCE_COL = {
     "scimago": "Present in Scimago",
-    "doaj":    "Present in DOAJ",
+    "doaj": "Present in DOAJ",
     "openapc": "Present in openAPC",
 }
 
@@ -154,9 +154,8 @@ def load_issn_type_lookup() -> dict[str, str]:
     return dict(zip(df["ISSN"].to_list(), df["Type"].to_list()))
 
 
-def classify_scimago_issns(
-    issns_str: str | None, issn_type_lookup: dict[str, str]
-) -> tuple[str | None, str | None, str | None]:
+def classify_scimago_issns(issns_str: str | None, issn_type_lookup: dict[str, str]
+                           ) -> tuple[str | None, str | None, str | None]:
     """Classify ISSNs from a Scimago 'Issn' cell into e-ISSN, p-ISSN, and ISSN-L.
 
     The Scimago Issn cell contains comma-separated ISSNs, e.g. "1234-5678, 8765-4321".
@@ -189,7 +188,27 @@ def classify_scimago_issns(
     return e_issn, p_issn, issn_l
 
 
-def load_scimago_lookup() -> pl.DataFrame:
+def build_issn_title_lookup(lookup_df: pl.DataFrame, title_col: str, issn_cols: list[str]) -> dict[str, list[str]]:
+    """Return a mapping of formatted ISSN -> ordered unique source titles."""
+    lookup: dict[str, list[str]] = {}
+
+    for row in lookup_df.select([title_col] + issn_cols).iter_rows(named=True):
+        title = clean_string(row.get(title_col))
+        if not title:
+            continue
+
+        for issn_col in issn_cols:
+            formatted_issn = format_issn(row.get(issn_col))
+            if formatted_issn is None:
+                continue
+            values = lookup.setdefault(formatted_issn, [])
+            if title not in values:
+                values.append(title)
+
+    return lookup
+
+
+def load_scimago_lookup(include_titles: bool = False) -> pl.DataFrame:
     """Load and process Scimago data into a lookup table.
 
     Returns:
@@ -252,8 +271,7 @@ def load_scimago_lookup() -> pl.DataFrame:
         ).alias("ISSN-L_scimago"),
     )
 
-    # Keep only necessary columns and remove duplicates
-    return scimago_df.select([
+    selected_columns = [
         "norm_journal_scimago",
         "Scimago Rank_scimago",
         "Publisher_scimago",
@@ -264,10 +282,15 @@ def load_scimago_lookup() -> pl.DataFrame:
         "e-ISSN_scimago",
         "p-ISSN_scimago",
         "ISSN-L_scimago",
-    ]).unique(subset=["norm_journal_scimago"], keep="first")
+    ]
+    if include_titles:
+        selected_columns.insert(0, "Journal_scimago")
+
+    # Keep only necessary columns and remove duplicates
+    return scimago_df.select(selected_columns).unique(subset=["norm_journal_scimago"], keep="first")
 
 
-def load_openapc_lookup() -> pl.DataFrame:
+def load_openapc_lookup(include_titles: bool = False) -> pl.DataFrame:
     """Load and process OpenAPC data into a lookup table.
 
     Uses only the most recent year's records per journal.
@@ -321,7 +344,8 @@ def load_openapc_lookup() -> pl.DataFrame:
     # - Most frequent publisher from the most recent year
     # - Majority vote for is_hybrid (if more than 50% are hybrid, mark as Hybrid)
     # - First ISSN values (consistent within a journal)
-    openapc_df = openapc_df.group_by("norm_journal_openapc").agg([
+    agg_expressions = [
+        pl.col("Journal_openapc").mode().first().alias("Journal_openapc"),
         pl.col("APC Euros_openapc").mean().alias("APC Euros_openapc"),
         pl.col("Publisher_openapc").mode().first().alias("Publisher_openapc"),
         pl.when(pl.col("is_hybrid").mean() > 0.5)
@@ -331,7 +355,8 @@ def load_openapc_lookup() -> pl.DataFrame:
         pl.col("e-ISSN_openapc").drop_nulls().first().alias("e-ISSN_openapc"),
         pl.col("p-ISSN_openapc").drop_nulls().first().alias("p-ISSN_openapc"),
         pl.col("ISSN-L_openapc").drop_nulls().first().alias("ISSN-L_openapc"),
-    ])
+    ]
+    openapc_df = openapc_df.group_by("norm_journal_openapc").agg(agg_expressions)
 
     # Format ISSNs to standard XXXX-XXXX
     openapc_df = openapc_df.with_columns([
@@ -340,7 +365,19 @@ def load_openapc_lookup() -> pl.DataFrame:
         pl.col("ISSN-L_openapc").map_elements(format_issn, return_dtype=pl.Utf8).alias("ISSN-L_openapc"),
     ])
 
-    return format_APC_Euros(openapc_df, "APC Euros_openapc")
+    openapc_df = format_APC_Euros(openapc_df, "APC Euros_openapc")
+    selected_columns = [
+        "norm_journal_openapc",
+        "APC Euros_openapc",
+        "Publisher_openapc",
+        "Business model_openapc",
+        "e-ISSN_openapc",
+        "p-ISSN_openapc",
+        "ISSN-L_openapc",
+    ]
+    if include_titles:
+        selected_columns.insert(1, "Journal_openapc")
+    return openapc_df.select(selected_columns)
 
 
 def load_dataverse_lookup() -> pl.DataFrame:
@@ -395,13 +432,14 @@ def load_dataverse_lookup() -> pl.DataFrame:
 
     # Normalize publisher names
     dataverse_df = dataverse_df.with_columns(
-        pl.col("Publisher_dataverse").map_elements(normalize_publisher, return_dtype=pl.Utf8).alias("Publisher_dataverse")
+        pl.col("Publisher_dataverse").map_elements(normalize_publisher, return_dtype=pl.Utf8).alias(
+            "Publisher_dataverse")
     )
 
     return format_APC_Euros(dataverse_df, "APC Euros_dataverse")
 
 
-def load_doaj_lookup() -> pl.DataFrame:
+def load_doaj_lookup(include_titles: bool = False) -> pl.DataFrame:
     """Load and process DOAJ data into a lookup table.
 
     Returns:
@@ -460,8 +498,7 @@ def load_doaj_lookup() -> pl.DataFrame:
     doaj_df = format_APC_Euros(doaj_df, "APC Euros_doaj")
     doaj_df = format_urls(doaj_df, "Website_doaj")
 
-    # Keep only necessary columns and remove duplicates (keep first occurrence)
-    return doaj_df.select([
+    selected_columns = [
         "norm_journal_doaj",
         "Publisher_doaj",
         "Country_doaj",
@@ -470,7 +507,39 @@ def load_doaj_lookup() -> pl.DataFrame:
         "APC Euros_doaj",
         "e-ISSN_doaj",
         "p-ISSN_doaj",
-    ]).unique(subset=["norm_journal_doaj"], keep="first")
+    ]
+    if include_titles:
+        selected_columns.insert(0, "Journal_doaj")
+
+    # Keep only necessary columns and remove duplicates (keep first occurrence)
+    return doaj_df.select(selected_columns).unique(subset=["norm_journal_doaj"], keep="first")
+
+
+def load_scimago_issn_title_lookup() -> dict[str, list[str]]:
+    """Return formatted ISSN -> Scimago title(s) using the canonical lookup loader."""
+    return build_issn_title_lookup(
+        load_scimago_lookup(include_titles=True),
+        title_col="Journal_scimago",
+        issn_cols=["e-ISSN_scimago", "p-ISSN_scimago", "ISSN-L_scimago"],
+    )
+
+
+def load_doaj_issn_title_lookup() -> dict[str, list[str]]:
+    """Return formatted ISSN -> DOAJ title(s) using the canonical lookup loader."""
+    return build_issn_title_lookup(
+        load_doaj_lookup(include_titles=True),
+        title_col="Journal_doaj",
+        issn_cols=["e-ISSN_doaj", "p-ISSN_doaj"],
+    )
+
+
+def load_openapc_issn_title_lookup() -> dict[str, list[str]]:
+    """Return formatted ISSN -> OpenAPC title(s) using the canonical lookup loader."""
+    return build_issn_title_lookup(
+        load_openapc_lookup(include_titles=True),
+        title_col="Journal_openapc",
+        issn_cols=["e-ISSN_openapc", "p-ISSN_openapc", "ISSN-L_openapc"],
+    )
 
 
 def join_and_update(df: pl.DataFrame, lookup_df: pl.DataFrame, left_on: str, right_on: str,
@@ -541,8 +610,8 @@ def compute_presence(target_df: pl.DataFrame, lookup_df: pl.DataFrame, right_on:
     lookup_keys_list = list(lookup_keys)
 
     has_alt = (
-        pl.col(fallback_col).is_not_null()
-        & (pl.col(fallback_col).cast(pl.Utf8).str.strip_chars() != "")
+            pl.col(fallback_col).is_not_null()
+            & (pl.col(fallback_col).cast(pl.Utf8).str.strip_chars() != "")
     )
     primary_matched = pl.col(left_on).is_in(lookup_keys_list)
     alt_matched = has_alt & pl.col(fallback_col).is_in(lookup_keys_list)
@@ -557,8 +626,8 @@ def compute_presence(target_df: pl.DataFrame, lookup_df: pl.DataFrame, right_on:
     )
 
     yes_count = result.filter(pl.col(presence_col) == "Yes").height
-    alt_count  = result.filter(pl.col(presence_col) == "With alternative journal name").height
-    no_count   = result.filter(pl.col(presence_col) == "No").height
+    alt_count = result.filter(pl.col(presence_col) == "With alternative journal name").height
+    no_count = result.filter(pl.col(presence_col) == "No").height
     print(f"    - Presence '{presence_col}': Yes={yes_count}, With alternative journal name={alt_count}, No={no_count}")
     assert yes_count + alt_count + no_count == result.height, \
         f"BUG: presence counts don't sum to total rows for {presence_col}"

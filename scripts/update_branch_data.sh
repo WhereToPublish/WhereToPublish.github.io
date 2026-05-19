@@ -14,7 +14,8 @@ git reset --soft HEAD~1
 
 # You might neet to run `download_extraction.sh` if you don't have the data_extraction files yet
 # sh ./scripts/download_extraction.sh
-#
+# python3 ./scripts/Scimago_ISSN_type.py
+
 # Update data: download csv files and process them
 mkdir -p logs
 python3 ./scripts/download_sheets.py > logs/download_sheets.log 2>&1

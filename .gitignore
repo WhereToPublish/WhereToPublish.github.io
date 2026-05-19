@@ -5,6 +5,7 @@
 __pycache__
 data_legacy
 logs
+zenodo
 node_modules/
 .github/*.md
 TODO.md

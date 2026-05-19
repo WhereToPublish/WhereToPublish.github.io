@@ -140,6 +140,8 @@ def norm_name(text: str) -> str:
         s = s.replace("las ", "", 1)
     if s.startswith("a "):
         s = s.replace("a ", "", 1)
+    if s.startswith("l'"):
+        s = s.replace("l'", "", 1)
     if " an " in s:
         s = s.replace(" an ", " ")
     if " of " in s:

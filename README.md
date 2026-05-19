@@ -109,7 +109,6 @@ cd scripts && python data_process.py
 | `scripts/libraries.py` | Shared utility functions |
 | `scripts/sheets_client.py` | Google Sheets API client (shared by download and upload scripts) |
 | `scripts/run.sh` | Runs the full pipeline |
-| `scripts/clean_run.sh` | Clean run (removes intermediate files first) |
 | `scripts/Scimago_ISSN_type.py` | Classifies Scimago ISSNs as print/electronic/linking via the [ISSN Portal API](https://portal.issn.org/); results cached in `config/ISSN_type.csv`. Run with `--limit N` for incremental processing (~50k ISSNs total, first run is slow). Used by `update_extracted.py` to populate e-ISSN and p-ISSN from Scimago data. |
 
 ### External Data Sources

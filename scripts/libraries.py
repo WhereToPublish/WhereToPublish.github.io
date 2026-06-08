@@ -357,12 +357,16 @@ def normalize_publisher(name: str) -> str:
         return "Taylor & Francis Group"
     elif ("taylor" in name_lower) and ("francis" in name_lower):
         return "Taylor & Francis Group (" + name.split("(", 1)[1]
+    elif "PeerJ" in name:
+        return "Taylor & Francis Group (PeerJ)"
     elif ("sage" in name_lower) and ("(" not in name_lower):
         return "Sage Publishing"
     elif "sage publishing" in name_lower:
         return "Sage Publishing (" + name.split("(", 1)[1]
     elif "Cell" == name or "cell press" in name_lower:
         return "Elsevier (Cell Press)"
+    elif "academic press" in name_lower:
+        return "Elsevier (Academic Press)"
     elif "elsevier" in name_lower:
         return "Elsevier"
     elif "frontiers" in name_lower:
@@ -375,18 +379,48 @@ def normalize_publisher(name: str) -> str:
         return "Oxford University Press (OUP)"
     elif "CUP" in name or "cambridge university press" in name_lower:
         return "Cambridge University Press (CUP)"
-    elif "APA" in name or "american psychological association" in name_lower:
-        return "American Psychological Association (APA)"
-    elif "AMA" in name or "american medical association" in name_lower:
-        return "American Medical Association (AMA)"
-    elif "ASM" in name or "american society for microbiology" in name_lower:
-        return "American Society for Microbiology (ASM)"
     elif "AAAS" in name or "american association for the advancement of science" in name_lower:
         return "American Association for the Advancement of Science (AAAS)"
+    if "AACR" in name or "american association for cancer research" in name_lower:
+        return "American Association for Cancer Research (AACR)"
+    elif "ACS" in name or "american chemical society" in name_lower:
+        return "American Chemical Society (ACS)"
+    elif "AMA" in name or "american medical association" in name_lower:
+        return "American Medical Association (AMA)"
+    elif "APA" in name or "american psychological association" in name_lower:
+        return "American Psychological Association (APA)"
+    elif "APS" in name or "american physiological society" in name_lower:
+        return "American Physiological Society (APS)"
+    elif "ASM" in name or "american society for microbiology" in name_lower:
+        return "American Society for Microbiology (ASM)"
+    elif "ERS" in name or "european respiratory society" in name_lower:
+        return "European Respiratory Society (ERS)"
     elif "public library of science" in name_lower or "plos" in name_lower:
         return "Public Library of Science (PLoS)"
     elif "PCI" in name or "peer community in" in name_lower:
         return "Peer Community In"
+    elif "annual reviews" in name_lower:
+        return "Annual Reviews"
+    elif "lippincott" in name_lower and "williams" in name_lower and "wilkins" in name_lower:
+        return "Wolters Kluwer (Lippincott)"
+    elif "ovid technologies" in name_lower:
+        return "Wolters Kluwer (Ovid Technologies)"
+    elif "wolters kluwer" == name_lower:
+        return "Wolters Kluwer"
+    elif "bioscientifica" in name_lower:
+        return "Bioscientifica Ltd"
+    elif "mary ann liebert" in name_lower:
+        return "Sage Publishing (Mary Ann Liebert)"
+    elif "pensoft publishers" in name_lower or "pensoft" in name_lower:
+        return "Pensoft Publishers"
+    elif "CSIRO" in name or "commonwealth scientific and industrial research organisation" in name_lower:
+        return "CSIRO Publishing"
+    elif "MIT" in name and "mit press" in name_lower:
+        return "MIT Press"
+    elif "john libbey" in name_lower:
+        return "John Libbey Eurotext"
+    elif "national" in name_lower and "histoire" in name_lower and "naturelle" in name_lower:
+        return "Muséum national d'Histoire naturelle (MNHN)"
     return str(clean_string(name))
 
 
@@ -654,13 +688,17 @@ def annotate_publisher_type_from_institution_type(df: pl.DataFrame) -> pl.DataFr
 
 def derive_business_model_from_APC(df: pl.DataFrame) -> pl.DataFrame:
     """ Derive 'Business model' from 'APC Euros'.
-    - If APC Euros is > 0 and business model is empty, set Business model to 'Hybrid'.
+    - If APC Euros is > 0 and business model is empty or 'Subscription', set Business model to 'Hybrid'.
     """
     df = df.with_columns(
         pl.when(
             (pl.col("APC Euros").is_not_null())
             & (pl.col("APC Euros") > 0)
-            & (pl.col("Business model").is_null() | (pl.col("Business model").cast(pl.Utf8).str.strip_chars() == ""))
+            & (
+                    pl.col("Business model").is_null()
+                    | (pl.col("Business model").cast(pl.Utf8).str.strip_chars() == "")
+                    | (pl.col("Business model").cast(pl.Utf8) == "Subscription")
+            )
         )
         .then(pl.lit("Hybrid"))
         .otherwise(pl.col("Business model"))
@@ -672,10 +710,13 @@ def derive_business_model_from_APC(df: pl.DataFrame) -> pl.DataFrame:
 def derive_APC_from_business_model(df: pl.DataFrame) -> pl.DataFrame:
     """ Derive 'APC Euros' from 'Business model'.
     - If Business model is 'OA diamond', set 'APC Euros' to 0.
+    - If Business model is 'Subscription', set 'APC Euros' to None.
     """
     df = df.with_columns(
         pl.when(pl.col("Business model") == "OA diamond")
         .then(pl.lit(0))
+        .when(pl.col("Business model") == "Subscription")
+        .then(pl.lit(None))
         .otherwise(pl.col("APC Euros"))
         .alias("APC Euros")
     )
@@ -722,15 +763,22 @@ def format_table(df: pl.DataFrame) -> pl.DataFrame:
     # Ensure required columns exist for inference
     df = ensure_columns(df)
 
+    # Format ISSNs to standard XXXX-XXXX (ensures consistency with external source lookups)
+    df = df.with_columns([
+        pl.col("e-ISSN").map_elements(format_issn, return_dtype=pl.Utf8).alias("e-ISSN"),
+        pl.col("p-ISSN").map_elements(format_issn, return_dtype=pl.Utf8).alias("p-ISSN"),
+        pl.col("ISSN-L").map_elements(format_issn, return_dtype=pl.Utf8).alias("ISSN-L"),
+    ])
+
     # Infer types and annotate the publisher type based on the institution type
     df = infer_institution_type(df)
     df = infer_publisher_type_from_publisher(df)
     df = annotate_publisher_type_from_institution_type(df)
 
-    # Infer APC from Business model
-    df = derive_APC_from_business_model(df)
-    # Infer Business model from APC
+    # Infer Business model from APC first (Subscription + APC > 0 → Hybrid)
     df = derive_business_model_from_APC(df)
+    # Then derive APC from Business model (OA diamond → 0, Subscription → None)
+    df = derive_APC_from_business_model(df)
     return df
 
 
@@ -768,11 +816,23 @@ def write_ordered(df: pl.DataFrame, out_path: str) -> None:
 
 def check_consistency(df: pl.DataFrame) -> None:
     """Check for consistency in key columns and log any issues found."""
-    # Assert that we don't have any column that are OA diamond but APC is not 0.
-    filter_err = df.filter(
+    # Assert that no OA diamond journal has APC > 0.
+    filter_diamond = df.filter(
         (pl.col("Business model") == "OA diamond") &
         (pl.col("APC Euros").is_not_null()) &
         (pl.col("APC Euros").cast(pl.Utf8).str.strip_chars() != "") &
         (pl.col("APC Euros").cast(pl.Utf8).str.strip_chars() != "0")
     )
-    assert filter_err.height == 0, f"Found {filter_err.height} rows with Business model 'OA diamond' but APC Euros not 0."
+    assert filter_diamond.height == 0, (
+        f"Found {filter_diamond.height} rows with Business model 'OA diamond' but APC Euros not 0."
+    )
+    # Assert that no Subscription journal has APC > 0.
+    filter_sub = df.filter(
+        (pl.col("Business model") == "Subscription") &
+        (pl.col("APC Euros").is_not_null()) &
+        (pl.col("APC Euros").cast(pl.Utf8).str.strip_chars() != "") &
+        (pl.col("APC Euros").cast(pl.Utf8).str.strip_chars() != "0")
+    )
+    assert filter_sub.height == 0, (
+        f"Found {filter_sub.height} rows with Business model 'Subscription' but APC Euros not null/0."
+    )

@@ -61,6 +61,18 @@ e-ISSN, p-ISSN
 
 The ISSN columns are filled from external sources in priority order: Scimago (via `config/ISSN_type.csv`) → OpenAPC → DOAJ. ISSN-L (linking ISSN) is stored in intermediate files in `data_extracted/` but is not published to the website.
 
+**Business model / APC derivation rules** (applied after every enrichment step):
+- If APC Euros > 0 and Business model is empty or `Subscription` → set Business model to `Hybrid`.
+- If Business model is `OA diamond` → set APC Euros to `0`.
+- If Business model is `Subscription` → set APC Euros to `null` (subscription journals do not charge APCs).
+
+These rules are applied in the order listed so that a journal with `Subscription` + `APC > 0` is first promoted to `Hybrid` (keeping its APC) before the `Subscription → null` rule is evaluated.
+
+**Scimago Business model derivation**: Scimago provides `Open Access Diamond` and `Open Access` flags but no APC column.
+- `Open Access Diamond == Yes` → `OA diamond`
+- `Open Access == Yes` → `OA`
+- otherwise → `Subscription` (will be promoted to `Hybrid` by the rule above if APC Euros > 0 from another source)
+
 Intermediate files in `data_extracted/` also carry additional columns that are not published to the website:
 - `Alternative journal name` — used as a fallback join key during enrichment when the primary journal name does not match an external source.
 - `Present in Scimago`, `Present in DOAJ`, `Present in openAPC` — set to `"Yes"`, `"With alternative journal name"`, or `"No"` to record whether each journal was matched in the corresponding external source (and whether the match was on the primary or alternative name). These are discarded by `data_process.py`.
@@ -73,10 +85,16 @@ The data is updated monthly via GitHub Actions:
 # 1. Download raw data from Google Sheets (via Sheets API)
 python3 scripts/download_sheets.py
 
-# 2. Enrich with external sources (Scimago, OpenAPC, DOAJ)
+# 2. Enrich with external sources (Scimago, OpenAPC, DOAJ, Dataverse)
+#    Also generates logs/disagreements.tsv — a TSV report of conflicts between
+#    the dataset and external sources (Scimago, OpenAPC, DOAJ; not Dataverse).
+#    Columns checked: Publisher, Business model, e-ISSN, p-ISSN, APC Euros.
+#    APC disagreement is flagged only when one source has 0 and another has non-zero.
 python3 scripts/update_extracted.py
 
 # 3. Process, clean, and deduplicate
+#    Also generates logs/missing_publisher_in_configs.csv — journals whose publisher
+#    is not found in config/country_formatting.json after normalization.
 python3 scripts/data_process.py
 
 # 4. Upload enriched data back to all Google Sheets field tabs
@@ -104,8 +122,8 @@ cd scripts && python data_process.py
 | `scripts/upload_sheets.py` | Uploads enriched `data_extracted/` data back to Google Sheets |
 | `scripts/fetch_sheet.py` | Downloads a single field tab (CLI helper) |
 | `scripts/download_extraction.sh` | Downloads external data sources to `data_extraction/` |
-| `scripts/update_extracted.py` | Enriches raw data with Scimago, OpenAPC, DOAJ |
-| `scripts/data_process.py` | Cleans, normalizes, deduplicates, and outputs to `data/` |
+| `scripts/update_extracted.py` | Enriches raw data with Scimago, OpenAPC, DOAJ, and Dataverse. Also writes `logs/disagreements.tsv` — a TSV report of all detected conflicts between the dataset and external sources (Scimago, OpenAPC, DOAJ). Columns: `journal`, `field`, `column`, `dataset_value`, `Scimago_value`, `DOAJ_value`, `OpenAPC_value`. APC disagreements are flagged only when one value is 0 and another is non-zero. |
+| `scripts/data_process.py` | Cleans, normalizes, deduplicates, and outputs to `data/`. Also writes `logs/missing_publisher_in_configs.csv` — journals whose publisher (after normalization) is not found in `config/country_formatting.json`. |
 | `scripts/libraries.py` | Shared utility functions |
 | `scripts/sheets_client.py` | Google Sheets API client (shared by download and upload scripts) |
 | `scripts/run.sh` | Runs the full pipeline |

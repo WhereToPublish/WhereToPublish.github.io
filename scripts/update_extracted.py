@@ -239,6 +239,10 @@ def load_scimago_lookup(include_titles: bool = False) -> pl.DataFrame:
         .otherwise(None)
         .alias("Business model_scimago"),
     ])
+    # Normalize publisher names for consistent enrichment and disagreement comparison
+    scimago_df = scimago_df.with_columns(
+        pl.col("Publisher_scimago").map_elements(normalize_publisher, return_dtype=pl.Utf8).alias("Publisher_scimago")
+    )
 
     # Format Scimago Rank to standard numeric format
     scimago_df = format_Scimago_Rank(scimago_df, "Scimago Rank_scimago")
@@ -357,6 +361,10 @@ def load_openapc_lookup(include_titles: bool = False) -> pl.DataFrame:
         pl.col("ISSN-L_openapc").drop_nulls().first().alias("ISSN-L_openapc"),
     ]
     openapc_df = openapc_df.group_by("norm_journal_openapc").agg(agg_expressions)
+    # Normalize publisher names for consistent enrichment and disagreement comparison
+    openapc_df = openapc_df.with_columns(
+        pl.col("Publisher_openapc").map_elements(normalize_publisher, return_dtype=pl.Utf8).alias("Publisher_openapc")
+    )
 
     # Format ISSNs to standard XXXX-XXXX
     openapc_df = openapc_df.with_columns([
@@ -542,6 +550,151 @@ def load_openapc_issn_title_lookup() -> dict[str, list[str]]:
     )
 
 
+# ---------------------------------------------------------------------------
+# Disagreement report helpers
+# ---------------------------------------------------------------------------
+
+# Defines what to compare for the disagreement report.
+# Each entry: (dataset_col, scimago_col_or_None, openapc_col_or_None, doaj_col_or_None)
+# None means the source does not provide that column.
+# Dataverse is excluded — it is used for enrichment only, not for the disagreement report.
+DISAGREEMENT_COLS: list[tuple[str, str | None, str | None, str | None]] = [
+    ("Publisher", "Publisher_scimago", "Publisher_openapc", "Publisher_doaj"),
+    ("Business model", "Business model_scimago", "Business model_openapc", None),
+    ("e-ISSN", "e-ISSN_scimago", "e-ISSN_openapc", "e-ISSN_doaj"),
+    ("p-ISSN", "p-ISSN_scimago", "p-ISSN_openapc", "p-ISSN_doaj"),
+    ("APC Euros", None, "APC Euros_openapc", "APC Euros_doaj"),
+]
+
+REPORT_SCHEMA = {
+    "journal": pl.Utf8,
+    "field": pl.Utf8,
+    "column": pl.Utf8,
+    "dataset_value": pl.Utf8,
+    "Scimago_value": pl.Utf8,
+    "DOAJ_value": pl.Utf8,
+    "OpenAPC_value": pl.Utf8,
+}
+
+
+def has_disagreement(vals: list, col_name: str) -> bool:
+    """Return True if the non-null values disagree.
+
+    For APC Euros: flags only when one value is 0 and another is non-zero.
+    For all other columns: flags when at least two distinct non-null values exist.
+    Both dataset and lookup values are expected to be pre-normalized (post format_table).
+    """
+    non_null = [v for v in vals if v is not None and str(v).strip() != ""]
+    # If contains "(", remove it and everything after to ignore details
+    non_null = [str(v).split("(", 1)[0].strip() if isinstance(v, str) else v for v in non_null]
+    if len(non_null) < 2:
+        return False
+    if col_name == "APC Euros":
+        as_ints = [int(v) for v in non_null if isinstance(v, (int, float))]
+        if len(as_ints) < 2:
+            return False
+        return any(v == 0 for v in as_ints) and any(v != 0 for v in as_ints)
+    return len(set(str(v) for v in non_null)) > 1
+
+
+def fetch_source_values(df: pl.DataFrame, lookup_df: pl.DataFrame, right_on: str, cols_to_fetch: list[str],
+                        left_on: str = "norm_journal", fallback_col: str = "alt_journal_norm", ) -> pl.DataFrame:
+    """Fetch source column values via a two-pass left join (primary on left_on, fallback on fallback_col).
+
+    Returns df with the requested cols_to_fetch appended. Does not modify existing df columns.
+    For cols in cols_to_fetch not present in lookup_df, appends null string columns.
+    """
+    available = [c for c in cols_to_fetch if c in lookup_df.columns]
+    unavailable = [c for c in cols_to_fetch if c not in lookup_df.columns]
+
+    if not available:
+        return df.with_columns([pl.lit(None).cast(pl.Utf8).alias(c) for c in unavailable])
+
+    lookup_subset = lookup_df.select([right_on] + available)
+    has_alt = (pl.col(fallback_col).is_not_null() & (pl.col(fallback_col).cast(pl.Utf8).str.strip_chars() != ""))
+    # Primary join — coalesce=False so we can detect unmatched rows via right_on being null
+    result = df.join(lookup_subset, left_on=left_on, right_on=right_on, how="left", coalesce=False)
+
+    unmatched_mask = pl.col(right_on).is_null() & has_alt
+    if result.filter(unmatched_mask).height > 0:
+        rest = result.filter(~unmatched_mask).drop(right_on)
+        unmatched = result.filter(unmatched_mask).drop([right_on] + available)
+        fallback = unmatched.join(lookup_subset, left_on=fallback_col, right_on=right_on, how="left",
+                                  coalesce=False).drop(right_on)
+        result = pl.concat([rest, fallback], how="diagonal_relaxed")
+    else:
+        result = result.drop(right_on)
+
+    for c in unavailable:
+        result = result.with_columns(pl.lit(None).cast(pl.Utf8).alias(c))
+
+    return result
+
+
+def compute_disagreements(enriched_df: pl.DataFrame, scimago_lookup: pl.DataFrame,
+                          openapc_lookup: pl.DataFrame, doaj_lookup: pl.DataFrame, ) -> list[dict]:
+    """Generate disagreement rows by comparing enriched dataset values with external source values.
+
+    Both the dataset (enriched_df, post format_table) and the lookup tables have fully
+    normalized values (publisher names, business models, ISSNs, APC as integer), so
+    comparison is direct — no additional normalization is applied here.
+    Dataverse is excluded from this report (used for enrichment only).
+
+    Args:
+        enriched_df: Dataset after enrichment and format_table. Must contain norm_journal,
+                     alt_journal_norm, Journal, Field, and all columns in _DISAGREEMENT_COLS.
+    Returns:
+        List of dicts with keys matching _REPORT_SCHEMA.
+    """
+    dataset_cols = [d for d, *_ in DISAGREEMENT_COLS]
+    needed_cols = ["Journal", "Field", "norm_journal", "alt_journal_norm"] + dataset_cols
+    assert all(c in enriched_df.columns for c in needed_cols), (
+        f"compute_disagreements: missing columns in enriched_df: "
+        f"{[c for c in needed_cols if c not in enriched_df.columns]}"
+    )
+
+    scimago_cols = [c for _, c, _, _ in DISAGREEMENT_COLS if c is not None]
+    openapc_cols = [c for _, _, c, _ in DISAGREEMENT_COLS if c is not None]
+    doaj_cols = [c for _, _, _, c in DISAGREEMENT_COLS if c is not None]
+
+    comp_df = enriched_df.select(needed_cols)
+    n_rows = comp_df.height
+
+    comp_df = fetch_source_values(comp_df, scimago_lookup, "norm_journal_scimago", scimago_cols)
+    comp_df = fetch_source_values(comp_df, openapc_lookup, "norm_journal_openapc", openapc_cols)
+    comp_df = fetch_source_values(comp_df, doaj_lookup, "norm_journal_doaj", doaj_cols)
+
+    assert comp_df.height == n_rows, (
+        f"BUG: compute_disagreements lost rows: {n_rows} → {comp_df.height}"
+    )
+
+    disagreements: list[dict] = []
+    for row in comp_df.iter_rows(named=True):
+        journal = str(row["Journal"] or "")
+        field = str(row["Field"] or "")
+
+        for dataset_col, scimago_col, openapc_col, doaj_col in DISAGREEMENT_COLS:
+            dataset_val = row.get(dataset_col)
+            scimago_val = row.get(scimago_col) if scimago_col else None
+            openapc_val = row.get(openapc_col) if openapc_col else None
+            doaj_val = row.get(doaj_col) if doaj_col else None
+
+            if not has_disagreement([dataset_val, scimago_val, openapc_val, doaj_val], dataset_col):
+                continue
+
+            disagreements.append({
+                "journal": journal,
+                "field": field,
+                "column": dataset_col,
+                "dataset_value": str(dataset_val) if dataset_val is not None else "",
+                "Scimago_value": str(scimago_val) if scimago_val is not None else "",
+                "DOAJ_value": str(doaj_val) if doaj_val is not None else "",
+                "OpenAPC_value": str(openapc_val) if openapc_val is not None else "",
+            })
+
+    return disagreements
+
+
 def join_and_update(df: pl.DataFrame, lookup_df: pl.DataFrame, left_on: str, right_on: str,
                     source: str, totals: dict, only_fill_nulls: bool = False, label: str = "") -> pl.DataFrame:
     """Join a lookup table, update target columns from it, then drop lookup columns.
@@ -659,9 +812,7 @@ def two_pass_join(target_df: pl.DataFrame, lookup_df: pl.DataFrame, right_on: st
 
     # Second pass: join unmatched rows on fallback key
     matched_keys = set(lookup_df[right_on].to_list())
-    nbr_fallback = result_df.filter(
-        has_fallback & ~pl.col(left_on).is_in(list(matched_keys))
-    ).height
+    nbr_fallback = result_df.filter(has_fallback & ~pl.col(left_on).is_in(list(matched_keys))).height
     if nbr_fallback > 0:
         print(f"    - 2nd pass on '{fallback_col}' for {nbr_fallback} unmatched rows...")
         result_df = join_and_update(result_df, lookup_df, fallback_col, right_on, source, totals,
@@ -674,7 +825,7 @@ def two_pass_join(target_df: pl.DataFrame, lookup_df: pl.DataFrame, right_on: st
 
 def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup: pl.DataFrame,
                      doaj_lookup: pl.DataFrame, dataverse_lookup: pl.DataFrame,
-                     pci_friendly_set: set, totals: dict) -> None:
+                     pci_friendly_set: set, totals: dict, disagreement_rows: list) -> None:
     """Process a single CSV file with Scimago, OpenAPC, DOAJ, and Dataverse data using two-pass joins.
 
     Args:
@@ -685,6 +836,7 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
         dataverse_lookup: APC Dataverse lookup table
         pci_friendly_set: Set of PCI-friendly journal names
         totals: Dictionary to accumulate update counts
+        disagreement_rows: List to accumulate disagreement report rows (mutated in-place)
     """
     print(f"Processing file: {csv_path}")
     target_df = load_csv(csv_path, ignore_errors=True)
@@ -732,9 +884,15 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
     updated_df = format_table(updated_df)
     # Mark PCI friendly journals
     updated_df = mark_pci_friendly(updated_df, pci_friendly_set)
+
+    # Compute disagreements from enriched, normalized values (both dataset and lookup tables are fully formatted at this point)
+    new_rows = compute_disagreements(updated_df, scimago_lookup, openapc_lookup, doaj_lookup)
+    if new_rows:
+        print(f"  Disagreements found: {len(new_rows)}")
+    disagreement_rows.extend(new_rows)
+
     # Select original columns only (avoid helper/join columns)
     final_df = updated_df.select(original_cols)
-    # Overwrite the existing file
     check_consistency(final_df)
     final_df.write_csv(csv_path)
     print(f"Successfully updated and saved {csv_path}\n")
@@ -760,6 +918,7 @@ def main():
 
     # Initialize totals for tracking updates
     totals = {col: 0 for col in COLUMNS_TO_UPDATE}
+    disagreement_rows: list[dict] = []
 
     # Process each CSV file in the data_extracted directory
     for csv_path in sorted(glob(os.path.join(DATA_EXTRACTED_DIR, "*.csv"))):
@@ -768,8 +927,18 @@ def main():
             print(f"Skipping file: {filename}")
             continue
 
-        process_csv_file(csv_path, scimago_lookup, openapc_lookup, doaj_lookup, dataverse_lookup, pci_friendly_set,
-                         totals)
+        process_csv_file(csv_path, scimago_lookup, openapc_lookup, doaj_lookup, dataverse_lookup,
+                         pci_friendly_set, totals, disagreement_rows)
+
+    # Write disagreement report
+    os.makedirs("logs", exist_ok=True)
+    report_path = os.path.join("logs", "disagreements.csv")
+    if disagreement_rows:
+        report_df = pl.DataFrame(disagreement_rows, schema=REPORT_SCHEMA)
+    else:
+        report_df = pl.DataFrame(schema=REPORT_SCHEMA)
+    report_df.write_csv(report_path)
+    print(f"\nDisagreement report written to {report_path} ({len(disagreement_rows)} rows).")
 
     # Print summary
     print("\nScript finished.")

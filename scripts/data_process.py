@@ -384,6 +384,28 @@ def main():
         all_df.write_csv(all_out_path, quote_char='"', quote_style="always")
         print(f"Wrote all biology entries to: {all_out_path}")
 
+        # Report journals whose publisher (after normalization) is not in country_formatting.json.
+        # This helps identify publishers missing from the configuration table.
+        formatting = load_country_formatting()
+        all_known_publishers = (
+            set(formatting["for_profit"].keys())
+            | set(formatting.get("university_press", {}).keys())
+            | set(formatting.get("non_profit", {}).keys())
+        )
+        missing_pub_df = (
+            all_df.filter(
+                pl.col("Publisher").is_not_null()
+                & (pl.col("Publisher").cast(pl.Utf8).str.strip_chars() != "")
+                & ~pl.col("Publisher").is_in(list(all_known_publishers))
+            )
+            .select(["Journal", "Publisher"])
+            .sort("Publisher")
+        )
+        os.makedirs("logs", exist_ok=True)
+        missing_pub_path = os.path.join("logs", "missing_publisher_in_configs.csv")
+        missing_pub_df.write_csv(missing_pub_path)
+        print(f"Missing publisher report written to {missing_pub_path} ({missing_pub_df.height} rows).")
+
 
 if __name__ == "__main__":
     main()

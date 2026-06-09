@@ -137,37 +137,28 @@ def read_csv_as_rows(csv_path: Path) -> list[list[str]]:
     return rows
 
 
-def upload_tab_from_csv(service: Any, csv_path: Path, tab_name: str, spreadsheet_id: str = SPREADSHEET_ID) -> int:
-    """Upload CSV data to a Google Sheets tab (values only — formatting is untouched).
+def recreate_sheet_tab(service: Any, spreadsheet_id: str, tab_name: str) -> None:
+    """Delete a sheet tab if it exists, then create a fresh one with the same name.
 
-    Writes all rows from the CSV starting at A1 of the target tab.  Only cell
-    values are updated; existing cell formatting, data-validation rules, and
-    dropdown menus in the sheet are preserved because we use spreadsheets.values.update
-    (not batchUpdate with format requests).
+    Used for report tabs (Disagreements, Missing publishers) that should be
+    completely replaced on each run rather than updated in-place.
 
     Args:
         service: Authenticated Sheets API service with write scope.
-        csv_path: Path to the enriched CSV file to upload.
-        tab_name: Exact name of the Google Sheets tab to write to.
-        spreadsheet_id: Google Sheets spreadsheet ID (default: WhereToPublish).
-
-    Returns:
-        Number of data rows written (excluding header).
+        spreadsheet_id: Google Sheets spreadsheet ID.
+        tab_name: Exact name of the tab to recreate.
     """
-    rows = read_csv_as_rows(csv_path)
-    n_cols = len(rows[0])
-    # Pad every row to the header width so the update range covers all columns
-    padded_rows = [row + [""] * (n_cols - len(row)) for row in rows]
-
-    # Validate tab exists in the spreadsheet
     spreadsheet_meta = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
-    existing_titles = {s["properties"]["title"] for s in spreadsheet_meta["sheets"]}
-    assert tab_name in existing_titles, (
-        f"Tab '{tab_name}' not found in spreadsheet {spreadsheet_id}. "
-        f"Available tabs: {sorted(existing_titles)}"
-    )
-
-    write_rows(service, spreadsheet_id, tab_name, padded_rows, value_input_option="USER_ENTERED")
-    data_rows = len(rows) - 1  # exclude header
-    print(f"  Uploaded {data_rows} data rows to tab '{tab_name}' (spreadsheet {spreadsheet_id})")
-    return data_rows
+    existing = {
+        s["properties"]["title"]: s["properties"]["sheetId"]
+        for s in spreadsheet_meta["sheets"]
+    }
+    requests: list[dict] = []
+    if tab_name in existing:
+        requests.append({"deleteSheet": {"sheetId": existing[tab_name]}})
+    requests.append({"addSheet": {"properties": {"title": tab_name}}})
+    service.spreadsheets().batchUpdate(
+        spreadsheetId=spreadsheet_id,
+        body={"requests": requests},
+    ).execute()
+    print(f"  Recreated sheet tab '{tab_name}'.")

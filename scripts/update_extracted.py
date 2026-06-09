@@ -589,6 +589,9 @@ def has_disagreement(vals: list, col_name: str) -> bool:
     non_null = [str(v).split("(", 1)[0].strip() if isinstance(v, str) else v for v in non_null]
     if len(non_null) < 2:
         return False
+    # For business model, if first (dataset) value is "Hybrid" and second (scimago) value is "OA", do not count as disagreement
+    if col_name == "Business model" and vals[0] == "Hybrid" and vals[1] == "OA":
+        return False
     if col_name == "APC Euros":
         as_ints = [int(v) for v in non_null if isinstance(v, (int, float))]
         if len(as_ints) < 2:

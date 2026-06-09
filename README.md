@@ -97,7 +97,11 @@ python3 scripts/update_extracted.py
 #    is not found in config/country_formatting.json after normalization.
 python3 scripts/data_process.py
 
-# 4. Upload enriched data back to all Google Sheets field tabs
+# 4. Upload enriched data and pipeline reports back to Google Sheets
+#    - Uploads enriched field CSVs to their corresponding field tabs (in-place).
+#    - Uploads logs/disagreements.csv to the "Disagreements" tab (recreated fresh).
+#    - Uploads logs/missing_publisher_in_configs.csv to the "Missing publishers" tab (recreated fresh).
+#    ISSN values in the Disagreements tab are rendered as clickable links to https://portal.issn.org/
 python3 scripts/upload_sheets.py
 ```
 
@@ -119,10 +123,10 @@ cd scripts && python data_process.py
 | Script | Purpose |
 |--------|---------|
 | `scripts/download_sheets.py` | Downloads all field tabs from Google Sheets API to `data_extracted/` |
-| `scripts/upload_sheets.py` | Uploads enriched `data_extracted/` data back to Google Sheets |
+| `scripts/upload_sheets.py` | Uploads enriched `data_extracted/` field CSVs back to Google Sheets (field tabs updated in-place). Also uploads `logs/disagreements.csv` to a **Disagreements** tab and `logs/missing_publisher_in_configs.csv` to a **Missing publishers** tab — both tabs are deleted and recreated on each run. ISSN values in the Disagreements tab are hyperlinked to the ISSN portal. |
 | `scripts/fetch_sheet.py` | Downloads a single field tab (CLI helper) |
 | `scripts/download_extraction.sh` | Downloads external data sources to `data_extraction/` |
-| `scripts/update_extracted.py` | Enriches raw data with Scimago, OpenAPC, DOAJ, and Dataverse. Also writes `logs/disagreements.tsv` — a TSV report of all detected conflicts between the dataset and external sources (Scimago, OpenAPC, DOAJ). Columns: `journal`, `field`, `column`, `dataset_value`, `Scimago_value`, `DOAJ_value`, `OpenAPC_value`. APC disagreements are flagged only when one value is 0 and another is non-zero. |
+| `scripts/update_extracted.py` | Enriches raw data with Scimago, OpenAPC, DOAJ, and Dataverse. Also writes `logs/disagreements.csv` — a CSV report of all detected conflicts between the dataset and external sources (Scimago, OpenAPC, DOAJ). Columns: `journal`, `field`, `column`, `dataset_value`, `Scimago_value`, `DOAJ_value`, `OpenAPC_value`. APC disagreements are flagged only when one value is 0 and another is non-zero. |
 | `scripts/data_process.py` | Cleans, normalizes, deduplicates, and outputs to `data/`. Also writes `logs/missing_publisher_in_configs.csv` — journals whose publisher (after normalization) is not found in `config/country_formatting.json`. |
 | `scripts/libraries.py` | Shared utility functions |
 | `scripts/sheets_client.py` | Google Sheets API client (shared by download and upload scripts) |

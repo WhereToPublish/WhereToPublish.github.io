@@ -149,16 +149,97 @@ def recreate_sheet_tab(service: Any, spreadsheet_id: str, tab_name: str) -> None
         tab_name: Exact name of the tab to recreate.
     """
     spreadsheet_meta = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
-    existing = {
-        s["properties"]["title"]: s["properties"]["sheetId"]
-        for s in spreadsheet_meta["sheets"]
-    }
+    existing = {s["properties"]["title"]: s["properties"]["sheetId"] for s in spreadsheet_meta["sheets"]}
     requests: list[dict] = []
     if tab_name in existing:
         requests.append({"deleteSheet": {"sheetId": existing[tab_name]}})
     requests.append({"addSheet": {"properties": {"title": tab_name}}})
-    service.spreadsheets().batchUpdate(
-        spreadsheetId=spreadsheet_id,
-        body={"requests": requests},
-    ).execute()
+    service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body={"requests": requests}, ).execute()
     print(f"  Recreated sheet tab '{tab_name}'.")
+
+
+def get_sheet_properties(service: Any, spreadsheet_id: str, tab_name: str) -> dict[str, int]:
+    """Return basic properties for *tab_name*: sheetId, rowCount, and columnCount."""
+    spreadsheet_meta = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+    matching = [s["properties"] for s in spreadsheet_meta["sheets"] if s["properties"]["title"] == tab_name]
+    assert len(matching) == 1, f"Expected one sheet named '{tab_name}', found {len(matching)}"
+    props = matching[0]
+    grid = props.get("gridProperties", {})
+    return {
+        "sheetId": int(props["sheetId"]),
+        "rowCount": int(grid.get("rowCount", 0)),
+        "columnCount": int(grid.get("columnCount", 0)),
+    }
+
+
+def clear_tab_values(service: Any, spreadsheet_id: str, tab_name: str) -> None:
+    """Clear all cell values in a tab while preserving formatting and validation."""
+    service.spreadsheets().values().clear(spreadsheetId=spreadsheet_id, range=tab_name, body={}, ).execute()
+
+
+def chunked_batch_update(service: Any, spreadsheet_id: str, requests: list[dict], chunk_size: int = 500) -> None:
+    """Send batchUpdate requests in chunks to avoid API limits."""
+    assert chunk_size > 0, f"chunk_size must be > 0, got {chunk_size}"
+    if not requests:
+        return
+    for start in range(0, len(requests), chunk_size):
+        chunk = requests[start:start + chunk_size]
+        service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body={"requests": chunk}, ).execute()
+
+
+def rgb_from_hex(hex_color: str) -> dict[str, float]:
+    """Convert hex color like 'FBE7E7' or '#FBE7E7' to Sheets RGB floats."""
+    value = hex_color.strip().lstrip("#")
+    assert len(value) == 6, f"Hex color must be 6 chars, got '{hex_color}'"
+    r = int(value[0:2], 16) / 255.0
+    g = int(value[2:4], 16) / 255.0
+    b = int(value[4:6], 16) / 255.0
+    return {"red": r, "green": g, "blue": b}
+
+
+def apply_report_formatting(service: Any, spreadsheet_id: str, tab_name: str, rows_count: int, cols_count: int,
+                            bg_overrides: list[tuple[int, int, str]] | None = None, ) -> None:
+    """Apply deterministic formatting to a rectangular report range.
+
+    Applies base text formatting to all cells, bold+grey header row style, white
+    default data-cell backgrounds, and optional per-cell background overrides.
+
+    Args:
+        rows_count: Number of table rows written (including header row).
+        cols_count: Number of table columns written.
+        bg_overrides: List of (row_idx, col_idx, hex_color) for per-cell background overrides.
+                      Indices are 0-based and relative to the table range starting at A1.
+    """
+    assert rows_count >= 1, f"rows_count must be >= 1, got {rows_count}"
+    assert cols_count >= 1, f"cols_count must be >= 1, got {cols_count}"
+
+    props = get_sheet_properties(service, spreadsheet_id, tab_name)
+    sheet_id = props["sheetId"]
+
+    requests: list[dict] = []
+    for row_idx, col_idx, color_hex in bg_overrides:
+        assert row_idx >= 1, f"Override row index must be >= 1 (data rows only), got {row_idx}"
+        assert row_idx < rows_count, f"Override row out of bounds: {row_idx} >= {rows_count}"
+        assert col_idx >= 0, f"Override col index must be >= 0, got {col_idx}"
+        assert col_idx < cols_count, f"Override col out of bounds: {col_idx} >= {cols_count}"
+        requests.append(
+            {
+                "repeatCell": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": row_idx,
+                        "endRowIndex": row_idx + 1,
+                        "startColumnIndex": col_idx,
+                        "endColumnIndex": col_idx + 1,
+                    },
+                    "cell": {
+                        "userEnteredFormat": {
+                            "backgroundColor": rgb_from_hex(color_hex),
+                        }
+                    },
+                    "fields": "userEnteredFormat.backgroundColor",
+                }
+            }
+        )
+
+    chunked_batch_update(service, spreadsheet_id, requests)

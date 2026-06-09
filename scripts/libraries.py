@@ -381,7 +381,7 @@ def normalize_publisher(name: str) -> str:
         return "Cambridge University Press (CUP)"
     elif "AAAS" in name or "american association for the advancement of science" in name_lower:
         return "American Association for the Advancement of Science (AAAS)"
-    if "AACR" in name or "american association for cancer research" in name_lower:
+    elif "AACR" in name or "american association for cancer research" in name_lower:
         return "American Association for Cancer Research (AACR)"
     elif "ACS" in name or "american chemical society" in name_lower:
         return "American Chemical Society (ACS)"
@@ -405,7 +405,7 @@ def normalize_publisher(name: str) -> str:
         return "Wolters Kluwer (Lippincott)"
     elif "ovid technologies" in name_lower:
         return "Wolters Kluwer (Ovid Technologies)"
-    elif "wolters kluwer" == name_lower:
+    elif "wolters kluwer" in name_lower and "(" not in name_lower and ")" not in name_lower:
         return "Wolters Kluwer"
     elif "bioscientifica" in name_lower:
         return "Bioscientifica Ltd"
@@ -417,10 +417,24 @@ def normalize_publisher(name: str) -> str:
         return "CSIRO Publishing"
     elif "MIT" in name and "mit press" in name_lower:
         return "MIT Press"
-    elif "john libbey" in name_lower:
+    elif "john libbey" in name_lower or "JLE" in name:
         return "John Libbey Eurotext"
     elif "national" in name_lower and "histoire" in name_lower and "naturelle" in name_lower:
         return "Muséum national d'Histoire naturelle (MNHN)"
+    elif "korean society for microbiology and biotechnology" in name_lower or "KSBMB" in name:
+        return "Korean Society for Microbiology and Biotechnology (KSBMB)"
+    elif "cold spring harbor" in name_lower:
+        return "Cold Spring Harbor (CSH) Laboratory Press"
+    elif "pagepress" in name_lower or "page press publications" in name_lower:
+        return "PAGEPress Publications"
+    elif "PUF" in name or "presses universitaires de france" in name_lower:
+        return "Presses Universitaires de France (PUF)"
+    elif "company of biologists" in name_lower:
+        return "The Company of Biologists"
+    elif "royal society publishing" in name_lower or "the royal society" in name_lower:
+        return "The Royal Society"
+    elif "EDP Sciences" in name or "china science publishing & media" in name_lower:
+        return "China Science Publishing & Media (EDP Sciences)"
     return str(clean_string(name))
 
 

@@ -7,8 +7,12 @@ Uploads:
      the "Missing publishers" tab.
 
 The Disagreements and Missing publishers tabs are recreated fresh on each run
-(deleted then created). The enriched field tabs are updated in-place (values
-only — formatting, dropdowns, and data-validation rules are preserved).
+(values cleared, then rewritten). The enriched field tabs are updated in-place
+(values only — formatting, dropdowns, and data-validation rules are preserved).
+
+In Disagreements, rows where column == "Publisher" get per-cell background
+ colors in publisher value columns based on publisher type:
+ For-profit (FBE7E7), Non-profit (EEF5EB), University Press (E9F2FA), Other (F4EDE1).
 
 Safety checks for enriched field uploads (all hard failures — upload aborted if any fails):
   1. data_extracted/.metadata.json must exist (created by download_sheets.py).
@@ -28,7 +32,7 @@ import argparse
 import json
 from pathlib import Path
 import polars as pl
-from libraries import FINAL_COLUMNS
+from libraries import FINAL_COLUMNS, load_country_formatting, normalize_publisher
 import sheets_client
 
 INPUT_DIR = Path("data_extracted")
@@ -46,6 +50,32 @@ DISAGREEMENT_VALUE_COLS: list[str] = [
     "DOAJ_value",
     "OpenAPC_value",
 ]
+
+DISAGREEMENT_REQUIRED_COLUMNS: list[str] = [
+    "journal",
+    "url",
+    "field",
+    "column",
+    "dataset_value",
+    "Scimago_value",
+    "DOAJ_value",
+    "OpenAPC_value",
+]
+
+MISSING_PUBLISHERS_REQUIRED_COLUMNS: list[str] = [
+    "journal",
+    "publisher",
+    "country",
+    "publisher_type",
+]
+
+REPORT_DEFAULT_BG_HEX = "FFFFFF"
+PUBLISHER_TYPE_BG_HEX: dict[str, str] = {
+    "For-profit": "FBE7E7",
+    "Non-profit": "EEF5EB",
+    "University Press": "E9F2FA",
+    "Other": "F4EDE1",
+}
 
 
 def issn_hyperlink(issn: str) -> str:
@@ -167,7 +197,7 @@ def validate_before_upload(slug: str, rows: list[list[str]], meta: dict) -> None
 
 
 def upload_rows_to_sheet(service, rows: list[list], tab_name: str, spreadsheet_id: str = sheets_client.SPREADSHEET_ID,
-                         recreate: bool = False, ) -> int:
+                         clear_before_write: bool = False, ) -> int:
     """Upload *rows* to a Google Sheets tab.
 
     Args:
@@ -175,16 +205,15 @@ def upload_rows_to_sheet(service, rows: list[list], tab_name: str, spreadsheet_i
         rows: List of lists including header row at index 0.
         tab_name: Exact name of the tab to write to.
         spreadsheet_id: Google Sheets spreadsheet ID.
-        recreate: If True, delete and recreate the tab before writing (for report
-                  tabs). If False, update values in-place (preserves formatting,
-                  dropdowns, and data-validation rules).
+        clear_before_write: If True, clear existing values in the tab before writing
+                    new rows. Formatting and data-validation rules are preserved.
 
     Returns:
         Number of data rows uploaded (excluding header).
     """
     assert rows, f"rows must not be empty for tab '{tab_name}'"
-    if recreate:
-        sheets_client.recreate_sheet_tab(service, spreadsheet_id, tab_name)
+    if clear_before_write:
+        sheets_client.clear_tab_values(service, spreadsheet_id, tab_name)
 
     n_cols = len(rows[0])
     padded = [row + [""] * (n_cols - len(row)) for row in rows]
@@ -192,6 +221,54 @@ def upload_rows_to_sheet(service, rows: list[list], tab_name: str, spreadsheet_i
     data_rows = len(rows) - 1
     print(f"  Uploaded {data_rows} data rows to tab '{tab_name}'.")
     return data_rows
+
+
+def classify_publisher_type(publisher: str, type_map: dict[str, str]) -> str:
+    """Return normalized publisher type for color coding."""
+    normalized = normalize_publisher(publisher)
+    if not normalized.strip():
+        return "Other"
+    return type_map.get(normalized, "Other")
+
+
+def build_publisher_type_map() -> dict[str, str]:
+    """Build publisher -> type map using country_formatting groups."""
+    formatting = load_country_formatting()
+    result: dict[str, str] = {}
+    for publisher in formatting["for_profit"].keys():
+        result[normalize_publisher(publisher)] = "For-profit"
+    for publisher in formatting.get("non_profit", {}).keys():
+        result[normalize_publisher(publisher)] = "Non-profit"
+    for publisher in formatting.get("university_press", {}).keys():
+        result[normalize_publisher(publisher)] = "University Press"
+    return result
+
+
+def build_disagreement_publisher_bg_overrides(rows: list[list[str]], type_map: dict[str, str]) -> list[
+    tuple[int, int, str]]:
+    """Return per-cell background overrides for disagreement Publisher value cells.
+
+    Only rows where column == 'Publisher' are considered. The value columns
+    dataset_value/Scimago_value/DOAJ_value/OpenAPC_value are colored by publisher type.
+    """
+    assert rows and len(rows) >= 1, "rows must include a header"
+    header = rows[0]
+    assert "column" in header, f"Missing required column 'column' in header: {header}"
+    col_col = header.index("column")
+    value_cols = [c for c in DISAGREEMENT_VALUE_COLS if c in header]
+    value_indices = [header.index(c) for c in value_cols]
+    overrides: list[tuple[int, int, str]] = []
+    for row_idx, row in enumerate(rows[1:], start=1):
+        row_kind = row[col_col] if col_col < len(row) else ""
+        for col_idx in value_indices:
+            value = row[col_idx].strip() if col_idx < len(row) else ""
+            if row_kind != "Publisher" or not value:
+                color_hex = REPORT_DEFAULT_BG_HEX
+            else:
+                publisher_type = classify_publisher_type(value, type_map)
+                color_hex = PUBLISHER_TYPE_BG_HEX[publisher_type]
+            overrides.append((row_idx, col_idx, color_hex))
+    return overrides
 
 
 def load_disagreements_rows() -> list[list[str]]:
@@ -202,6 +279,9 @@ def load_disagreements_rows() -> list[list[str]]:
     """
     assert DISAGREEMENTS_PATH.exists(), f"Disagreements file not found: {DISAGREEMENTS_PATH}"
     df = pl.read_csv(DISAGREEMENTS_PATH, infer_schema_length=0)
+    missing = [c for c in DISAGREEMENT_REQUIRED_COLUMNS if c not in df.columns]
+    assert not missing, f"Missing disagreement columns in {DISAGREEMENTS_PATH}: {missing}"
+    df = df.select(DISAGREEMENT_REQUIRED_COLUMNS)
     df = df.sort(["column", "journal"])
     rows = df_to_rows(df)
     return apply_issn_hyperlinks(rows)
@@ -209,13 +289,16 @@ def load_disagreements_rows() -> list[list[str]]:
 
 def load_missing_publishers_rows() -> list[list[str]]:
     """Load and sort the missing-publisher report as rows ready for upload.
-    Sorts by 'Publisher' then 'Journal'.
+    Sorts by 'publisher' then 'journal'.
     Returns:
         List of rows including header at index 0.
     """
     assert MISSING_PUBLISHERS_PATH.exists(), f"Missing publishers file not found: {MISSING_PUBLISHERS_PATH}"
     df = pl.read_csv(MISSING_PUBLISHERS_PATH, infer_schema_length=0)
-    df = df.sort(["Publisher", "Journal"])
+    missing = [c for c in MISSING_PUBLISHERS_REQUIRED_COLUMNS if c not in df.columns]
+    assert not missing, f"Missing missing-publisher columns in {MISSING_PUBLISHERS_PATH}: {missing}"
+    df = df.select(MISSING_PUBLISHERS_REQUIRED_COLUMNS)
+    df = df.sort(["publisher", "journal"])
     return df_to_rows(df)
 
 
@@ -251,16 +334,22 @@ def upload_all_fields(service, metadata: dict) -> None:
 def upload_reports(service) -> None:
     """Upload the disagreement and missing-publisher reports to their dedicated tabs.
 
-    Both tabs are deleted and recreated fresh on each run so that stale rows
-    from previous runs are never left behind.
+    Tabs are cleared then rewritten on each run (values only) so formatting and
+    data-validation rules remain intact.
     """
+    type_map = build_publisher_type_map()
+
     print("\nUploading disagreements report ...")
     disagreement_rows = load_disagreements_rows()
-    upload_rows_to_sheet(service, disagreement_rows, "Disagreements", recreate=True)
-
+    upload_rows_to_sheet(service, disagreement_rows, "Disagreements", clear_before_write=True)
+    disagreement_bg = build_disagreement_publisher_bg_overrides(disagreement_rows, type_map)
+    sheets_client.apply_report_formatting(
+        service=service, spreadsheet_id=sheets_client.SPREADSHEET_ID,
+        tab_name="Disagreements", rows_count=len(disagreement_rows), cols_count=len(disagreement_rows[0]),
+        bg_overrides=disagreement_bg)
     print("Uploading missing publishers report ...")
     missing_pub_rows = load_missing_publishers_rows()
-    upload_rows_to_sheet(service, missing_pub_rows, "Missing publishers", recreate=True)
+    upload_rows_to_sheet(service, missing_pub_rows, "Missing publishers", clear_before_write=True)
 
 
 def main() -> None:
@@ -268,7 +357,7 @@ def main() -> None:
         description=(
             "Upload enriched field CSVs and pipeline reports to Google Sheets. "
             "Enriched-data tabs are updated in-place; report tabs (Disagreements, "
-            "Missing publishers) are recreated from scratch."
+            "Missing publishers) are cleared and rewritten while keeping formatting."
         )
     )
     parser.add_argument(

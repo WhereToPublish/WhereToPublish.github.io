@@ -568,6 +568,7 @@ DISAGREEMENT_COLS: list[tuple[str, str | None, str | None, str | None]] = [
 
 REPORT_SCHEMA = {
     "journal": pl.Utf8,
+    "url": pl.Utf8,
     "field": pl.Utf8,
     "column": pl.Utf8,
     "dataset_value": pl.Utf8,
@@ -586,7 +587,7 @@ def has_disagreement(vals: list, col_name: str) -> bool:
     """
     non_null = [v for v in vals if v is not None and str(v).strip() != ""]
     # If contains "(", remove it and everything after to ignore details
-    non_null = [str(v).split("(", 1)[0].strip() if isinstance(v, str) else v for v in non_null]
+    non_null = [str(v).split("(", 1)[0].strip().lower() if isinstance(v, str) else v for v in non_null]
     if len(non_null) < 2:
         return False
     # For business model, if first (dataset) value is "Hybrid" and second (scimago) value is "OA", do not count as disagreement
@@ -650,7 +651,7 @@ def compute_disagreements(enriched_df: pl.DataFrame, scimago_lookup: pl.DataFram
         List of dicts with keys matching _REPORT_SCHEMA.
     """
     dataset_cols = [d for d, *_ in DISAGREEMENT_COLS]
-    needed_cols = ["Journal", "Field", "norm_journal", "alt_journal_norm"] + dataset_cols
+    needed_cols = ["Journal", "Website", "Field", "norm_journal", "alt_journal_norm"] + dataset_cols
     assert all(c in enriched_df.columns for c in needed_cols), (
         f"compute_disagreements: missing columns in enriched_df: "
         f"{[c for c in needed_cols if c not in enriched_df.columns]}"
@@ -674,6 +675,7 @@ def compute_disagreements(enriched_df: pl.DataFrame, scimago_lookup: pl.DataFram
     disagreements: list[dict] = []
     for row in comp_df.iter_rows(named=True):
         journal = str(row["Journal"] or "")
+        url = str(row.get("Website") or "")
         field = str(row["Field"] or "")
 
         for dataset_col, scimago_col, openapc_col, doaj_col in DISAGREEMENT_COLS:
@@ -687,6 +689,7 @@ def compute_disagreements(enriched_df: pl.DataFrame, scimago_lookup: pl.DataFram
 
             disagreements.append({
                 "journal": journal,
+                "url": url,
                 "field": field,
                 "column": dataset_col,
                 "dataset_value": str(dataset_val) if dataset_val is not None else "",
@@ -940,6 +943,9 @@ def main():
         report_df = pl.DataFrame(disagreement_rows, schema=REPORT_SCHEMA)
     else:
         report_df = pl.DataFrame(schema=REPORT_SCHEMA)
+    assert report_df.columns == list(REPORT_SCHEMA.keys()), (
+        f"Disagreement report columns mismatch: {report_df.columns}"
+    )
     report_df.write_csv(report_path)
     print(f"\nDisagreement report written to {report_path} ({len(disagreement_rows)} rows).")
 

@@ -398,8 +398,16 @@ def main():
                 & (pl.col("Publisher").cast(pl.Utf8).str.strip_chars() != "")
                 & ~pl.col("Publisher").is_in(list(all_known_publishers))
             )
-            .select(["Journal", "Publisher"])
-            .sort("Publisher")
+            .select([
+                pl.col("Journal").alias("journal"),
+                pl.col("Publisher").alias("publisher"),
+                pl.col("Country").alias("country"),
+                pl.col("Publisher type").alias("publisher_type"),
+            ])
+            .sort(["publisher", "journal"])
+        )
+        assert missing_pub_df.columns == ["journal", "publisher", "country", "publisher_type"], (
+            f"Unexpected missing publisher report schema: {missing_pub_df.columns}"
         )
         os.makedirs("logs", exist_ok=True)
         missing_pub_path = os.path.join("logs", "missing_publisher_in_configs.csv")

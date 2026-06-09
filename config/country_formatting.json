@@ -20,6 +20,7 @@
     "John Wiley & Sons": "USA",
     "Karger Publishers": "Switzerland",
     "MDPI": "Switzerland",
+    "PAGEPress Publications": "Italy",
     "Pensoft Publishers": "Bulgaria",
     "Portland Press": "UK",
     "Sage Publishing": "USA",
@@ -34,6 +35,7 @@
     "Taylor & Francis Group (Routledge)": "UK",
     "Thieme Group": "Germany",
     "Wolters Kluwer": "Netherlands",
+    "Wolters Kluwer (Ovid Technologies)": "Netherlands / USA",
     "Wolters Kluwer (Lippincott)": "Netherlands / USA",
     "Wolters Kluwer (Akadémiai Kiadó Journals)": "Netherlands / Hungary",
     "World Scientific Publishing": "Singapore"
@@ -42,6 +44,7 @@
     "Cambridge University Press (CUP)": "UK",
     "MIT Press": "USA",
     "Oxford University Press (OUP)": "UK",
+    "Presses Universitaires de France (PUF)": "France",
     "Rockefeller University Press": "USA",
     "University of Chicago Press": "USA"
   },
@@ -58,11 +61,14 @@
     "CSIRO Publishing": "Australia",
     "European Respiratory Society (ERS)": "Switzerland",
     "Cold Spring Harbor (CSH) Laboratory Press": "USA",
+    "J-STAGE": "Japan",
     "JSTOR": "USA",
+    "Korean Society for Microbiology and Biotechnology (KSBMB)": "Republic of Korea (South Korea)",
     "Muséum national d'Histoire naturelle (MNHN)": "France",
     "Microbiology Society": "UK",
     "Public Library of Science (PLoS)": "USA",
     "Peer Community In": "France",
+    "The Company of Biologists": "UK",
     "The Royal Society": "UK"
   }
 }

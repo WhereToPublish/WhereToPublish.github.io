@@ -54,7 +54,7 @@ SOURCE_PRESENCE_COL = {
 }
 
 # Presence column values (ordered from best to worst match)
-PRESENCE_VALUES = ["Yes", "Alternative journal name", "ISSN-L match",
+PRESENCE_VALUES = ["Yes", "With alternative journal name", "ISSN-L match",
                    "e-ISSN match", "p-ISSN match", "Ambiguous", "No"]
 
 # Candidate join key cascade for each source.
@@ -63,28 +63,28 @@ PRESENCE_VALUES = ["Yes", "Alternative journal name", "ISSN-L match",
 CANDIDATE_KEYS: dict[str, list[tuple[str, str, str]]] = {
     "scimago": [
         ("norm_journal", "norm_journal_scimago", "Yes"),
-        ("alt_journal_norm", "norm_journal_scimago", "Alternative journal name"),
+        ("alt_journal_norm", "norm_journal_scimago", "With alternative journal name"),
         ("ISSN-L", "ISSN-L_scimago", "ISSN-L match"),
         ("e-ISSN", "e-ISSN_scimago", "e-ISSN match"),
         ("p-ISSN", "p-ISSN_scimago", "p-ISSN match"),
     ],
     "openapc": [
         ("norm_journal", "norm_journal_openapc", "Yes"),
-        ("alt_journal_norm", "norm_journal_openapc", "Alternative journal name"),
+        ("alt_journal_norm", "norm_journal_openapc", "With alternative journal name"),
         ("ISSN-L", "ISSN-L_openapc", "ISSN-L match"),
         ("e-ISSN", "e-ISSN_openapc", "e-ISSN match"),
         ("p-ISSN", "p-ISSN_openapc", "p-ISSN match"),
     ],
     "doaj": [
         ("norm_journal", "norm_journal_doaj", "Yes"),
-        ("alt_journal_norm", "norm_journal_doaj", "Alternative journal name"),
+        ("alt_journal_norm", "norm_journal_doaj", "With alternative journal name"),
         # DOAJ lookup has no ISSN-L column
         ("e-ISSN", "e-ISSN_doaj", "e-ISSN match"),
         ("p-ISSN", "p-ISSN_doaj", "p-ISSN match"),
     ],
     "dataverse": [
         ("norm_journal", "norm_journal_dataverse", "Yes"),
-        ("alt_journal_norm", "norm_journal_dataverse", "Alternative journal name"),
+        ("alt_journal_norm", "norm_journal_dataverse", "With alternative journal name"),
         # Dataverse lookup has no ISSN columns
     ],
 }
@@ -744,7 +744,7 @@ def compute_presence_and_keys(target_df: pl.DataFrame, lookup_df: pl.DataFrame, 
 
     Presence values (written to presence_col if provided, otherwise internal only):
         "Yes"                    — matched via normalized journal name
-        "Alternative journal name" — matched via alternative journal name
+        "With alternative journal name" — matched via alternative journal name
         "ISSN-L match"           — matched via ISSN-L
         "e-ISSN match"           — matched via e-ISSN
         "p-ISSN match"           — matched via p-ISSN
@@ -898,11 +898,6 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
     """
     print(f"Processing file: {csv_path}")
     target_df = load_csv(csv_path, ignore_errors=True)
-
-    # Migrate legacy column name "Scimago Journal Title" -> "Alternative journal name"
-    if "Scimago Journal Title" in target_df.columns and "Alternative journal name" not in target_df.columns:
-        print(f"  [migrate] Renaming 'Scimago Journal Title' -> 'Alternative journal name' in {csv_path}")
-        target_df = target_df.rename({"Scimago Journal Title": "Alternative journal name"})
 
     # Ensure all FINAL_COLUMNS exist (adds missing columns as nulls, e.g. e-ISSN, p-ISSN, ISSN-L)
     target_df = ensure_columns(target_df)

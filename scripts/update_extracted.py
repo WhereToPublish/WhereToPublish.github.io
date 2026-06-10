@@ -53,44 +53,41 @@ SOURCE_PRESENCE_COL = {
     "openapc": "Present in openAPC",
 }
 
+# Presence column values (ordered from best to worst match)
+PRESENCE_VALUES = ["Yes", "Alternative journal name", "ISSN-L match",
+                   "e-ISSN match", "p-ISSN match", "Ambiguous", "No"]
 
-def validate_no_duplicates_for_join(right_df: pl.DataFrame, join_key: str, left_keys: set, source_name: str) -> None:
-    """Validate that the right DataFrame has no duplicates on the join key for keys that exist in the left DataFrame.
-
-    Args:
-        right_df: Right DataFrame in the join (lookup table)
-        join_key: Column name to check for duplicates in the right DataFrame
-        left_keys: Set of key values from the left DataFrame that will be joined
-        source_name: Name of the data source (for error messages)
-
-    Raises:
-        ValueError: If duplicates are found on the join key for keys that will be joined
-    """
-    # Filter right_df to only include rows where the join key is in left_keys
-    relevant_rows = right_df.filter(pl.col(join_key).is_in(list(left_keys)))
-
-    # Count rows and unique values for the join key in relevant rows
-    total_rows = relevant_rows.height
-    if total_rows == 0:
-        # No matching keys, nothing to validate
-        return
-
-    unique_values = relevant_rows[join_key].n_unique()
-
-    if total_rows != unique_values:
-        duplicates_count = total_rows - unique_values
-        # Find the duplicate values
-        duplicates = relevant_rows.group_by(join_key).agg(
-            pl.count().alias("count")
-        ).filter(pl.col("count") > 1).sort("count", descending=True)
-
-        error_msg = (
-            f"ERROR: Found {duplicates_count} duplicate entries in {source_name} on join key '{join_key}' "
-            f"for keys that will be joined.\n"
-            f"Total relevant rows: {total_rows}, Unique values: {unique_values}\n"
-            f"Top duplicates:\n{duplicates.head(10)}"
-        )
-        raise ValueError(error_msg)
+# Candidate join key cascade for each source.
+# Each entry is (left_col_in_target, right_col_in_lookup, presence_label).
+# Keys are tried in order; once a row gets a non-"No"/non-"Ambiguous" presence it stops.
+CANDIDATE_KEYS: dict[str, list[tuple[str, str, str]]] = {
+    "scimago": [
+        ("norm_journal", "norm_journal_scimago", "Yes"),
+        ("alt_journal_norm", "norm_journal_scimago", "Alternative journal name"),
+        ("ISSN-L", "ISSN-L_scimago", "ISSN-L match"),
+        ("e-ISSN", "e-ISSN_scimago", "e-ISSN match"),
+        ("p-ISSN", "p-ISSN_scimago", "p-ISSN match"),
+    ],
+    "openapc": [
+        ("norm_journal", "norm_journal_openapc", "Yes"),
+        ("alt_journal_norm", "norm_journal_openapc", "Alternative journal name"),
+        ("ISSN-L", "ISSN-L_openapc", "ISSN-L match"),
+        ("e-ISSN", "e-ISSN_openapc", "e-ISSN match"),
+        ("p-ISSN", "p-ISSN_openapc", "p-ISSN match"),
+    ],
+    "doaj": [
+        ("norm_journal", "norm_journal_doaj", "Yes"),
+        ("alt_journal_norm", "norm_journal_doaj", "Alternative journal name"),
+        # DOAJ lookup has no ISSN-L column
+        ("e-ISSN", "e-ISSN_doaj", "e-ISSN match"),
+        ("p-ISSN", "p-ISSN_doaj", "p-ISSN match"),
+    ],
+    "dataverse": [
+        ("norm_journal", "norm_journal_dataverse", "Yes"),
+        ("alt_journal_norm", "norm_journal_dataverse", "Alternative journal name"),
+        # Dataverse lookup has no ISSN columns
+    ],
+}
 
 
 def format_scimago_quartile_from_categories(categories_str: str | None, best_quartile: str | None) -> str | None:
@@ -277,6 +274,7 @@ def load_scimago_lookup(include_titles: bool = False) -> pl.DataFrame:
 
     selected_columns = [
         "norm_journal_scimago",
+        "Journal_scimago",
         "Scimago Rank_scimago",
         "Publisher_scimago",
         "Business model_scimago",
@@ -287,14 +285,11 @@ def load_scimago_lookup(include_titles: bool = False) -> pl.DataFrame:
         "p-ISSN_scimago",
         "ISSN-L_scimago",
     ]
-    if include_titles:
-        selected_columns.insert(0, "Journal_scimago")
-
-    # Keep only necessary columns and remove duplicates
-    return scimago_df.select(selected_columns).unique(subset=["norm_journal_scimago"], keep="first")
+    # Return all rows without deduplication (duplicates handled by compute_presence_and_keys)
+    return scimago_df.select(selected_columns)
 
 
-def load_openapc_lookup(include_titles: bool = False) -> pl.DataFrame:
+def load_openapc_lookup() -> pl.DataFrame:
     """Load and process OpenAPC data into a lookup table.
 
     Uses only the most recent year's records per journal.
@@ -321,18 +316,11 @@ def load_openapc_lookup(include_titles: bool = False) -> pl.DataFrame:
         .alias("p-ISSN_openapc")
     )
 
-    # Normalize journal names first
-    openapc_df = openapc_df.with_columns(
-        pl.col("Journal_openapc").map_elements(norm_name, return_dtype=pl.Utf8).alias("norm_journal_openapc")
-    )
-
     # For each journal, find the most recent year with data
-    max_periods = openapc_df.group_by("norm_journal_openapc").agg(
-        pl.col("period").max().alias("max_period")
-    )
+    max_periods = openapc_df.group_by("Journal_openapc").agg(pl.col("period").max().alias("max_period"))
 
     # Join back to get max_period per row
-    openapc_df = openapc_df.join(max_periods, on="norm_journal_openapc", how="left")
+    openapc_df = openapc_df.join(max_periods, on="Journal_openapc", how="left")
 
     # Keep only records from the most recent year per journal
     openapc_df = openapc_df.filter(pl.col("period") == pl.col("max_period"))
@@ -349,7 +337,6 @@ def load_openapc_lookup(include_titles: bool = False) -> pl.DataFrame:
     # - Majority vote for is_hybrid (if more than 50% are hybrid, mark as Hybrid)
     # - First ISSN values (consistent within a journal)
     agg_expressions = [
-        pl.col("Journal_openapc").mode().first().alias("Journal_openapc"),
         pl.col("APC Euros_openapc").mean().alias("APC Euros_openapc"),
         pl.col("Publisher_openapc").mode().first().alias("Publisher_openapc"),
         pl.when(pl.col("is_hybrid").mean() > 0.5)
@@ -360,7 +347,7 @@ def load_openapc_lookup(include_titles: bool = False) -> pl.DataFrame:
         pl.col("p-ISSN_openapc").drop_nulls().first().alias("p-ISSN_openapc"),
         pl.col("ISSN-L_openapc").drop_nulls().first().alias("ISSN-L_openapc"),
     ]
-    openapc_df = openapc_df.group_by("norm_journal_openapc").agg(agg_expressions)
+    openapc_df = openapc_df.group_by("Journal_openapc").agg(agg_expressions)
     # Normalize publisher names for consistent enrichment and disagreement comparison
     openapc_df = openapc_df.with_columns(
         pl.col("Publisher_openapc").map_elements(normalize_publisher, return_dtype=pl.Utf8).alias("Publisher_openapc")
@@ -374,8 +361,13 @@ def load_openapc_lookup(include_titles: bool = False) -> pl.DataFrame:
     ])
 
     openapc_df = format_APC_Euros(openapc_df, "APC Euros_openapc")
+    # Normalize journal names first
+    openapc_df = openapc_df.with_columns(
+        pl.col("Journal_openapc").map_elements(norm_name, return_dtype=pl.Utf8).alias("norm_journal_openapc")
+    )
     selected_columns = [
         "norm_journal_openapc",
+        "Journal_openapc",
         "APC Euros_openapc",
         "Publisher_openapc",
         "Business model_openapc",
@@ -383,8 +375,6 @@ def load_openapc_lookup(include_titles: bool = False) -> pl.DataFrame:
         "p-ISSN_openapc",
         "ISSN-L_openapc",
     ]
-    if include_titles:
-        selected_columns.insert(1, "Journal_openapc")
     return openapc_df.select(selected_columns)
 
 
@@ -508,6 +498,7 @@ def load_doaj_lookup(include_titles: bool = False) -> pl.DataFrame:
 
     selected_columns = [
         "norm_journal_doaj",
+        "Journal_doaj",
         "Publisher_doaj",
         "Country_doaj",
         "Institution_doaj",
@@ -516,38 +507,29 @@ def load_doaj_lookup(include_titles: bool = False) -> pl.DataFrame:
         "e-ISSN_doaj",
         "p-ISSN_doaj",
     ]
-    if include_titles:
-        selected_columns.insert(0, "Journal_doaj")
-
     # Keep only necessary columns and remove duplicates (keep first occurrence)
-    return doaj_df.select(selected_columns).unique(subset=["norm_journal_doaj"], keep="first")
+    return doaj_df.select(selected_columns)
 
 
 def load_scimago_issn_title_lookup() -> dict[str, list[str]]:
     """Return formatted ISSN -> Scimago title(s) using the canonical lookup loader."""
     return build_issn_title_lookup(
-        load_scimago_lookup(include_titles=True),
-        title_col="Journal_scimago",
-        issn_cols=["e-ISSN_scimago", "p-ISSN_scimago", "ISSN-L_scimago"],
-    )
+        load_scimago_lookup(), title_col="Journal_scimago",
+        issn_cols=["e-ISSN_scimago", "p-ISSN_scimago", "ISSN-L_scimago"])
 
 
 def load_doaj_issn_title_lookup() -> dict[str, list[str]]:
     """Return formatted ISSN -> DOAJ title(s) using the canonical lookup loader."""
     return build_issn_title_lookup(
-        load_doaj_lookup(include_titles=True),
-        title_col="Journal_doaj",
-        issn_cols=["e-ISSN_doaj", "p-ISSN_doaj"],
-    )
+        load_doaj_lookup(), title_col="Journal_doaj",
+        issn_cols=["e-ISSN_doaj", "p-ISSN_doaj"])
 
 
 def load_openapc_issn_title_lookup() -> dict[str, list[str]]:
     """Return formatted ISSN -> OpenAPC title(s) using the canonical lookup loader."""
     return build_issn_title_lookup(
-        load_openapc_lookup(include_titles=True),
-        title_col="Journal_openapc",
-        issn_cols=["e-ISSN_openapc", "p-ISSN_openapc", "ISSN-L_openapc"],
-    )
+        load_openapc_lookup(), title_col="Journal_openapc",
+        issn_cols=["e-ISSN_openapc", "p-ISSN_openapc", "ISSN-L_openapc"])
 
 
 # ---------------------------------------------------------------------------
@@ -601,79 +583,31 @@ def has_disagreement(vals: list, col_name: str) -> bool:
     return len(set(str(v) for v in non_null)) > 1
 
 
-def fetch_source_values(df: pl.DataFrame, lookup_df: pl.DataFrame, right_on: str, cols_to_fetch: list[str],
-                        left_on: str = "norm_journal", fallback_col: str = "alt_journal_norm", ) -> pl.DataFrame:
-    """Fetch source column values via a two-pass left join (primary on left_on, fallback on fallback_col).
+def compute_disagreements(enriched_df: pl.DataFrame) -> list[dict]:
+    """Generate disagreement rows comparing enriched dataset values with source lookup values.
 
-    Returns df with the requested cols_to_fetch appended. Does not modify existing df columns.
-    For cols in cols_to_fetch not present in lookup_df, appends null string columns.
-    """
-    available = [c for c in cols_to_fetch if c in lookup_df.columns]
-    unavailable = [c for c in cols_to_fetch if c not in lookup_df.columns]
-
-    if not available:
-        return df.with_columns([pl.lit(None).cast(pl.Utf8).alias(c) for c in unavailable])
-
-    lookup_subset = lookup_df.select([right_on] + available)
-    has_alt = (pl.col(fallback_col).is_not_null() & (pl.col(fallback_col).cast(pl.Utf8).str.strip_chars() != ""))
-    # Primary join — coalesce=False so we can detect unmatched rows via right_on being null
-    result = df.join(lookup_subset, left_on=left_on, right_on=right_on, how="left", coalesce=False)
-
-    unmatched_mask = pl.col(right_on).is_null() & has_alt
-    if result.filter(unmatched_mask).height > 0:
-        rest = result.filter(~unmatched_mask).drop(right_on)
-        unmatched = result.filter(unmatched_mask).drop([right_on] + available)
-        fallback = unmatched.join(lookup_subset, left_on=fallback_col, right_on=right_on, how="left",
-                                  coalesce=False).drop(right_on)
-        result = pl.concat([rest, fallback], how="diagonal_relaxed")
-    else:
-        result = result.drop(right_on)
-
-    for c in unavailable:
-        result = result.with_columns(pl.lit(None).cast(pl.Utf8).alias(c))
-
-    return result
-
-
-def compute_disagreements(enriched_df: pl.DataFrame, scimago_lookup: pl.DataFrame,
-                          openapc_lookup: pl.DataFrame, doaj_lookup: pl.DataFrame, ) -> list[dict]:
-    """Generate disagreement rows by comparing enriched dataset values with external source values.
-
-    Both the dataset (enriched_df, post format_table) and the lookup tables have fully
-    normalized values (publisher names, business models, ISSNs, APC as integer), so
-    comparison is direct — no additional normalization is applied here.
-    Dataverse is excluded from this report (used for enrichment only).
+    Source columns (Publisher_scimago, APC Euros_openapc, etc.) are already present in
+    enriched_df after the join_and_enrich calls and are used directly — no re-matching needed.
+    Dataverse is excluded (enrichment only, not in disagreement report).
 
     Args:
-        enriched_df: Dataset after enrichment and format_table. Must contain norm_journal,
-                     alt_journal_norm, Journal, Field, and all columns in _DISAGREEMENT_COLS.
+        enriched_df: DataFrame after all join_and_enrich calls and format_table. Must contain
+                     Journal, Website, Field, all dataset columns in DISAGREEMENT_COLS, and
+                     all source columns referenced in DISAGREEMENT_COLS.
+
     Returns:
-        List of dicts with keys matching _REPORT_SCHEMA.
+        List of dicts with keys matching REPORT_SCHEMA.
     """
     dataset_cols = [d for d, *_ in DISAGREEMENT_COLS]
-    needed_cols = ["Journal", "Website", "Field", "norm_journal", "alt_journal_norm"] + dataset_cols
+    all_source_cols = [c for _, s, o, d in DISAGREEMENT_COLS for c in [s, o, d] if c is not None]
+    needed_cols = ["Journal", "Website", "Field"] + dataset_cols + all_source_cols
     assert all(c in enriched_df.columns for c in needed_cols), (
         f"compute_disagreements: missing columns in enriched_df: "
         f"{[c for c in needed_cols if c not in enriched_df.columns]}"
     )
 
-    scimago_cols = [c for _, c, _, _ in DISAGREEMENT_COLS if c is not None]
-    openapc_cols = [c for _, _, c, _ in DISAGREEMENT_COLS if c is not None]
-    doaj_cols = [c for _, _, _, c in DISAGREEMENT_COLS if c is not None]
-
-    comp_df = enriched_df.select(needed_cols)
-    n_rows = comp_df.height
-
-    comp_df = fetch_source_values(comp_df, scimago_lookup, "norm_journal_scimago", scimago_cols)
-    comp_df = fetch_source_values(comp_df, openapc_lookup, "norm_journal_openapc", openapc_cols)
-    comp_df = fetch_source_values(comp_df, doaj_lookup, "norm_journal_doaj", doaj_cols)
-
-    assert comp_df.height == n_rows, (
-        f"BUG: compute_disagreements lost rows: {n_rows} → {comp_df.height}"
-    )
-
     disagreements: list[dict] = []
-    for row in comp_df.iter_rows(named=True):
+    for row in enriched_df.select(needed_cols).iter_rows(named=True):
         journal = str(row["Journal"] or "")
         url = str(row.get("Website") or "")
         field = str(row["Field"] or "")
@@ -701,148 +635,266 @@ def compute_disagreements(enriched_df: pl.DataFrame, scimago_lookup: pl.DataFram
     return disagreements
 
 
-def join_and_update(df: pl.DataFrame, lookup_df: pl.DataFrame, left_on: str, right_on: str,
-                    source: str, totals: dict, only_fill_nulls: bool = False, label: str = "") -> pl.DataFrame:
-    """Join a lookup table, update target columns from it, then drop lookup columns.
+def apply_candidate_key(target_df: pl.DataFrame, lookup_df: pl.DataFrame, left_col: str, right_col: str, label: str,
+                        left_key_col: str, right_key_col: str,
+                        presence_col: str) -> tuple[pl.DataFrame, pl.DataFrame]:
+    """Try to assign one candidate join key pair to unmatched / ambiguous rows.
+
+    For rows in target_df where presence_col is "No" or "Ambiguous":
+    - If left_col value appears exactly once in target_df AND exactly once in lookup_df
+      (clean match) AND the matching lookup row has not yet been claimed:
+        → set left_key_col = left_col value, presence_col = label
+    - If left_col value appears more than once in either table, or the lookup row is
+      already claimed by another match:
+        → set presence_col = "Ambiguous" (only if currently "No")
+
+    Also updates lookup_df: sets right_key_col = right_col value for newly-claimed rows.
 
     Args:
-        df: Target DataFrame.
-        lookup_df: Lookup DataFrame (columns suffixed with _<source>).
-        left_on: Join key in df.
-        right_on: Join key in lookup_df.
-        source: Data source name ("scimago", "openapc", "doaj").
-        totals: Dict accumulating update counts per column.
-        only_fill_nulls: If True, never overwrite existing values (for fallback joins).
-        label: Label for log messages (e.g. "1st pass", "2nd pass").
+        target_df:    Left DataFrame being enriched (has left_key_col and presence_col).
+        lookup_df:    Lookup DataFrame (has right_key_col).
+        left_col:     Column in target_df supplying candidate key values.
+        right_col:    Column in lookup_df supplying candidate key values.
+        label:        Presence label to set on successful match (e.g. "Yes", "e-ISSN match").
+        left_key_col: Column in target_df that stores the resolved join key.
+        right_key_col: Column in lookup_df that stores the resolved join key.
+        presence_col: Column in target_df tracking match status.
 
     Returns:
-        Updated DataFrame with lookup columns removed.
+        Updated (target_df, lookup_df).
     """
-    result = df.join(lookup_df, left_on=left_on, right_on=right_on, how="left", coalesce=False)
-    matches = result.filter(pl.col(right_on).is_not_null()).height
-    print(f"    - {label} matches: {matches}")
+    if left_col not in target_df.columns or right_col not in lookup_df.columns:
+        return target_df, lookup_df
 
-    for col, overwrite in FILE_COLS.get(source, []):
-        source_col = f"{col}_{source}"
-        do_overwrite = overwrite and not only_fill_nulls
-        if do_overwrite:
-            updates = result.filter(pl.col(source_col).is_not_null() &
-                                    (pl.col(col).is_null() |
-                                     (pl.col(col).cast(pl.Utf8) != pl.col(source_col).cast(pl.Utf8)))).height
-            result = result.with_columns(
-                pl.when(pl.col(source_col).is_not_null()).then(pl.col(source_col)).otherwise(pl.col(col)).alias(col)
-            )
-        else:
-            updates = result.filter(pl.col(col).is_null() & pl.col(source_col).is_not_null()).height
-            result = result.with_columns(
-                pl.when(pl.col(col).is_null()).then(pl.col(source_col)).otherwise(pl.col(col)).alias(col)
-            )
-        totals[col] += updates
-        if updates > 0:
-            print(f"\t- '{col}' {'updates' if do_overwrite else 'empty filled'} from {source}: {updates}")
+    is_nonempty_left = (pl.col(left_col).is_not_null() & (pl.col(left_col).cast(pl.Utf8).str.strip_chars() != ""))
+    is_nonempty_right = (pl.col(right_col).is_not_null() & (pl.col(right_col).cast(pl.Utf8).str.strip_chars() != ""))
 
-    # Drop lookup columns to keep DataFrame clean for subsequent joins
-    return result.drop([c for c in lookup_df.columns if c in result.columns])
+    # Count occurrences of candidate key values in each table
+    left_counts = target_df.filter(is_nonempty_left).group_by(left_col).agg(pl.len().alias("_left_count"))
+    right_counts = lookup_df.filter(is_nonempty_right).group_by(right_col).agg(pl.len().alias("_right_count"))
+
+    # Values present in both tables
+    matched = left_counts.join(right_counts, left_on=left_col, right_on=right_col, how="inner")
+    if matched.height == 0:
+        return target_df, lookup_df
+
+    # Clean: unique on both sides; ambiguous: duplicated on either side
+    clean_values = set(matched.filter((pl.col("_left_count") == 1) & (pl.col("_right_count") == 1))[left_col].to_list())
+    ambiguous_values = set(
+        matched.filter((pl.col("_left_count") > 1) | (pl.col("_right_count") > 1))[left_col].to_list())
+
+    if not clean_values and not ambiguous_values:
+        return target_df, lookup_df
+
+    # Lookup rows already claimed by a previous key step
+    claimed_right = set(
+        lookup_df.filter(pl.col(right_key_col).is_not_null()).select(right_col).drop_nulls()[right_col].to_list()
+    )
+
+    available_clean = clean_values - claimed_right  # can be claimed now
+    blocked_clean = clean_values & claimed_right  # clean but lookup row already taken
+    all_ambiguous = ambiguous_values | blocked_clean  # flag as ambiguous
+
+    needs_match = (pl.col(presence_col).is_in(["No", "Ambiguous"]) & is_nonempty_left)
+
+    # Update target_df: assign key and presence in one pass
+    update_exprs = []
+    if available_clean:
+        update_exprs.append(
+            pl.when(needs_match & pl.col(left_col).is_in(list(available_clean)))
+            .then(pl.col(left_col))
+            .otherwise(pl.col(left_key_col))
+            .alias(left_key_col)
+        )
+    if available_clean or all_ambiguous:
+        presence_expr = (
+            pl.when(needs_match & pl.col(left_col).is_in(list(available_clean)))
+            .then(pl.lit(label))
+        )
+        if all_ambiguous:
+            presence_expr = presence_expr.when(
+                (pl.col(presence_col) == "No")
+                & is_nonempty_left
+                & pl.col(left_col).is_in(list(all_ambiguous))
+            ).then(pl.lit("Ambiguous"))
+        presence_expr = presence_expr.otherwise(pl.col(presence_col)).alias(presence_col)
+        update_exprs.append(presence_expr)
+
+    if update_exprs:
+        target_df = target_df.with_columns(update_exprs)
+
+    # Update lookup_df: claim rows for newly-available clean matches
+    if available_clean:
+        lookup_df = lookup_df.with_columns(
+            pl.when(pl.col(right_key_col).is_null() & pl.col(right_col).is_in(list(available_clean)))
+            .then(pl.col(right_col))
+            .otherwise(pl.col(right_key_col))
+            .alias(right_key_col)
+        )
+    return target_df, lookup_df
 
 
-def compute_presence(target_df: pl.DataFrame, lookup_df: pl.DataFrame, right_on: str,
-                     left_on: str, fallback_col: str, presence_col: str) -> pl.DataFrame:
-    """Compute a presence column for a data source before any join takes place.
+def compute_presence_and_keys(target_df: pl.DataFrame, lookup_df: pl.DataFrame, source: str,
+                              presence_col: str | None) -> tuple[pl.DataFrame, pl.DataFrame]:
+    """Compute presence column and unique join keys for a source via the candidate key cascade.
 
-    The column is set to:
-    - "Yes"                         — primary name (norm_journal) matched in the lookup
-    - "With alternative journal name" — primary did NOT match, but alt name matched
-    - "No"                          — neither name matched
+    Tries candidate keys in priority order (norm_journal → alt_journal_norm → ISSN-L →
+    e-ISSN → p-ISSN, as defined in CANDIDATE_KEYS). Each step only operates on rows
+    still labelled "No" or "Ambiguous".
+
+    Presence values (written to presence_col if provided, otherwise internal only):
+        "Yes"                    — matched via normalized journal name
+        "Alternative journal name" — matched via alternative journal name
+        "ISSN-L match"           — matched via ISSN-L
+        "e-ISSN match"           — matched via e-ISSN
+        "p-ISSN match"           — matched via p-ISSN
+        "Ambiguous"              — candidate key found in both tables but duplicated, or
+                                   the only clean lookup row was already claimed
+        "No"                     — no match found by any key
+
+    Adds left_key_{source} to target_df and right_key_{source} to lookup_df.
+    Both columns are null for rows/rows that could not be cleanly matched.
+
+    Asserts that non-null left-key values are unique in target_df and non-null
+    right-key values are unique in lookup_df (guarantees join produces no duplicates).
 
     Args:
         target_df:    Left DataFrame being enriched.
         lookup_df:    Lookup table for this source.
-        right_on:     Join key column name in lookup_df.
-        left_on:      Primary join key column name in target_df (norm_journal).
-        fallback_col: Fallback join key column name in target_df (alt_journal_norm).
-        presence_col: Name to give the new presence column.
+        source:       Source name ("scimago", "openapc", "doaj", "dataverse").
+        presence_col: Column name to write presence info into target_df, or None to
+                      skip writing the presence column (for sources like "dataverse").
 
     Returns:
-        target_df with the presence_col column added/overwritten.
+        (target_df_with_left_key, lookup_df_with_right_key)
     """
-    lookup_keys = set(lookup_df[right_on].drop_nulls().to_list())
-    lookup_keys_list = list(lookup_keys)
+    left_key_col = f"left_key_{source}"
+    right_key_col = f"right_key_{source}"
+    # Use a temporary internal name if no permanent presence column is needed
+    presence_col_alias = presence_col if presence_col is not None else f"_presence_{source}"
 
-    has_alt = (
-            pl.col(fallback_col).is_not_null()
-            & (pl.col(fallback_col).cast(pl.Utf8).str.strip_chars() != "")
-    )
-    primary_matched = pl.col(left_on).is_in(lookup_keys_list)
-    alt_matched = has_alt & pl.col(fallback_col).is_in(lookup_keys_list)
-
-    result = target_df.with_columns(
-        pl.when(primary_matched)
-        .then(pl.lit("Yes"))
-        .when(alt_matched)
-        .then(pl.lit("With alternative journal name"))
-        .otherwise(pl.lit("No"))
-        .alias(presence_col)
+    # Initialize: all rows start with no key and presence "No"
+    target_df = target_df.with_columns([
+        pl.lit(None).cast(pl.Utf8).alias(left_key_col),
+        pl.lit("No").alias(presence_col_alias),
+    ])
+    lookup_df = lookup_df.with_columns(
+        pl.lit(None).cast(pl.Utf8).alias(right_key_col)
     )
 
-    yes_count = result.filter(pl.col(presence_col) == "Yes").height
-    alt_count = result.filter(pl.col(presence_col) == "With alternative journal name").height
-    no_count = result.filter(pl.col(presence_col) == "No").height
-    print(f"    - Presence '{presence_col}': Yes={yes_count}, With alternative journal name={alt_count}, No={no_count}")
-    assert yes_count + alt_count + no_count == result.height, \
-        f"BUG: presence counts don't sum to total rows for {presence_col}"
-    assert result.filter(pl.col(presence_col).is_null()).height == 0, \
-        f"BUG: null values in presence column '{presence_col}'"
+    # Walk through candidate keys in priority order
+    for left_col, right_col, label in CANDIDATE_KEYS[source]:
+        target_df, lookup_df = apply_candidate_key(
+            target_df, lookup_df, left_col, right_col, label,
+            left_key_col, right_key_col, presence_col_alias,
+        )
+
+    # Log presence distribution
+    print(f"  [{source}] presence distribution:")
+    for val in PRESENCE_VALUES:
+        count = target_df.filter(pl.col(presence_col_alias) == val).height
+        if count > 0:
+            print(f"    - {val}: {count}")
+
+    # Drop internal presence column if it was not requested
+    if presence_col is None:
+        target_df = target_df.drop(presence_col_alias)
+
+    # Assert: non-null left_key values are unique in target_df (no duplicate join keys)
+    non_null_left = target_df.filter(pl.col(left_key_col).is_not_null())
+    assert non_null_left[left_key_col].n_unique() == non_null_left.height, (
+        f"BUG: non-null {left_key_col} values are not unique in target_df for source '{source}'. "
+        f"Rows={non_null_left.height}, unique={non_null_left[left_key_col].n_unique()}"
+    )
+
+    # Assert: non-null right_key values are unique in lookup_df (no duplicate join keys)
+    non_null_right = lookup_df.filter(pl.col(right_key_col).is_not_null())
+    assert non_null_right[right_key_col].n_unique() == non_null_right.height, (
+        f"BUG: non-null {right_key_col} values are not unique in lookup_df for source '{source}'. "
+        f"Rows={non_null_right.height}, unique={non_null_right[right_key_col].n_unique()}"
+    )
+
+    return target_df, lookup_df
+
+
+def join_and_enrich(target_df: pl.DataFrame, lookup_df: pl.DataFrame, source: str, totals: dict) -> pl.DataFrame:
+    """Perform a single left join using the pre-computed keys and enrich target columns.
+
+    Joins target_df (left_key_{source}) to lookup_df (right_key_{source}).
+    Applies FILE_COLS[source] enrichment rules (overwrite vs fill-null).
+    Drops the two join-key columns after the join.
+    Source data columns (e.g. Publisher_scimago) are kept in the result for
+    downstream disagreement analysis; they are removed later by select(original_cols).
+
+    Args:
+        target_df:  DataFrame with left_key_{source} column added by compute_presence_and_keys.
+        lookup_df:  Lookup DataFrame with right_key_{source} column added by compute_presence_and_keys.
+        source:     Source name ("scimago", "openapc", "doaj", "dataverse").
+        totals:     Dict accumulating per-column update counts (mutated in-place).
+
+    Returns:
+        Enriched target_df with join-key columns removed.
+    """
+    left_key_col = f"left_key_{source}"
+    right_key_col = f"right_key_{source}"
+
+    result = target_df.join(lookup_df, left_on=left_key_col, right_on=right_key_col, how="left", coalesce=False)
+
+    matches = result.filter(pl.col(right_key_col).is_not_null()).height
+    print(f"  [{source}] join matches: {matches} / {result.height}")
+
+    for col, overwrite in FILE_COLS.get(source, []):
+        source_col = f"{col}_{source}"
+        if source_col not in result.columns:
+            continue
+        if overwrite:
+            updates = result.filter(
+                pl.col(source_col).is_not_null()
+                & (pl.col(col).is_null() | (pl.col(col).cast(pl.Utf8) != pl.col(source_col).cast(pl.Utf8)))
+            ).height
+            result = result.with_columns(
+                pl.when(pl.col(source_col).is_not_null())
+                .then(pl.col(source_col))
+                .otherwise(pl.col(col))
+                .alias(col)
+            )
+        else:
+            updates = result.filter(pl.col(col).is_null() & pl.col(source_col).is_not_null()).height
+            result = result.with_columns(
+                pl.when(pl.col(col).is_null())
+                .then(pl.col(source_col))
+                .otherwise(pl.col(col))
+                .alias(col)
+            )
+        totals[col] += updates
+        if updates > 0:
+            action = "updated" if overwrite else "filled"
+            print(f"\t- '{col}' {action} from {source}: {updates}")
+
+    # Drop join-key columns; keep source data columns for disagreement analysis
+    result = result.drop([left_key_col, right_key_col])
     return result
-
-
-def two_pass_join(target_df: pl.DataFrame, lookup_df: pl.DataFrame, right_on: str, totals: dict, source: str,
-                  left_on: str = "norm_journal", fallback_col: str = "alt_journal_norm") -> pl.DataFrame:
-    """Join on primary key, then on fallback key for unmatched rows.
-
-    The fallback (2nd pass) only fills null values and never overwrites
-    values already set by the primary match.
-    If the source has a presence column defined in SOURCE_PRESENCE_COL, it is
-    computed before the joins and preserved in the result.
-    """
-    print(f"  Performing two-pass join for {source}...")
-    has_fallback = pl.col(fallback_col).is_not_null() & (pl.col(fallback_col).cast(pl.Utf8).str.strip_chars() != "")
-    print(f"    - Total rows: {target_df.height}, {target_df.filter(has_fallback).height} with fallback.")
-
-    # Compute presence column (before any join, so it reflects name-match status)
-    presence_col = SOURCE_PRESENCE_COL.get(source)
-    if presence_col is not None:
-        target_df = compute_presence(target_df, lookup_df, right_on, left_on, fallback_col, presence_col)
-
-    # First pass: join on primary key
-    result_df = join_and_update(target_df, lookup_df, left_on, right_on, source, totals, label="1st pass")
-
-    # Second pass: join unmatched rows on fallback key
-    matched_keys = set(lookup_df[right_on].to_list())
-    nbr_fallback = result_df.filter(has_fallback & ~pl.col(left_on).is_in(list(matched_keys))).height
-    if nbr_fallback > 0:
-        print(f"    - 2nd pass on '{fallback_col}' for {nbr_fallback} unmatched rows...")
-        result_df = join_and_update(result_df, lookup_df, fallback_col, right_on, source, totals,
-                                    only_fill_nulls=True, label="2nd pass")
-    else:
-        print(f"    - No rows for 2nd pass (all matched in 1st pass).")
-    print(f"  Two-pass join for {source} completed.")
-    return result_df
 
 
 def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup: pl.DataFrame,
                      doaj_lookup: pl.DataFrame, dataverse_lookup: pl.DataFrame,
                      pci_friendly_set: set, totals: dict, disagreement_rows: list) -> None:
-    """Process a single CSV file with Scimago, OpenAPC, DOAJ, and Dataverse data using two-pass joins.
+    """Process a single CSV file: enrich with external sources, then write back.
+
+    For each source, compute_presence_and_keys assigns unique join keys via a key-cascade
+    (norm_journal → alt_journal_norm → ISSN-L → e-ISSN → p-ISSN), then join_and_enrich
+    does a single left join and applies enrichment rules. Disagreements between dataset
+    and source values are detected from the joined source columns before cleanup.
 
     Args:
-        csv_path: Path to the CSV file to process
-        scimago_lookup: Scimago lookup table
-        openapc_lookup: OpenAPC lookup table
-        doaj_lookup: DOAJ lookup table
-        dataverse_lookup: APC Dataverse lookup table
-        pci_friendly_set: Set of PCI-friendly journal names
-        totals: Dictionary to accumulate update counts
-        disagreement_rows: List to accumulate disagreement report rows (mutated in-place)
+        csv_path: Path to the CSV file to process.
+        scimago_lookup: Scimago lookup table (not pre-deduplicated).
+        openapc_lookup: OpenAPC lookup table (already aggregated per journal).
+        doaj_lookup: DOAJ lookup table (not pre-deduplicated).
+        dataverse_lookup: APC Dataverse lookup table (already aggregated per journal).
+        pci_friendly_set: Set of normalized PCI-friendly journal names.
+        totals: Dict accumulating per-column update counts (mutated in-place).
+        disagreement_rows: List accumulating disagreement report dicts (mutated in-place).
     """
     print(f"Processing file: {csv_path}")
     target_df = load_csv(csv_path, ignore_errors=True)
@@ -858,46 +910,47 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
     # Use the canonical FINAL_COLUMNS as the set of output columns
     original_cols = FINAL_COLUMNS
 
-    # Add normalized journal names for joining
+    # Normalize ISSN columns before key computation (format_issn is idempotent)
+    target_df = target_df.with_columns([
+        pl.col("e-ISSN").map_elements(format_issn, return_dtype=pl.Utf8).alias("e-ISSN"),
+        pl.col("p-ISSN").map_elements(format_issn, return_dtype=pl.Utf8).alias("p-ISSN"),
+        pl.col("ISSN-L").map_elements(format_issn, return_dtype=pl.Utf8).alias("ISSN-L"),
+    ])
+
+    # Add normalized journal names for key computation
     target_df = target_df.with_columns([
         pl.col("Journal").map_elements(norm_name, return_dtype=pl.Utf8).alias("norm_journal"),
         pl.when(pl.col("Alternative journal name").is_not_null())
         .then(pl.col("Alternative journal name").map_elements(norm_name, return_dtype=pl.Utf8))
         .otherwise(None)
-        .alias("alt_journal_norm")
+        .alias("alt_journal_norm"),
     ])
 
-    # Get the set of keys that will be used for joining
-    left_keys = set(target_df["norm_journal"].unique().to_list())
-    left_keys = left_keys.union(set(target_df["alt_journal_norm"].unique().to_list()))
+    # For each source: compute presence + unique join keys, then do the enrichment join
+    source_lookups = [
+        ("scimago", scimago_lookup),
+        ("openapc", openapc_lookup),
+        ("doaj", doaj_lookup),
+        ("dataverse", dataverse_lookup),
+    ]
+    updated_df = target_df
+    for source, lookup_df in source_lookups:
+        presence_col = SOURCE_PRESENCE_COL.get(source)
+        updated_df, augmented_lookup = compute_presence_and_keys(updated_df, lookup_df, source, presence_col)
+        updated_df = join_and_enrich(updated_df, augmented_lookup, source, totals)
 
-    validate_no_duplicates_for_join(scimago_lookup, "norm_journal_scimago", left_keys, "Scimago")
-    updated_df = two_pass_join(target_df, scimago_lookup, right_on="norm_journal_scimago", source="scimago",
-                               totals=totals)
-
-    validate_no_duplicates_for_join(openapc_lookup, "norm_journal_openapc", left_keys, "OpenAPC")
-    updated_df = two_pass_join(updated_df, openapc_lookup, right_on="norm_journal_openapc", source="openapc",
-                               totals=totals)
-
-    validate_no_duplicates_for_join(doaj_lookup, "norm_journal_doaj", left_keys, "DOAJ")
-    updated_df = two_pass_join(updated_df, doaj_lookup, right_on="norm_journal_doaj", source="doaj", totals=totals)
-
-    validate_no_duplicates_for_join(dataverse_lookup, "norm_journal_dataverse", left_keys, "Dataverse")
-    updated_df = two_pass_join(updated_df, dataverse_lookup, right_on="norm_journal_dataverse", source="dataverse",
-                               totals=totals)
-
-    # Apply formatting and normalization
+    # Apply formatting and normalization (format_table also re-formats ISSNs idempotently)
     updated_df = format_table(updated_df)
     # Mark PCI friendly journals
     updated_df = mark_pci_friendly(updated_df, pci_friendly_set)
 
-    # Compute disagreements from enriched, normalized values (both dataset and lookup tables are fully formatted at this point)
-    new_rows = compute_disagreements(updated_df, scimago_lookup, openapc_lookup, doaj_lookup)
+    # Compute disagreements from enriched values and the source columns still present
+    new_rows = compute_disagreements(updated_df)
     if new_rows:
         print(f"  Disagreements found: {len(new_rows)}")
     disagreement_rows.extend(new_rows)
 
-    # Select original columns only (avoid helper/join columns)
+    # Select original columns only — drops all helper columns (norm_journal, left_key_*, source cols, etc.)
     final_df = updated_df.select(original_cols)
     check_consistency(final_df)
     final_df.write_csv(csv_path)

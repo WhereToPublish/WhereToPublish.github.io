@@ -75,7 +75,16 @@ These rules are applied in the order listed so that a journal with `Subscription
 
 Intermediate files in `data_extracted/` also carry additional columns that are not published to the website:
 - `Alternative journal name` — used as a fallback join key during enrichment when the primary journal name does not match an external source.
-- `Present in Scimago`, `Present in DOAJ`, `Present in openAPC` — set to `"Yes"`, `"With alternative journal name"`, or `"No"` to record whether each journal was matched in the corresponding external source (and whether the match was on the primary or alternative name). These are discarded by `data_process.py`.
+- `Present in Scimago`, `Present in DOAJ`, `Present in openAPC` — records how each journal was matched to the corresponding external source. Possible values:
+  - `"Yes"` — matched via normalized journal name
+  - `"Alternative journal name"` — matched via the alternative journal name
+  - `"ISSN-L match"` — matched via ISSN-L
+  - `"e-ISSN match"` — matched via e-ISSN
+  - `"p-ISSN match"` — matched via p-ISSN
+  - `"Ambiguous"` — a candidate key was found in both tables but was duplicated on one side, or the only matching lookup row was already claimed by another journal
+  - `"No"` — no match found by any key
+  
+  These columns are discarded by `data_process.py`.
 
 ### Data Pipeline
 
@@ -86,6 +95,9 @@ The data is updated monthly via GitHub Actions:
 python3 scripts/download_sheets.py
 
 # 2. Enrich with external sources (Scimago, OpenAPC, DOAJ, Dataverse)
+#    Matches each journal to external sources via a key-cascade:
+#    norm_journal → alternative journal name → ISSN-L → e-ISSN → p-ISSN.
+#    A key is only used when it is unique on both sides; ambiguous matches are flagged.
 #    Also generates logs/disagreements.csv — a CSV report of conflicts between
 #    the dataset and external sources (Scimago, OpenAPC, DOAJ; not Dataverse).
 #    Columns checked: Publisher, Business model, e-ISSN, p-ISSN, APC Euros.
@@ -133,7 +145,7 @@ cd scripts && python data_process.py
 | `scripts/upload_sheets.py` | Uploads enriched `data_extracted/` field CSVs back to Google Sheets (field tabs updated in-place). Also uploads `logs/disagreements.csv` to a **Disagreements** tab and `logs/missing_publisher_in_configs.csv` to a **Missing publishers** tab by clearing tab values then rewriting (tab formatting is preserved). ISSN values in Disagreements value columns are hyperlinked to the ISSN portal for ISSN disagreements. Report tabs are styled on upload (Roboto size 10, left/top alignment, grey header, white data cells); Publisher disagreement value cells are color-coded by publisher type. |
 | `scripts/fetch_sheet.py` | Downloads a single field tab (CLI helper) |
 | `scripts/download_extraction.sh` | Downloads external data sources to `data_extraction/` |
-| `scripts/update_extracted.py` | Enriches raw data with Scimago, OpenAPC, DOAJ, and Dataverse. Also writes `logs/disagreements.csv` — a CSV report of detected conflicts between the dataset and external sources (Scimago, OpenAPC, DOAJ). Columns: `journal`, `url`, `field`, `column`, `dataset_value`, `Scimago_value`, `DOAJ_value`, `OpenAPC_value`. APC disagreements are flagged only when one value is 0 and another is non-zero. |
+| `scripts/update_extracted.py` | Enriches raw data with Scimago, OpenAPC, DOAJ, and Dataverse via a key-cascade (norm_journal → alternative journal name → ISSN-L → e-ISSN → p-ISSN). Keys are only used when unique on both sides; ambiguous matches are flagged. Also writes `logs/disagreements.csv` — a CSV report of detected conflicts between the dataset and external sources (Scimago, OpenAPC, DOAJ). Columns: `journal`, `url`, `field`, `column`, `dataset_value`, `Scimago_value`, `DOAJ_value`, `OpenAPC_value`. APC disagreements are flagged only when one value is 0 and another is non-zero. |
 | `scripts/data_process.py` | Cleans, normalizes, deduplicates, and outputs to `data/`. Also writes `logs/missing_publisher_in_configs.csv` — journals whose publisher (after normalization) is not found in `config/country_formatting.json`, with columns `journal`, `publisher`, `country`, `publisher_type` (sorted by `publisher`, then `journal`). |
 | `scripts/libraries.py` | Shared utility functions |
 | `scripts/sheets_client.py` | Google Sheets API client (shared by download and upload scripts) |

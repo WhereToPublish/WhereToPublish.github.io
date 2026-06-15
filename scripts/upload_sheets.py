@@ -32,7 +32,7 @@ import argparse
 import json
 from pathlib import Path
 import polars as pl
-from libraries import FINAL_COLUMNS, load_country_formatting, normalize_publisher
+from libraries import FINAL_COLUMNS
 import sheets_client
 
 INPUT_DIR = Path("data_extracted")
@@ -52,8 +52,10 @@ DISAGREEMENT_VALUE_COLS: list[str] = [
 ]
 
 DISAGREEMENT_REQUIRED_COLUMNS: list[str] = [
+    "priority",
     "journal",
     "url",
+    "publisher_type",
     "field",
     "column",
     "dataset_value",
@@ -70,12 +72,6 @@ MISSING_PUBLISHERS_REQUIRED_COLUMNS: list[str] = [
 ]
 
 REPORT_DEFAULT_BG_HEX = "FFFFFF"
-PUBLISHER_TYPE_BG_HEX: dict[str, str] = {
-    "For-profit": "FBE7E7",
-    "Non-profit": "EEF5EB",
-    "University Press": "E9F2FA",
-    "Other": "F4EDE1",
-}
 
 
 def issn_hyperlink(issn: str) -> str:
@@ -223,28 +219,7 @@ def upload_rows_to_sheet(service, rows: list[list], tab_name: str, spreadsheet_i
     return data_rows
 
 
-def classify_publisher_type(publisher: str, type_map: dict[str, str]) -> str:
-    """Return normalized publisher type for color coding."""
-    normalized = normalize_publisher(publisher)
-    if not normalized.strip():
-        return "Other"
-    return type_map.get(normalized, "Other")
-
-
-def build_publisher_type_map() -> dict[str, str]:
-    """Build publisher -> type map using country_formatting groups."""
-    formatting = load_country_formatting()
-    result: dict[str, str] = {}
-    for publisher in formatting["for_profit"].keys():
-        result[normalize_publisher(publisher)] = "For-profit"
-    for publisher in formatting.get("non_profit", {}).keys():
-        result[normalize_publisher(publisher)] = "Non-profit"
-    for publisher in formatting.get("university_press", {}).keys():
-        result[normalize_publisher(publisher)] = "University Press"
-    return result
-
-
-def build_disagreement_publisher_bg_overrides(rows: list[list[str]], type_map: dict[str, str]) -> list[
+def build_disagreement_publisher_bg_overrides(rows: list[list[str]]) -> list[
     tuple[int, int, str]]:
     """Return per-cell background overrides for disagreement Publisher value cells.
 
@@ -253,22 +228,19 @@ def build_disagreement_publisher_bg_overrides(rows: list[list[str]], type_map: d
     """
     assert rows and len(rows) >= 1, "rows must include a header"
     header = rows[0]
-    assert "column" in header, f"Missing required column 'column' in header: {header}"
-    col_col = header.index("column")
     value_cols = [c for c in DISAGREEMENT_VALUE_COLS if c in header]
     value_indices = [header.index(c) for c in value_cols]
     overrides: list[tuple[int, int, str]] = []
     for row_idx, row in enumerate(rows[1:], start=1):
-        row_kind = row[col_col] if col_col < len(row) else ""
         for col_idx in value_indices:
             value = row[col_idx].strip() if col_idx < len(row) else ""
-            if row_kind != "Publisher" or not value:
-                color_hex = REPORT_DEFAULT_BG_HEX
+            if value and value.startswith('#'):
+                color_hex = value.split(';')[0]
+                rows[row_idx][col_idx] = ";".join(value.split(';')[-1:]).strip()
             else:
-                publisher_type = classify_publisher_type(value, type_map)
-                color_hex = PUBLISHER_TYPE_BG_HEX[publisher_type]
+                color_hex = REPORT_DEFAULT_BG_HEX
             overrides.append((row_idx, col_idx, color_hex))
-    return overrides
+    return overrides, rows
 
 
 def load_disagreements_rows() -> list[list[str]]:
@@ -282,7 +254,6 @@ def load_disagreements_rows() -> list[list[str]]:
     missing = [c for c in DISAGREEMENT_REQUIRED_COLUMNS if c not in df.columns]
     assert not missing, f"Missing disagreement columns in {DISAGREEMENTS_PATH}: {missing}"
     df = df.select(DISAGREEMENT_REQUIRED_COLUMNS)
-    df = df.sort(["column", "journal"])
     rows = df_to_rows(df)
     return apply_issn_hyperlinks(rows)
 
@@ -337,12 +308,12 @@ def upload_reports(service) -> None:
     Tabs are cleared then rewritten on each run (values only) so formatting and
     data-validation rules remain intact.
     """
-    type_map = build_publisher_type_map()
 
     print("\nUploading disagreements report ...")
     disagreement_rows = load_disagreements_rows()
+    disagreement_bg, disagreement_rows = build_disagreement_publisher_bg_overrides(disagreement_rows)
     upload_rows_to_sheet(service, disagreement_rows, "Disagreements", clear_before_write=True)
-    disagreement_bg = build_disagreement_publisher_bg_overrides(disagreement_rows, type_map)
+    print("Applying disagreement report background color formatting ...")
     sheets_client.apply_report_formatting(
         service=service, spreadsheet_id=sheets_client.SPREADSHEET_ID,
         tab_name="Disagreements", rows_count=len(disagreement_rows), cols_count=len(disagreement_rows[0]),

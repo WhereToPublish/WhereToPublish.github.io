@@ -459,6 +459,27 @@ def load_country_formatting() -> dict[str, dict[str, str]]:
     return data
 
 
+def build_publisher_type_map() -> dict[str, str]:
+    """Build publisher -> type map using country_formatting groups."""
+    formatting = load_country_formatting()
+    result: dict[str, str] = {}
+    for publisher in formatting["for_profit"].keys():
+        result[normalize_publisher(publisher)] = "For-profit"
+    for publisher in formatting.get("non_profit", {}).keys():
+        result[normalize_publisher(publisher)] = "Non-profit"
+    for publisher in formatting.get("university_press", {}).keys():
+        result[normalize_publisher(publisher)] = "University Press"
+    return result
+
+
+def classify_publisher_type(publisher: str, type_map: dict[str, str]) -> str:
+    """Return normalized publisher type for color coding."""
+    normalized = normalize_publisher(publisher)
+    if not normalized.strip():
+        return "Other"
+    return type_map.get(normalized, "Other")
+
+
 def derive_country_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
     """Derive 'Country' from known 'Publisher' names when 'Country' is missing/empty.
     Publisher→country mapping is loaded from config/country_formatting.json (all 3 groups).
@@ -633,6 +654,31 @@ def infer_institution_type(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
+def format_publisher_type(name: str) -> str:
+    """Normalize publisher type values.
+    "for-profit" -> "For-profit"
+    "university press" -> "University Press"
+    "non-profit" -> "Non-profit"
+    """
+    if name is None:
+        return ""
+    s = str(name).strip().lower()
+    mapping = {
+        "for-profit": "For-profit",
+        "for profit": "For-profit",
+        "forprofit": "For-profit",
+        "university press": "University Press",
+        "university_press": "University Press",
+        "non-profit": "Non-profit",
+        "non profit": "Non-profit",
+        "nonprofit": "Non-profit",
+    }
+    if s in mapping:
+        return mapping[s]
+    else:
+        return name.strip().replace("Society-run", "Society-Run")  # Preserve Society-Run suffix if present
+
+
 def infer_publisher_type_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
     """Infer 'Publisher type' from known publisher names when Publisher type is empty/null.
 
@@ -750,6 +796,10 @@ def format_table(df: pl.DataFrame) -> pl.DataFrame:
     )
     df = df.with_columns(
         pl.col("Publisher").map_elements(normalize_publisher, return_dtype=pl.Utf8).alias("Publisher")
+    )
+    # Format publisher type
+    df = df.with_columns(
+        pl.col("Publisher type").map_elements(format_publisher_type, return_dtype=pl.Utf8).alias("Publisher type")
     )
     # Force Business model to 'OA diamond' for all "Peer Community In" journals
     df = df.with_columns(

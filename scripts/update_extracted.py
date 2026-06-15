@@ -1,6 +1,7 @@
 import datetime
 import os
 from glob import glob
+from collections import Counter, defaultdict
 from libraries import *
 import re
 
@@ -87,6 +88,12 @@ CANDIDATE_KEYS: dict[str, list[tuple[str, str, str]]] = {
         ("alt_journal_norm", "norm_journal_dataverse", "With alternative journal name"),
         # Dataverse lookup has no ISSN columns
     ],
+}
+PUBLISHER_TYPE_BG_HEX: dict[str, str] = {
+    "For-profit": "FBE7E7",
+    "Non-profit": "EEF5EB",
+    "University Press": "E9F2FA",
+    "Other": "F4EDE1",
 }
 
 
@@ -205,7 +212,7 @@ def build_issn_title_lookup(lookup_df: pl.DataFrame, title_col: str, issn_cols: 
     return lookup
 
 
-def load_scimago_lookup(include_titles: bool = False) -> pl.DataFrame:
+def load_scimago_lookup() -> pl.DataFrame:
     """Load and process Scimago data into a lookup table.
 
     Returns:
@@ -437,7 +444,7 @@ def load_dataverse_lookup() -> pl.DataFrame:
     return format_APC_Euros(dataverse_df, "APC Euros_dataverse")
 
 
-def load_doaj_lookup(include_titles: bool = False) -> pl.DataFrame:
+def load_doaj_lookup() -> pl.DataFrame:
     """Load and process DOAJ data into a lookup table.
 
     Returns:
@@ -549,8 +556,10 @@ DISAGREEMENT_COLS: list[tuple[str, str | None, str | None, str | None]] = [
 ]
 
 REPORT_SCHEMA = {
+    "priority": pl.Utf8,
     "journal": pl.Utf8,
     "url": pl.Utf8,
+    "publisher_type": pl.Utf8,
     "field": pl.Utf8,
     "column": pl.Utf8,
     "dataset_value": pl.Utf8,
@@ -583,6 +592,59 @@ def has_disagreement(vals: list, col_name: str) -> bool:
     return len(set(str(v) for v in non_null)) > 1
 
 
+def clean_variable(v):
+    return str(v).split("(", 1)[0].strip().lower() if isinstance(v, str) else v
+
+
+def calculate_disagreement_priority(dataset_val, source_vals_dict, col_name: str,
+                                    source_publisher_types: dict[str, str | None]) -> str:
+    """Calculate priority for a disagreement row.
+
+    Args:
+        dataset_val: Value in our dataset
+        source_vals_dict: Dict mapping source name to value (e.g. {"scimago": val, "openapc": val, "doaj": val})
+        col_name: Column name ("Publisher", "Business model", etc.)
+        dataset_publisher_type: Publisher type in our dataset
+        source_publisher_types: Dict mapping source name to publisher type
+
+    Returns:
+        "High" or "Low"
+    """
+    priority = "Low"
+    # Publisher disagreement: if any external source has a different publisher type (non-"Other") than dataset → High
+    if col_name == "Publisher":
+        for source_name, source_pub_type in source_publisher_types.items():
+            # Skip "Other" types as we don't have info on them
+            if source_pub_type and source_pub_type != "Other" and source_pub_type != source_publisher_types.get(
+                    "dataset"):
+                priority = "High"
+
+    # If sources are disagreeing with dataset → higher priority
+    non_null_sources = [v for v in source_vals_dict.values() if v is not None and str(v).strip() != ""]
+    if len(non_null_sources) >= 2:
+        # Normalize for comparison (remove text after parenthesis)
+        cleaned = [clean_variable(v) for v in non_null_sources]
+        dataset_cleaned = clean_variable(dataset_val)
+        # If all disagreeing sources agree on the same value that is different from dataset → high priority
+        if len(set(cleaned)) == 1 and cleaned[0] != dataset_cleaned:
+            priority = "Highest" if priority == "High" else "High"
+
+        # If at least two sources agree on the same value that is different from dataset → normal priority
+        elif Counter([v for v in cleaned if v != dataset_cleaned]).most_common(1)[0][1] >= 2:
+            priority = "Medium" if priority == "Low" else priority
+    return priority
+
+
+def color_value(val, publisher_type: str = None) -> str | None:
+    if val is None:
+        return ""
+
+    if publisher_type and publisher_type in PUBLISHER_TYPE_BG_HEX:
+        return f"#{PUBLISHER_TYPE_BG_HEX[publisher_type]}; {val}"
+    else:
+        return str(val)
+
+
 def compute_disagreements(enriched_df: pl.DataFrame) -> list[dict]:
     """Generate disagreement rows comparing enriched dataset values with source lookup values.
 
@@ -600,17 +662,19 @@ def compute_disagreements(enriched_df: pl.DataFrame) -> list[dict]:
     """
     dataset_cols = [d for d, *_ in DISAGREEMENT_COLS]
     all_source_cols = [c for _, s, o, d in DISAGREEMENT_COLS for c in [s, o, d] if c is not None]
-    needed_cols = ["Journal", "Website", "Field"] + dataset_cols + all_source_cols
+    needed_cols = ["Journal", "Website", "Publisher type", "Field"] + dataset_cols + all_source_cols
     assert all(c in enriched_df.columns for c in needed_cols), (
         f"compute_disagreements: missing columns in enriched_df: "
         f"{[c for c in needed_cols if c not in enriched_df.columns]}"
     )
 
     disagreements: list[dict] = []
+    type_map = build_publisher_type_map()
     for row in enriched_df.select(needed_cols).iter_rows(named=True):
         journal = str(row["Journal"] or "")
         url = str(row.get("Website") or "")
         field = str(row["Field"] or "")
+        publisher_type = str(row.get("Publisher type") or "")
 
         for dataset_col, scimago_col, openapc_col, doaj_col in DISAGREEMENT_COLS:
             dataset_val = row.get(dataset_col)
@@ -621,15 +685,29 @@ def compute_disagreements(enriched_df: pl.DataFrame) -> list[dict]:
             if not has_disagreement([dataset_val, scimago_val, openapc_val, doaj_val], dataset_col):
                 continue
 
+            # Extract publisher types for source-specific logic
+            dico_pt = defaultdict(str)
+            if dataset_col == "Publisher":
+                # Try to infer publisher types from publisher names
+                for source_name, source_col in [("scimago", scimago_col), ("openapc", openapc_col), ("doaj", doaj_col)]:
+                    if source_col and source_col in row:
+                        dico_pt[source_name] = classify_publisher_type(row.get(source_col), type_map)
+                dico_pt["dataset"] = publisher_type.replace("Society-Run", "").strip()
+
+            priority = calculate_disagreement_priority(
+                dataset_val, {"scimago": scimago_val, "openapc": openapc_val, "doaj": doaj_val}, dataset_col, dico_pt)
+
             disagreements.append({
+                "priority": priority,
                 "journal": journal,
                 "url": url,
+                "publisher_type": publisher_type,
                 "field": field,
                 "column": dataset_col,
-                "dataset_value": str(dataset_val) if dataset_val is not None else "",
-                "Scimago_value": str(scimago_val) if scimago_val is not None else "",
-                "DOAJ_value": str(doaj_val) if doaj_val is not None else "",
-                "OpenAPC_value": str(openapc_val) if openapc_val is not None else "",
+                "dataset_value": color_value(dataset_val, dico_pt["dataset"]),
+                "Scimago_value": color_value(scimago_val, dico_pt["scimago"]),
+                "DOAJ_value": color_value(doaj_val, dico_pt["doaj"]),
+                "OpenAPC_value": color_value(openapc_val, dico_pt["openapc"]),
             })
 
     return disagreements
@@ -991,9 +1069,12 @@ def main():
         report_df = pl.DataFrame(disagreement_rows, schema=REPORT_SCHEMA)
     else:
         report_df = pl.DataFrame(schema=REPORT_SCHEMA)
-    assert report_df.columns == list(REPORT_SCHEMA.keys()), (
-        f"Disagreement report columns mismatch: {report_df.columns}"
-    )
+    assert report_df.columns == list(REPORT_SCHEMA.keys()), f"Disagreement col mismatch: {report_df.columns}"
+    # Sort by priority (High first), then by column, then by journal
+    report_df = report_df.with_columns(
+        pl.col("priority").map_elements(lambda p: {"Highest": 1, "High": 2, "Medium": 3, "Low": 4}.get(p, 5),
+                                        return_dtype=pl.Int64).alias("_ps")
+    ).sort(["_ps", "column", "journal"]).drop("_ps")
     report_df.write_csv(report_path)
     print(f"\nDisagreement report written to {report_path} ({len(disagreement_rows)} rows).")
 

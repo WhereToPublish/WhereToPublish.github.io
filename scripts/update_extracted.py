@@ -90,6 +90,7 @@ CANDIDATE_KEYS: dict[str, list[tuple[str, str, str]]] = {
     ],
 }
 PUBLISHER_TYPE_BG_HEX: dict[str, str] = {
+    "Predatory For-profit": "EDEDED",
     "For-profit": "FBE7E7",
     "Non-profit": "EEF5EB",
     "University Press": "E9F2FA",

@@ -46,6 +46,7 @@ def download_country_formatting(service) -> None:
     """Download publisher\u2192country mappings from the 'variables' tab and save to config/country_formatting.json.
 
     Reads three publisher groups from the variables tab:
+      - "main Predatory For-profit Publishers"         + the column immediately to its right
       - "main For-profit Publishers"         + the column immediately to its right
       - "main University Press Publishers"   + the column immediately to its right
       - "main non-profit Publishers"         + the column immediately to its right
@@ -68,7 +69,7 @@ def download_country_formatting(service) -> None:
 
     header = rows[0]
 
-    def _build_dict(pub_col_name: str) -> dict[str, str]:
+    def build_dict_publishers(pub_col_name: str) -> dict[str, str]:
         """Build a publisher\u2192country dict using the column immediately right of pub_col_name."""
         assert pub_col_name in header, (
             f"Column '{pub_col_name}' not found in '{sheets_client.VARIABLES_TAB_NAME}' header: {header}"
@@ -86,9 +87,10 @@ def download_country_formatting(service) -> None:
                 result[pub] = country
         return result
 
-    for_profit = _build_dict("main For-profit Publishers")
-    university_press = _build_dict("main University Press Publishers")
-    non_profit = _build_dict("main non-profit Publishers")
+    for_profit = build_dict_publishers("main For-profit Publishers")
+    predatory_for_profit = build_dict_publishers("main Predatory For-profit Publishers")
+    university_press = build_dict_publishers("main University Press Publishers")
+    non_profit = build_dict_publishers("main non-profit Publishers")
 
     assert len(for_profit) >= 1, (
         f"For-profit publisher dict is empty after reading '{sheets_client.VARIABLES_TAB_NAME}' tab."
@@ -96,6 +98,7 @@ def download_country_formatting(service) -> None:
 
     country_data = {
         "for_profit": for_profit,
+        "predatory_for_profit": predatory_for_profit,
         "university_press": university_press,
         "non_profit": non_profit,
     }
@@ -103,10 +106,10 @@ def download_country_formatting(service) -> None:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     out_path = CONFIG_DIR / "country_formatting.json"
     out_path.write_text(json.dumps(country_data, ensure_ascii=False, indent=2), encoding="utf-8")
-    total = len(for_profit) + len(university_press) + len(non_profit)
+    total = len(for_profit) + len(predatory_for_profit) + len(university_press) + len(non_profit)
     print(
         f"  Saved {total} publisher\u2192country entries to {out_path} "
-        f"({len(for_profit)} for-profit, {len(university_press)} university press, {len(non_profit)} non-profit)"
+        f"({len(for_profit)} for-profit, {len(predatory_for_profit)} predatory for-profit, {len(university_press)} university press, {len(non_profit)} non-profit)"
     )
 
     # Remove temp raw CSV

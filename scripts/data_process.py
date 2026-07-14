@@ -56,15 +56,20 @@ def ensure_columns_and_order(df: pl.DataFrame) -> pl.DataFrame:
     return df
 
 
-def drop_empty_journals(df: pl.DataFrame, source_name: str) -> pl.DataFrame:
+def drop_empty_and_predatory_journals(df: pl.DataFrame, source_name: str) -> pl.DataFrame:
     """Drop rows where Journal is null or empty after trimming."""
     before = df.height
     df = df.with_columns(Journal=pl.col("Journal").cast(pl.Utf8).str.strip_chars())
     df = df.filter(pl.col("Journal").is_not_null() & (pl.col("Journal") != ""))
-    after = df.height
-    removed = before - after
+    after_empty = df.height
+    removed = before - after_empty
     if removed > 0:
         print(f"Info: removed {removed} row(s) with empty Journal in {source_name}.")
+    df = df.filter(~pl.col("Publisher type").cast(pl.Utf8).str.contains("Predatory", literal=True))
+    after_predatory = df.height
+    predatory_removed = after_empty - after_predatory
+    if predatory_removed > 0:
+        print(f"Info: removed {predatory_removed} row(s) with Predatory publisher in {source_name}.")
     return df
 
 
@@ -90,7 +95,8 @@ def merge_field_values(values: list) -> str:
             unique_fields.add(str(v).strip())
 
     if len(unique_fields) > 3:
-        print(f"\t[merge_field_values] WARNING: More than 3 unique Field values found: {unique_fields} from options={values}")
+        print(
+            f"\t[merge_field_values] WARNING: More than 3 unique Field values found: {unique_fields} from options={values}")
         unique_fields = set([f.split("-")[0].strip() for f in unique_fields])
         print(f"\t[merge_field_values] After simplification, unique Field values: {unique_fields}")
 
@@ -327,7 +333,7 @@ def main():
         print(f"Processing file: {csv_path}")
         df = load_csv(csv_path)
         # Drop rows with empty/null Journal
-        df = drop_empty_journals(df, os.path.basename(csv_path))
+        df = drop_empty_and_predatory_journals(df, os.path.basename(csv_path))
         df = project_to_final_string_schema(df)
 
         # Backfill Field
@@ -388,9 +394,10 @@ def main():
         # This helps identify publishers missing from the configuration table.
         formatting = load_country_formatting()
         all_known_publishers = (
-            set(formatting["for_profit"].keys())
-            | set(formatting.get("university_press", {}).keys())
-            | set(formatting.get("non_profit", {}).keys())
+                set(formatting["for_profit"].keys())
+                | set(formatting.get("university_press", {}).keys())
+                | set(formatting.get("non_profit", {}).keys())
+                | set(formatting.get("predatory_for_profit", {}).keys())
         )
         missing_pub_df = (
             all_df.filter(

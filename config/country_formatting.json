@@ -12,14 +12,12 @@
     "Elsevier": "Netherlands",
     "Elsevier (Academic Press)": "Netherlands / USA",
     "Elsevier (Cell Press)": "Netherlands / USA",
-    "Frontiers Media SA": "Switzerland",
     "Hogrefe Publishing Group": "Germany",
     "Human Kinetics": "USA",
     "Inderscience Publishers": "Switzerland",
     "John Libbey Eurotext": "France",
     "John Wiley & Sons": "USA",
     "Karger Publishers": "Switzerland",
-    "MDPI": "Switzerland",
     "PAGEPress Publications": "Italy",
     "Pensoft Publishers": "Bulgaria",
     "Portland Press": "UK",
@@ -39,6 +37,10 @@
     "Wolters Kluwer (Lippincott)": "Netherlands / USA",
     "Wolters Kluwer (Akadémiai Kiadó Journals)": "Netherlands / Hungary",
     "World Scientific Publishing": "Singapore"
+  },
+  "predatory_for_profit": {
+    "MDPI": "Switzerland",
+    "Frontiers Media SA": "Switzerland"
   },
   "university_press": {
     "Cambridge University Press (CUP)": "UK",

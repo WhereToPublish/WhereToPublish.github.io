@@ -446,13 +446,12 @@ def load_country_formatting() -> dict[str, dict[str, str]]:
     """
     with open(COUNTRY_FORMATTING_PATH, encoding="utf-8") as f:
         data = json.load(f)
-    assert isinstance(data, dict) and "for_profit" in data and "non_profit" in data and "university_press" in data, (
-        "Expected keys 'for_profit', 'university_press', and 'non_profit' in country formatting data"
-    )
-    assert isinstance(data["for_profit"], dict) and isinstance(data["non_profit"], dict) and isinstance(
-        data["university_press"], dict), (
-        "Expected 'for_profit', 'university_press', and 'non_profit' to be dicts in country formatting data"
-    )
+    expected_keys = {"for_profit", "predatory_for_profit", "university_press", "non_profit"}
+    assert isinstance(data, dict) and expected_keys.issubset(
+        data.keys()), f"Expected keys {expected_keys} in {COUNTRY_FORMATTING_PATH}, got {list(data.keys())}"
+    for key in data:
+        if not isinstance(data[key], dict):
+            raise ValueError(f"Expected '{key}' to be a dict in {COUNTRY_FORMATTING_PATH}, got {type(data[key])}")
     assert len(data["for_profit"]) > 0, (
         f"'for_profit' dict is empty in {COUNTRY_FORMATTING_PATH}"
     )
@@ -465,6 +464,8 @@ def build_publisher_type_map() -> dict[str, str]:
     result: dict[str, str] = {}
     for publisher in formatting["for_profit"].keys():
         result[normalize_publisher(publisher)] = "For-profit"
+    for publisher in formatting.get("predatory_for_profit", {}).keys():
+        result[normalize_publisher(publisher)] = "Predatory For-profit"
     for publisher in formatting.get("non_profit", {}).keys():
         result[normalize_publisher(publisher)] = "Non-profit"
     for publisher in formatting.get("university_press", {}).keys():
@@ -657,6 +658,7 @@ def infer_institution_type(df: pl.DataFrame) -> pl.DataFrame:
 def format_publisher_type(name: str) -> str:
     """Normalize publisher type values.
     "for-profit" -> "For-profit"
+    "predatory for-profit" -> "Predatory For-profit"
     "university press" -> "University Press"
     "non-profit" -> "Non-profit"
     """
@@ -667,6 +669,8 @@ def format_publisher_type(name: str) -> str:
         "for-profit": "For-profit",
         "for profit": "For-profit",
         "forprofit": "For-profit",
+        "predatory for-profit": "Predatory For-profit",
+        "predatory for profit": "Predatory For-profit",
         "university press": "University Press",
         "university_press": "University Press",
         "non-profit": "Non-profit",
@@ -684,6 +688,7 @@ def infer_publisher_type_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
 
     Publisher name sets are loaded from config/country_formatting.json:
       - 'for_profit' keys  → 'For-profit'
+      - 'predatory_for_profit' keys → 'Predatory For-profit'
       - 'university_press' keys → 'University Press'
       - 'non_profit' keys  → 'Non-profit'
 
@@ -694,12 +699,13 @@ def infer_publisher_type_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
     for_profit_pubs = set(formatting["for_profit"].keys())
     university_press_pubs = set(formatting.get("university_press", {}).keys())
     non_profit_pubs = set(formatting.get("non_profit", {}).keys())
+    predatory_for_profit_pubs = set(formatting.get("predatory_for_profit", {}).keys())
 
     pub = pl.col("Publisher").cast(pl.Utf8)
     empty_pubtype = pl.col("Publisher type").is_null() | (
             pl.col("Publisher type").cast(pl.Utf8).str.strip_chars() == ""
     )
-
+    contains_society_run = pub.str.contains(r"Society-Run")
     df = df.with_columns(
         pl.when(empty_pubtype & pub.is_in(for_profit_pubs))
         .then(pl.lit("For-profit"))
@@ -707,6 +713,10 @@ def infer_publisher_type_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
         .then(pl.lit("University Press"))
         .when(empty_pubtype & pub.is_in(non_profit_pubs))
         .then(pl.lit("Non-profit"))
+        .when(pub.is_in(predatory_for_profit_pubs) & contains_society_run)
+        .then(pl.lit("Predatory For-profit Society-Run"))
+        .when(pub.is_in(predatory_for_profit_pubs) & ~contains_society_run)
+        .then(pl.lit("Predatory For-profit"))
         .when(empty_pubtype & pub.str.contains(r"University Press"))
         .then(pl.lit("University Press"))
         .otherwise(pl.col("Publisher type"))
@@ -857,6 +867,8 @@ def normalize_publisher_type(name: str) -> str:
         return "For-profit associated with a society"
     elif "for-profit" in s and "associated" in s:
         return name.strip()
+    elif "predatory" in s and "for-profit" in s:
+        return "Predatory For-profit"
     elif "for-profit" in s:
         return "For-profit"
     elif "university press" in s and "society" in s:

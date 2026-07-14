@@ -683,6 +683,15 @@ def format_publisher_type(name: str) -> str:
         return name.strip().replace("Society-run", "Society-Run")  # Preserve Society-Run suffix if present
 
 
+def publisher_type_base_category(publisher_type: str) -> str:
+    """Return the base publisher-type category, stripping society-run variants.
+    Unknown or empty values are returned as "Other".
+    """
+    s = format_publisher_type(publisher_type)
+    if s == "":
+        return "Other"
+    return s.replace("Society-Run", "").strip()
+
 def infer_publisher_type_from_publisher(df: pl.DataFrame) -> pl.DataFrame:
     """Infer 'Publisher type' from known publisher names when Publisher type is empty/null.
 

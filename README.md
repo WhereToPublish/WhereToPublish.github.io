@@ -99,10 +99,18 @@ python3 scripts/download_sheets.py
 #    norm_journal → alternative journal name → ISSN-L → e-ISSN → p-ISSN.
 #    A key is only used when it is unique on both sides; ambiguous matches are flagged.
 #    Also generates logs/disagreements.csv — a CSV report of conflicts between
-#    the dataset and external sources (Scimago, OpenAPC, DOAJ; not Dataverse).
-#    Columns checked: Publisher, Business model, e-ISSN, p-ISSN, APC Euros.
-#    Report columns: journal, url, field, column, dataset_value, Scimago_value,
-#    DOAJ_value, OpenAPC_value.
+#    the dataset and external sources (Scimago, OpenAPC, DOAJ; not Dataverse),
+#    plus an internal consistency check on Publisher type.
+#    External columns checked: Publisher, Business model, e-ISSN, p-ISSN, APC Euros.
+#    Internal Publisher type check: compares the dataset "Publisher type" against the
+#    type inferred from the normalized "Publisher" name using config/country_formatting.json.
+#    Society-run variants (e.g. "For-profit Society-Run") are not flagged when the inferred
+#    base category matches (e.g. "For-profit"). Unknown publishers are not flagged here;
+#    they are reported separately by data_process.py in missing_publisher_in_configs.csv.
+#    Report columns: priority, journal, url, publisher, publisher_type, field, column,
+#    dataset_value, expected_value, Scimago_value, DOAJ_value, OpenAPC_value.
+#    Internal Publisher type mismatches are assigned priority "Utmost priority" so they
+#    appear first in the report.
 #    APC disagreement is flagged only when one source has 0 and another has non-zero.
 python3 scripts/update_extracted.py
 

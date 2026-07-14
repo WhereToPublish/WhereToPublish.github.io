@@ -560,10 +560,12 @@ REPORT_SCHEMA = {
     "priority": pl.Utf8,
     "journal": pl.Utf8,
     "url": pl.Utf8,
+    "publisher": pl.Utf8,
     "publisher_type": pl.Utf8,
     "field": pl.Utf8,
     "column": pl.Utf8,
     "dataset_value": pl.Utf8,
+    "expected_value": pl.Utf8,
     "Scimago_value": pl.Utf8,
     "DOAJ_value": pl.Utf8,
     "OpenAPC_value": pl.Utf8,
@@ -646,7 +648,7 @@ def color_value(val, publisher_type: str = None) -> str | None:
         return str(val)
 
 
-def compute_disagreements(enriched_df: pl.DataFrame) -> list[dict]:
+def compute_disagreements(enriched_df: pl.DataFrame, type_map: dict[str, str]) -> list[dict]:
     """Generate disagreement rows comparing enriched dataset values with source lookup values.
 
     Source columns (Publisher_scimago, APC Euros_openapc, etc.) are already present in
@@ -657,6 +659,7 @@ def compute_disagreements(enriched_df: pl.DataFrame) -> list[dict]:
         enriched_df: DataFrame after all join_and_enrich calls and format_table. Must contain
                      Journal, Website, Field, all dataset columns in DISAGREEMENT_COLS, and
                      all source columns referenced in DISAGREEMENT_COLS.
+        type_map: Publisher name -> publisher type map from country_formatting.json.
 
     Returns:
         List of dicts with keys matching REPORT_SCHEMA.
@@ -670,7 +673,6 @@ def compute_disagreements(enriched_df: pl.DataFrame) -> list[dict]:
     )
 
     disagreements: list[dict] = []
-    type_map = build_publisher_type_map()
     for row in enriched_df.select(needed_cols).iter_rows(named=True):
         journal = str(row["Journal"] or "")
         url = str(row.get("Website") or "")
@@ -693,7 +695,7 @@ def compute_disagreements(enriched_df: pl.DataFrame) -> list[dict]:
                 for source_name, source_col in [("scimago", scimago_col), ("openapc", openapc_col), ("doaj", doaj_col)]:
                     if source_col and source_col in row:
                         dico_pt[source_name] = classify_publisher_type(row.get(source_col), type_map)
-                dico_pt["dataset"] = publisher_type.replace("Society-Run", "").strip()
+                dico_pt["dataset"] = publisher_type_base_category(publisher_type)
 
             priority = calculate_disagreement_priority(
                 dataset_val, {"scimago": scimago_val, "openapc": openapc_val, "doaj": doaj_val}, dataset_col, dico_pt)
@@ -702,14 +704,77 @@ def compute_disagreements(enriched_df: pl.DataFrame) -> list[dict]:
                 "priority": priority,
                 "journal": journal,
                 "url": url,
+                "publisher": "",
                 "publisher_type": publisher_type,
                 "field": field,
                 "column": dataset_col,
                 "dataset_value": color_value(dataset_val, dico_pt["dataset"]),
+                "expected_value": "",
                 "Scimago_value": color_value(scimago_val, dico_pt["scimago"]),
                 "DOAJ_value": color_value(doaj_val, dico_pt["doaj"]),
                 "OpenAPC_value": color_value(openapc_val, dico_pt["openapc"]),
             })
+
+    return disagreements
+
+
+def compute_publisher_type_disagreements(enriched_df: pl.DataFrame, type_map: dict[str, str]) -> list[dict]:
+    """Generate disagreement rows where the dataset Publisher type does not match
+    the publisher type inferred from the normalized Publisher name using
+    config/country_formatting.json.
+
+    Society-run variants (e.g. "For-profit Society-Run") are treated as refinements
+    of their base category, so they are not flagged when the inferred base category
+    matches. Unknown publishers (not present in country_formatting.json) are ignored
+    here and are reported separately by data_process.py.
+
+    Args:
+        enriched_df: DataFrame after format_table. Must contain Journal, Website,
+                     Publisher type, Field, and Publisher.
+        type_map: Publisher name -> publisher type map from country_formatting.json.
+
+    Returns:
+        List of dicts with keys matching REPORT_SCHEMA.
+    """
+    needed_cols = ["Journal", "Website", "Publisher type", "Field", "Publisher"]
+    assert all(c in enriched_df.columns for c in needed_cols), (
+        f"compute_publisher_type_disagreements: missing columns in enriched_df: "
+        f"{[c for c in needed_cols if c not in enriched_df.columns]}"
+    )
+
+    disagreements: list[dict] = []
+    for row in enriched_df.select(needed_cols).iter_rows(named=True):
+        publisher = str(row["Publisher"] or "")
+        dataset_type = str(row["Publisher type"] or "")
+        if not publisher or not dataset_type:
+            continue
+
+        inferred_type = classify_publisher_type(publisher, type_map)
+        if inferred_type == "Other":
+            continue
+
+        dataset_base = publisher_type_base_category(dataset_type)
+        if dataset_base == "Other" or dataset_base == inferred_type:
+            continue
+
+        journal = str(row["Journal"] or "")
+        url = str(row.get("Website") or "")
+        field = str(row["Field"] or "")
+
+        disagreements.append({
+            "priority": "Utmost priority",
+            "journal": journal,
+            "url": url,
+            "publisher": publisher,
+            "publisher_type": dataset_type,
+            "field": field,
+            "column": "Publisher type",
+            "dataset_value": color_value(dataset_type, dataset_base),
+            "expected_value": color_value(inferred_type, inferred_type),
+            "Scimago_value": "",
+            "DOAJ_value": "",
+            "OpenAPC_value": "",
+        })
 
     return disagreements
 
@@ -1019,10 +1084,17 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
     updated_df = mark_pci_friendly(updated_df, pci_friendly_set)
 
     # Compute disagreements from enriched values and the source columns still present
-    new_rows = compute_disagreements(updated_df)
+    type_map = build_publisher_type_map()
+    new_rows = compute_disagreements(updated_df, type_map)
     if new_rows:
-        print(f"  Disagreements found: {len(new_rows)}")
+        print(f"  External disagreements found: {len(new_rows)}")
     disagreement_rows.extend(new_rows)
+
+    # Compute internal Publisher type disagreements (dataset vs country_formatting.json)
+    pt_rows = compute_publisher_type_disagreements(updated_df, type_map)
+    if pt_rows:
+        print(f"  Publisher type disagreements found: {len(pt_rows)}")
+    disagreement_rows.extend(pt_rows)
 
     # Select original columns only — drops all helper columns (norm_journal, left_key_*, source cols, etc.)
     final_df = updated_df.select(original_cols)
@@ -1071,10 +1143,12 @@ def main():
     else:
         report_df = pl.DataFrame(schema=REPORT_SCHEMA)
     assert report_df.columns == list(REPORT_SCHEMA.keys()), f"Disagreement col mismatch: {report_df.columns}"
-    # Sort by priority (High first), then by column, then by journal
+    # Sort by priority (Utmost priority first), then by column, then by journal
     report_df = report_df.with_columns(
-        pl.col("priority").map_elements(lambda p: {"Highest": 1, "High": 2, "Medium": 3, "Low": 4}.get(p, 5),
-                                        return_dtype=pl.Int64).alias("_ps")
+        pl.col("priority").map_elements(
+            lambda p: {"Utmost priority": 0, "Highest": 1, "High": 2, "Medium": 3, "Low": 4}.get(p, 5),
+            return_dtype=pl.Int64
+        ).alias("_ps")
     ).sort(["_ps", "column", "journal"]).drop("_ps")
     report_df.write_csv(report_path)
     print(f"\nDisagreement report written to {report_path} ({len(disagreement_rows)} rows).")

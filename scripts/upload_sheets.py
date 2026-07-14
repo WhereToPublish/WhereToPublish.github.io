@@ -46,6 +46,7 @@ ISSN_COLUMN_NAMES: frozenset[str] = frozenset({"e-ISSN", "p-ISSN"})
 # Value columns in the disagreement report that may carry ISSN strings
 DISAGREEMENT_VALUE_COLS: list[str] = [
     "dataset_value",
+    "expected_value",
     "Scimago_value",
     "DOAJ_value",
     "OpenAPC_value",
@@ -55,10 +56,12 @@ DISAGREEMENT_REQUIRED_COLUMNS: list[str] = [
     "priority",
     "journal",
     "url",
+    "publisher",
     "publisher_type",
     "field",
     "column",
     "dataset_value",
+    "expected_value",
     "Scimago_value",
     "DOAJ_value",
     "OpenAPC_value",
@@ -89,8 +92,8 @@ def apply_issn_hyperlinks(rows: list[list[str]]) -> list[list[str]]:
     """Convert ISSN values in disagreement-report rows to clickable HYPERLINK formulas.
 
     Only rows whose 'column' field is an ISSN type (e-ISSN, p-ISSN) are transformed.
-    All four value columns (dataset_value, Scimago_value, DOAJ_value, OpenAPC_value)
-    are processed for those rows.
+    All value columns (dataset_value, expected_value, Scimago_value, DOAJ_value,
+    OpenAPC_value) are processed for those rows.
 
     Args:
         rows: List of rows including header at index 0. All values must be strings.
@@ -224,7 +227,8 @@ def build_disagreement_publisher_bg_overrides(rows: list[list[str]]) -> list[
     """Return per-cell background overrides for disagreement Publisher value cells.
 
     Only rows where column == 'Publisher' are considered. The value columns
-    dataset_value/Scimago_value/DOAJ_value/OpenAPC_value are colored by publisher type.
+    dataset_value/expected_value/Scimago_value/DOAJ_value/OpenAPC_value are colored
+    by publisher type.
     """
     assert rows and len(rows) >= 1, "rows must include a header"
     header = rows[0]

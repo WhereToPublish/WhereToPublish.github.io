@@ -205,7 +205,8 @@ function parseCSV(csvText) {
 }
 
 $(document).ready(function () {
-    const CONTRIBUTION_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfTWQ8PaFCL_zabYwUidZZlh8GR_SZJ1rWaQfZWX3ZS98pm3g/viewform';
+    const CONTRIBUTION_FORM_URL = 'https://github.com/WhereToPublish/WhereToPublish.github.io/wiki/4.-Contributing';
+    const ABOUT_URL = 'https://github.com/WhereToPublish/WhereToPublish.github.io/wiki/1.-About';
     const ALL_FIELDS_SOURCE = 'data/all_biology.csv';
     const DEFAULT_DATA_SOURCE = 'data/generalist.csv';
     let dataTable; // Variable to store the DataTable instance
@@ -229,12 +230,11 @@ $(document).ready(function () {
     let fixedHeaderResizeHandler = null; // Track resize handler for cleanup
 
     function buildZeroRecordsMessage() {
-        const contributeLink = '<a href="' + CONTRIBUTION_FORM_URL + '" target="_blank" rel="noopener noreferrer">contribute to the database</a>';
         if (currentDataSource === ALL_FIELDS_SOURCE) {
-            return 'No matching journals found.<br> This database includes only biology and filtered out predatory journals.<br> If you think a journal is missing, please ' + contributeLink + '.';
+            return 'No matching journals.<br> You currently have the &quot;' + currentDatasetLabel + '&quot; dataset loaded.';
+        } else {
+            return 'No matching journals';
         }
-        const label = currentDatasetLabel || 'current dataset';
-        return 'No matching journals.<br> You currently have the &quot;' + label + '&quot; dataset loaded.';
     }
 
     // Helper: whether a row passes current APC filter only
@@ -819,11 +819,16 @@ $(document).ready(function () {
                     footerCallback: function (row, data, start, end, display) {
                         const isAllFields = currentDataSource === ALL_FIELDS_SOURCE;
                         const $footerCell = $(row).find('td');
+                        const contributeLink = '<a href="' + CONTRIBUTION_FORM_URL + '" target="_blank" rel="noopener noreferrer">contribute to the database</a>';
+                        const aboutLink = '<a href="' + ABOUT_URL + '" target="_blank" rel="noopener noreferrer">read more</a>';
+                        const contributeMsg = 'The database includes journals in life sciences and aims to exclude predatory journals (' + aboutLink + ').<br> ↪ If you think a journal is missing, please ' + contributeLink + '.';
                         $footerCell.css('text-align', 'center');
                         if (!isAllFields) {
-                            $footerCell.html('Load the larger <a href="#" id="load-all-dataset-link" role="button" style="color: #3182ce; font-weight: 500;">"All Fields"</a> dataset.');
+                            const currentMsg = 'You currently have the &quot;' + currentDatasetLabel + '&quot; dataset loaded. '
+                            const loadAllMsg = '↪ Load the larger <a href="#" id="load-all-dataset-link" role="button" style="color: #3182ce; font-weight: 500;">"All Fields"</a> dataset.';
+                            $footerCell.html(currentMsg + ' <br> ' + loadAllMsg + '<br style="margin-bottom: 10px"> <p class="line"></p>' + contributeMsg);
                         } else {
-                            $footerCell.html('');
+                            $footerCell.html(contributeMsg);
                         }
                     },
                     stateSave: true,

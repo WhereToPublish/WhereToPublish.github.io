@@ -10,15 +10,15 @@ An interactive database of for-profit and non-profit scientific journals in biol
 
 ## Quick Links
 
-| Resource | Link                                                                                                                     |
-|----------|--------------------------------------------------------------------------------------------------------------------------|
-| About the Project | [Wiki: About](https://github.com/WhereToPublish/WhereToPublish.github.io/wiki/1.-About)                                  |
-| Using the Website | [Wiki: Using the Website](https://github.com/WhereToPublish/WhereToPublish.github.io/wiki/2.-Using-the-Website)          |
-| Data Sources | [Wiki: The Data](https://github.com/WhereToPublish/WhereToPublish.github.io/wiki/3.-Data)                                |
-| Contributing | [Wiki: Contributing](https://github.com/WhereToPublish/WhereToPublish.github.io/wiki/4.-Contributing)                    |
-| Add a Journal | [Google Form](https://docs.google.com/forms/d/e/1FAIpQLSfTWQ8PaFCL_zabYwUidZZlh8GR_SZJ1rWaQfZWX3ZS98pm3g/viewform)       |
-| Edit Data | [Google Sheets](https://docs.google.com/spreadsheets/d/1PRXViyQlo5ZMjpCJ_XpcHfsnZEJmmdCiXjnkazMyua8/edit?gid=897920130#gid=897920130) |
-| Report Issues | [GitHub Issues](https://github.com/WhereToPublish/WhereToPublish.github.io/issues)                                       |
+| Resource          | Link                                                                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| About the Project | [Wiki: About](https://github.com/WhereToPublish/WhereToPublish.github.io/wiki/1.-About)                                               |
+| Using the Website | [Wiki: Using the Website](https://github.com/WhereToPublish/WhereToPublish.github.io/wiki/2.-Using-the-Website)                       |
+| Data Sources      | [Wiki: The Data](https://github.com/WhereToPublish/WhereToPublish.github.io/wiki/3.-Data)                                             |
+| Contributing      | [Wiki: Contributing](https://github.com/WhereToPublish/WhereToPublish.github.io/wiki/4.-Contributing)                                 |
+| Add a Journal     | [Google Form](https://docs.google.com/forms/d/e/1FAIpQLSfTWQ8PaFCL_zabYwUidZZlh8GR_SZJ1rWaQfZWX3ZS98pm3g/viewform)                    |
+| Edit Data         | [Google Sheets](https://docs.google.com/spreadsheets/d/1PRXViyQlo5ZMjpCJ_XpcHfsnZEJmmdCiXjnkazMyua8/edit?gid=897920130#gid=897920130) |
+| Report Issues     | [GitHub Issues](https://github.com/WhereToPublish/WhereToPublish.github.io/issues)                                                    |
 
 ---
 
@@ -64,6 +64,7 @@ e-ISSN, p-ISSN, APC year
 The ISSN columns are filled from external sources in priority order: Scimago (via `config/ISSN_type.csv`) → OpenAPC → DOAJ. ISSN-L (linking ISSN) is stored in intermediate files in `data_extracted/` but is not published to the website.
 
 **Business model / APC derivation rules** (applied after every enrichment step):
+
 - If APC Euros > 0 and Business model is empty or `Subscription` → set Business model to `Hybrid`.
 - If Business model is `OA diamond` → set APC Euros to `0`.
 - If Business model is `Subscription` → set APC Euros to `null` (subscription journals do not charge APCs).
@@ -71,13 +72,16 @@ The ISSN columns are filled from external sources in priority order: Scimago (vi
 These rules are applied in the order listed so that a journal with `Subscription` + `APC > 0` is first promoted to `Hybrid` (keeping its APC) before the `Subscription → null` rule is evaluated.
 
 **Scimago Business model derivation**: Scimago provides `Open Access Diamond` and `Open Access` flags but no APC column.
+
 - `Open Access Diamond == Yes` → `OA diamond`
 - `Open Access == Yes` → `OA`
 - otherwise → `Subscription` (will be promoted to `Hybrid` by the rule above if APC Euros > 0 from another source)
 
 Intermediate files in `data_extracted/` also carry additional columns that are not published to the website:
+
 - `Alternative journal name` — used as a fallback join key during enrichment when the primary journal name does not match an external source.
 - `Present in Scimago`, `Present in DOAJ`, `Present in openAPC` — records how each journal was matched to the corresponding external source. Possible values:
+
   - `"Yes"` — matched via normalized journal name
   - `"Alternative journal name"` — matched via the alternative journal name
   - `"ISSN-L match"` — matched via ISSN-L
@@ -85,7 +89,7 @@ Intermediate files in `data_extracted/` also carry additional columns that are n
   - `"p-ISSN match"` — matched via p-ISSN
   - `"Ambiguous"` — a candidate key was found in both tables but was duplicated on one side, or the only matching lookup row was already claimed by another journal
   - `"No"` — no match found by any key
-  
+
   These columns are discarded by `data_process.py`.
 
 The APC Explorer uses separate tables generated by `scripts/APC_process.py`. It creates
@@ -159,66 +163,67 @@ cd scripts && python data_process.py
 
 ### Key Scripts
 
-| Script | Purpose |
-|--------|---------|
-| `scripts/download_sheets.py` | Downloads all field tabs from Google Sheets API to `data_extracted/` |
-| `scripts/upload_sheets.py` | Uploads enriched `data_extracted/` field CSVs back to Google Sheets (field tabs updated in-place). Also uploads `logs/disagreements.csv` to a **Disagreements** tab and `logs/missing_publisher_in_configs.csv` to a **Missing publishers** tab by clearing tab values then rewriting (tab formatting is preserved). ISSN values in Disagreements value columns are hyperlinked to the ISSN portal for ISSN disagreements. Report tabs are styled on upload (Roboto size 10, left/top alignment, grey header, white data cells); Publisher disagreement value cells are color-coded by publisher type. |
-| `scripts/fetch_sheet.py` | Downloads a single field tab (CLI helper) |
-| `scripts/download_extraction.sh` | Downloads external data sources to `data_extraction/` |
-| `scripts/update_extracted.py` | Enriches raw data with Scimago, OpenAPC, DOAJ, and Dataverse. The APC is the latest entry (by dataset year) among OpenAPC, DOAJ and Dataverse; Dataverse uses its latest year with an APC, matching by ISSN-L and the dataset's ISSNs before falling back to journal title. Candidate keys must be unique on both sides; ambiguous matches are skipped. Also writes `logs/disagreements.csv` for Scimago, OpenAPC, and DOAJ conflicts. |
-| `scripts/APC_process.py` | Processes the 2019–2025 Harvard Dataverse APC dataset into publisher-specific yearly APC tables and the compact `APC_all.csv` table used by APC Explorer. |
-| `scripts/data_process.py` | Cleans, normalizes, deduplicates, and outputs to `data/`. Also writes `logs/missing_publisher_in_configs.csv` — journals whose publisher (after normalization) is not found in `config/country_formatting.json`, with columns `journal`, `publisher`, `country`, `publisher_type` (sorted by `publisher`, then `journal`). |
-| `scripts/libraries.py` | Shared utility functions |
-| `scripts/sheets_client.py` | Google Sheets API client (shared by download and upload scripts) |
-| `scripts/run.sh` | Runs the full pipeline |
-| `scripts/Scimago_ISSN_type.py` | Classifies Scimago ISSNs as print/electronic/linking via the [ISSN Portal API](https://portal.issn.org/); results cached in `config/ISSN_type.csv`. Run with `--limit N` for incremental processing (~50k ISSNs total, first run is slow). Used by `update_extracted.py` to populate e-ISSN and p-ISSN from Scimago data. |
+| Script                             | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/download_sheets.py`     | Downloads all field tabs from Google Sheets API to`data_extracted/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `scripts/upload_sheets.py`       | Uploads enriched`data_extracted/` field CSVs back to Google Sheets (field tabs updated in-place). Also uploads `logs/disagreements.csv` to a **Disagreements** tab and `logs/missing_publisher_in_configs.csv` to a **Missing publishers** tab by clearing tab values then rewriting (tab formatting is preserved). ISSN values in Disagreements value columns are hyperlinked to the ISSN portal for ISSN disagreements. Report tabs are styled on upload (Roboto size 10, left/top alignment, grey header, white data cells); Publisher disagreement value cells are color-coded by publisher type. |
+| `scripts/fetch_sheet.py`         | Downloads a single field tab (CLI helper)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `scripts/download_extraction.sh` | Downloads external data sources to`data_extraction/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `scripts/update_extracted.py`    | Enriches raw data with Scimago, OpenAPC, DOAJ, and Dataverse. The APC is the latest entry (by dataset year) among OpenAPC, DOAJ and Dataverse; Dataverse uses its latest year with an APC, matching by ISSN-L and the dataset's ISSNs before falling back to journal title. Candidate keys must be unique on both sides; ambiguous matches are skipped. Also writes`logs/disagreements.csv` for Scimago, OpenAPC, and DOAJ conflicts.                                                                                                                                                                                 |
+| `scripts/APC_process.py`         | Processes the 2019–2025 Harvard Dataverse APC dataset into publisher-specific yearly APC tables and the compact`APC_all.csv` table used by APC Explorer.                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `scripts/data_process.py`        | Cleans, normalizes, deduplicates, and outputs to`data/`. Also writes `logs/missing_publisher_in_configs.csv` — journals whose publisher (after normalization) is not found in `config/country_formatting.json`, with columns `journal`, `publisher`, `country`, `publisher_type` (sorted by `publisher`, then `journal`).                                                                                                                                                                                                                                                                            |
+| `scripts/libraries.py`           | Shared utility functions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `scripts/sheets_client.py`       | Google Sheets API client (shared by download and upload scripts)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `scripts/run.sh`                 | Runs the full pipeline                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `scripts/Scimago_ISSN_type.py`   | Classifies Scimago ISSNs as print/electronic/linking via the[ISSN Portal API](https://portal.issn.org/); results cached in `config/ISSN_type.csv`. Run with `--limit N` for incremental processing (~50k ISSNs total, first run is slow). Used by `update_extracted.py` to populate e-ISSN and p-ISSN from Scimago data.                                                                                                                                                                                                                                                                                           |
 
 ### External Data Sources
 
-| Source | File | Description |
-|--------|------|-------------|
-| [Scimago](https://www.scimagojr.com/) | `data_extraction/scimagojr.csv.gz` | Journal rankings, quartiles, H-index |
-| [OpenAPC](https://openapc.net/) | `data_extraction/openapc.csv.gz` | Article Processing Charges — uses only the most recent year's records per journal; journals with no data within the last 3 years are excluded |
-| [DOAJ](https://doaj.org/) | `data_extraction/DOAJ.csv.gz` | Open access journal metadata |
-| [Dataverse](https://doi.org/10.7910/DVN/AZ985C) | `data_extraction/scholcommlab_apc_dataset_2019_2025-2.csv.gz` | Annual APC list prices for 14 publishers, 2019–2025 |
+| Source                                         | File                                                            | Description                                                                                                                                    |
+| ---------------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Scimago](https://www.scimagojr.com/)           | `data_extraction/scimagojr.csv.gz`                            | Journal rankings, quartiles, H-index                                                                                                           |
+| [OpenAPC](https://openapc.net/)                 | `data_extraction/openapc.csv.gz`                              | Article Processing Charges — uses only the most recent year's records per journal; journals with no data within the last 3 years are excluded |
+| [DOAJ](https://doaj.org/)                       | `data_extraction/DOAJ.csv.gz`                                 | Open access journal metadata                                                                                                                   |
+| [Dataverse](https://doi.org/10.7910/DVN/AZ985C) | `data_extraction/scholcommlab_apc_dataset_2019_2025-2.csv.gz` | Annual APC list prices for 14 publishers, 2019–2025                                                                                           |
 
 ### Local Development
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/WhereToPublish/WhereToPublish.github.io.git
    cd WhereToPublish.github.io
    ```
-
 2. Install Python dependencies:
+
    ```bash
    pip install -r requirements.txt
    ```
-
 3. Set up Google Sheets API credentials (required for download/upload steps):
+
    ```bash
    # See API_SETUP.md for full instructions
    mkdir -p ~/.config/wheretopublish
    cp /path/to/google_service_account.json ~/.config/wheretopublish/google_service_account.json
    ```
-
 4. Generate the APC website tables locally (does not upload to Google Sheets):
+
    ```bash
    python -m scripts.APC_process
    ```
+
    `APC_process.py` reads `data_extraction/scholcommlab_apc_dataset_2019_2025-2.csv.gz`
    and writes the resulting APC tables to `data/`.
-
 5. Run the data pipeline:
+
    ```bash
    bash scripts/run.sh
    ```
-
 6. Serve locally (any static file server):
+
    ```bash
    python -m http.server 8000
    ```
-
 7. Open [http://localhost:8000](http://localhost:8000)
 
 ---

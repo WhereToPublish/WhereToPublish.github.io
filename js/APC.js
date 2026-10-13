@@ -480,6 +480,17 @@ $(document).ready(function () {
                     {
                         extend: 'csvHtml5',
                         text: '<i class="fas fa-download"></i> Download CSV',
+                        // The single colspan footer cell breaks export when extra columns are visible
+                        action: function (e, dt, node, config, cb) {
+                            const settings = dt.settings()[0];
+                            const tfoot = settings.nTFoot;
+                            settings.nTFoot = null;
+                            try {
+                                $.fn.dataTable.ext.buttons.csvHtml5.action.call(this, e, dt, node, config, cb);
+                            } finally {
+                                settings.nTFoot = tfoot;
+                            }
+                        },
                         title: 'APC_Explorer',
                         exportOptions: {columns: ':visible'}
                     }

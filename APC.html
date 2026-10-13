@@ -22,13 +22,40 @@
           crossorigin="anonymous" referrerpolicy="no-referrer"/>
     <link rel="stylesheet" type="text/css" href="css/styles.css">
     <style>
-        /* Publisher-specific colors */
-        .publisher-button[data-publisher="Elsevier"] { background-color: #ffebee; border-color: #ef9a9a; }
-        .publisher-button[data-publisher="Frontiers"] { background-color: #fff9c4; border-color: #f9a825; }
-        .publisher-button[data-publisher="MDPI"] { background-color: #ffcdd2; border-color: #e57373; }
-        .publisher-button[data-publisher="PLOS"] { background-color: #dcedc8; border-color: #aed581; }
-        .publisher-button[data-publisher="Springer Nature"] { background-color: #f3e5f5; border-color: #ce93d8; }
-        .publisher-button[data-publisher="Wiley"] { background-color: #e0f2f1; border-color: #80cbc4; }
+        /* Publisher colors are shared by the selector buttons and their table rows. */
+        .publisher-button[data-publisher="American Chemical Society (ACS)"],
+        table.dataTable tr[data-publisher="American Chemical Society (ACS)"] { --publisher-bg: #e3f2fd; --publisher-border: #90caf9; }
+        .publisher-button[data-publisher="Cambridge University Press (CUP)"],
+        table.dataTable tr[data-publisher="Cambridge University Press (CUP)"] { --publisher-bg: #fce4ec; --publisher-border: #f48fb1; }
+        .publisher-button[data-publisher="De Gruyter Brill"],
+        table.dataTable tr[data-publisher="De Gruyter Brill"] { --publisher-bg: #e8f5e9; --publisher-border: #a5d6a7; }
+        .publisher-button[data-publisher="EDP"],
+        table.dataTable tr[data-publisher="EDP"] { --publisher-bg: #fff3e0; --publisher-border: #ffcc80; }
+        .publisher-button[data-publisher="Elsevier"],
+        table.dataTable tr[data-publisher="Elsevier"] { --publisher-bg: #ffebee; --publisher-border: #ef9a9a; }
+        .publisher-button[data-publisher="Frontiers Media SA"],
+        table.dataTable tr[data-publisher="Frontiers Media SA"] { --publisher-bg: #fff9c4; --publisher-border: #f9a825; }
+        .publisher-button[data-publisher="IEEE"],
+        table.dataTable tr[data-publisher="IEEE"] { --publisher-bg: #ede7f6; --publisher-border: #b39ddb; }
+        .publisher-button[data-publisher="IOP"],
+        table.dataTable tr[data-publisher="IOP"] { --publisher-bg: #e0f7fa; --publisher-border: #80deea; }
+        .publisher-button[data-publisher="MDPI"],
+        table.dataTable tr[data-publisher="MDPI"] { --publisher-bg: #ffcdd2; --publisher-border: #e57373; }
+        .publisher-button[data-publisher="Oxford University Press (OUP)"],
+        table.dataTable tr[data-publisher="Oxford University Press (OUP)"] { --publisher-bg: #f3e5f5; --publisher-border: #ce93d8; }
+        .publisher-button[data-publisher="Public Library of Science (PLoS)"],
+        table.dataTable tr[data-publisher="Public Library of Science (PLoS)"] { --publisher-bg: #dcedc8; --publisher-border: #aed581; }
+        .publisher-button[data-publisher="Sage Publishing"],
+        table.dataTable tr[data-publisher="Sage Publishing"] { --publisher-bg: #fbe9e7; --publisher-border: #ffab91; }
+        .publisher-button[data-publisher="Springer Nature"],
+        table.dataTable tr[data-publisher="Springer Nature"] { --publisher-bg: #e8eaf6; --publisher-border: #9fa8da; }
+        .publisher-button[data-publisher="John Wiley & Sons"],
+        table.dataTable tr[data-publisher="John Wiley & Sons"] { --publisher-bg: #e0f2f1; --publisher-border: #80cbc4; }
+
+        .publisher-button {
+            background-color: var(--publisher-bg, #f5f5f5);
+            border-color: var(--publisher-border, #bdbdbd);
+        }
 
         .publisher-button.active {
             background-color: #3182ce !important;
@@ -37,20 +64,8 @@
             box-shadow: 0 2px 8px rgba(49, 130, 206, 0.25);
         }
 
-        /* Row colors by publisher */
-        table.dataTable tr.publisher-Elsevier { background-color: #ffebee; }
-        table.dataTable tr.publisher-Frontiers { background-color: #fff9c4; }
-        table.dataTable tr.publisher-MDPI { background-color: #ffcdd2; }
-        table.dataTable tr.publisher-PLOS { background-color: #dcedc8; }
-        table.dataTable tr.publisher-Springer_Nature { background-color: #f3e5f5; }
-        table.dataTable tr.publisher-Wiley { background-color: #e0f2f1; }
-
-        table.dataTable tr.publisher-Elsevier:hover,
-        table.dataTable tr.publisher-Frontiers:hover,
-        table.dataTable tr.publisher-MDPI:hover,
-        table.dataTable tr.publisher-PLOS:hover,
-        table.dataTable tr.publisher-Springer_Nature:hover,
-        table.dataTable tr.publisher-Wiley:hover {
+        table.dataTable tr[data-publisher] { background-color: var(--publisher-bg); }
+        table.dataTable tr[data-publisher]:hover {
             background-color: #ebf4ff;
         }
     </style>
@@ -59,17 +74,25 @@
 
 <div class="container">
     <h1><span class="modal-trigger">APC Explorer</span></h1>
-    <p id="intro-p" class="modal-trigger">Article Processing Charges from six large scholarly publishers (2019&ndash;2023).</p>
+    <p id="intro-p" class="modal-trigger">Article Processing Charges from 14 scholarly publishers (2019&ndash;2025).</p>
     <p class="line"></p>
     <div id="dataSourceFilters" style="margin-bottom: 5px; text-align: center;">
         <!-- Publisher selector buttons -->
         <button class="data-source-button publisher-button" data-publisher="all" id="allPublishersBtn">All Publishers</button>
+        <button class="data-source-button publisher-button" data-publisher="American Chemical Society (ACS)" id="acs">ACS</button>
+        <button class="data-source-button publisher-button" data-publisher="Cambridge University Press (CUP)" id="cambridge">Cambridge University Press</button>
+        <button class="data-source-button publisher-button" data-publisher="De Gruyter Brill" id="deGruyter">De Gruyter</button>
+        <button class="data-source-button publisher-button" data-publisher="EDP" id="edp">EDP Sciences</button>
         <button class="data-source-button publisher-button" data-publisher="Elsevier" id="elsevier">Elsevier</button>
-        <button class="data-source-button publisher-button" data-publisher="Frontiers" id="frontiers">Frontiers</button>
+        <button class="data-source-button publisher-button" data-publisher="Frontiers Media SA" id="frontiers">Frontiers</button>
+        <button class="data-source-button publisher-button" data-publisher="IEEE" id="ieee">IEEE</button>
+        <button class="data-source-button publisher-button" data-publisher="IOP" id="iop">IOP</button>
         <button class="data-source-button publisher-button" data-publisher="MDPI" id="mdpi">MDPI</button>
-        <button class="data-source-button publisher-button active" data-publisher="PLOS" id="plos">PLOS</button>
+        <button class="data-source-button publisher-button" data-publisher="Oxford University Press (OUP)" id="oup">Oxford University Press</button>
+        <button class="data-source-button publisher-button active" data-publisher="Public Library of Science (PLoS)" id="plos">PLOS</button>
+        <button class="data-source-button publisher-button" data-publisher="Sage Publishing" id="sage">Sage</button>
         <button class="data-source-button publisher-button" data-publisher="Springer Nature" id="springerNature">Springer Nature</button>
-        <button class="data-source-button publisher-button" data-publisher="Wiley" id="wiley">Wiley</button>
+        <button class="data-source-button publisher-button" data-publisher="John Wiley &amp; Sons" id="wiley">Wiley</button>
     </div>
     <div style="position: relative; margin-bottom: 20px; margin-top: 10px;">
         <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 80px; height: 3px; background: linear-gradient(90deg, #3182ce, #63b3ed); border-radius: 3px;"></div>
@@ -143,17 +166,27 @@
         <span class="close-modal">&times;</span>
         <h2>About APC Explorer</h2>
         <p>
-            This page displays Article Processing Charges (APCs) data from six large scholarly publishers
-            (Elsevier, Frontiers, MDPI, PLOS, Springer Nature, and Wiley) covering the period 2019&ndash;2023.
+            This page displays annual APC list prices from 14 scholarly publishers between 2019 and 2025.
+            The dataset contains 12,540 journals and 69,856 journal-year records. These are listed prices,
+            not amounts paid; coverage depends on the publisher price lists and archived pages that could be retrieved.
         </p>
         <p>
-            The data comes from an open dataset by
-            Butler, L.-A., Hare, M., Sch&ouml;nfelder, N., Schares, E., Alperin, J. P., &amp; Haustein, S. (2024).
-            <em>An open dataset of article processing charges from six large scholarly publishers (2019&ndash;2023)</em>.
+            Dataset: Matthias, L., Chavarro, D., Schares, E., Alperin, J. P., Rose, M., Frost, M., et al. (2026).
+            <em>A dataset of article processing charges from 14 scholarly publishers, 2019&ndash;2025</em>.
             <br>
-            <a href="http://arxiv.org/abs/2406.08356" target="_blank" rel="noopener noreferrer">arXiv:2406.08356</a>
+            <a href="https://arxiv.org/abs/2608.14116" target="_blank" rel="noopener noreferrer">arXiv:2608.14116</a>
             &mdash;
-            <a href="https://doi.org/10.7910/DVN/CR1MMV" target="_blank" rel="noopener noreferrer">Harvard Dataverse</a>
+            <a href="https://doi.org/10.7910/DVN/AZ985C" target="_blank" rel="noopener noreferrer">Harvard Dataverse</a>
+        </p>
+        <p>
+            Matthias, L., Schares, E., Alperin, J. P., Butler, L. A., Kuang, S., Sch&ouml;nfelder, N., &amp; Haustein, S. (2026).
+            <em>Estimating global article processing charges paid to 14 publishers for open access between 2019 and 2025</em>.
+            <a href="https://arxiv.org/abs/2608.16322" target="_blank" rel="noopener noreferrer">arXiv:2608.16322</a>.
+        </p>
+        <p>
+            This dataset updates the six-publisher 2019&ndash;2023 dataset by Butler et al. (2024):
+            <a href="https://arxiv.org/abs/2406.08356" target="_blank" rel="noopener noreferrer">arXiv:2406.08356</a>
+            and its <a href="https://doi.org/10.7910/DVN/CR1MMV" target="_blank" rel="noopener noreferrer">Harvard Dataverse dataset</a>.
         </p>
         <p>
             This interactive explorer is part of the <a href="index.html">Where to Publish?</a> project.

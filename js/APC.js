@@ -1,8 +1,8 @@
 /**
- * APC Explorer - Article Processing Charges from 6 publishers (2019-2023)
+ * APC Explorer - Article Processing Charges from 14 publishers (2019-2025)
  *
  * Based on WhereToPublish scripts.js, adapted for the APC Dataverse dataset.
- * Data source: Butler et al. (2024) - doi:10.7910/DVN/CR1MMV
+ * Data source: Matthias et al. (2026) - doi:10.7910/DVN/AZ985C
  */
 
 // Configuration
@@ -21,8 +21,8 @@ function generateApcBins(numBins, maxApc = 5000) {
 
 /**
  * Parse CSV text for APC data.
- * Per-publisher files have columns: Journal, Publisher, Business model, APC 2019 (€), ..., APC 2023 (€), APC (€)
- * APC_all.csv has columns: Journal, Publisher, Business model, APC (€)
+ * Per-publisher files have columns: Journal, Publisher, Business model, available yearly APCs, APC (€), APC year
+ * APC_all.csv has columns: Journal, Publisher, Business model, APC (€), APC year
  */
 function parseCSV(csvText, isAllPublishers) {
     console.time('parseCSV');
@@ -49,6 +49,10 @@ function parseCSV(csvText, isAllPublishers) {
     const publisherIdx = csvHeaders.indexOf('Publisher');
     const businessModelIdx = csvHeaders.indexOf('Business model');
     const apcIdx = csvHeaders.indexOf('APC (€)');
+    const apcYearIdx = csvHeaders.indexOf('APC year');
+    if ([journalIdx, publisherIdx, businessModelIdx, apcIdx, apcYearIdx].some(index => index < 0)) {
+        throw new Error(`APC CSV is missing a required column: ${csvHeaders.join(', ')}`);
+    }
 
     // Build header list for DataTables
     // Fixed columns: Journal (0), Publisher (1), Business model (2)
@@ -62,15 +66,10 @@ function parseCSV(csvText, isAllPublishers) {
     // Mandatory columns that cannot be hidden
     const mandatoryHeaders = new Set(['Journal', 'Business model', 'APC (€)']);
 
-    // Default visible columns:
-    // - Per-publisher mode: all columns except Publisher (redundant when viewing one publisher)
-    // - All-publishers mode: all columns
-    let defaultVisibleHeaders;
-    if (isAllPublishers) {
-        defaultVisibleHeaders = new Set(allHeadersText);
-    } else {
-        defaultVisibleHeaders = new Set(allHeadersText.filter(h => h !== 'Publisher'));
-    }
+    // Per-publisher yearly APC columns are available through Buttons ColVis, but start hidden.
+    const defaultVisibleHeaders = isAllPublishers
+        ? new Set(allHeadersText)
+        : new Set(['Journal', 'Publisher', 'Business model', 'APC (€)']);
 
     // Column tooltips
     const columnDefs = {
@@ -134,21 +133,21 @@ function parseCSV(csvText, isAllPublishers) {
         });
 
         // Add last APC
-        row.push(cols[apcIdx] || '');
+        const apcValue = Number.parseFloat(cols[apcIdx]);
+        const apcYear = Number.parseInt(cols[apcYearIdx], 10);
+        if (!Number.isFinite(apcValue) || !Number.isFinite(apcYear)) {
+            throw new Error(`APC CSV row ${i + 1} has an invalid latest APC or APC year`);
+        }
+        row.push(apcValue);
+        row.__apcYear = apcYear;
 
         // Pre-compute APC bin for histogram (based on last APC)
-        const apcValue = row[apcColIdx].replace(/[^\d]/g, '');
-        if (apcValue !== '') {
-            const apc = parseInt(apcValue);
-            row.__apcBin = apcBins.length - 2;
-            for (let j = 0; j < apcBins.length - 1; j++) {
-                if (apc >= apcBins[j] && apc <= apcBins[j + 1]) {
-                    row.__apcBin = j;
-                    break;
-                }
+        row.__apcBin = apcBins.length - 2;
+        for (let j = 0; j < apcBins.length - 1; j++) {
+            if (apcValue >= apcBins[j] && apcValue <= apcBins[j + 1]) {
+                row.__apcBin = j;
+                break;
             }
-        } else {
-            row.__apcBin = -1;
         }
 
         data.push(row);
@@ -192,7 +191,9 @@ function splitCSVLine(line) {
 
 $(document).ready(function () {
     const ALL_PUBLISHERS_SOURCE = 'data/APC_all.csv';
-    const DEFAULT_DATA_SOURCE = 'data/APC_PLOS.csv';
+    const DEFAULT_PUBLISHER = 'Public Library of Science (PLoS)';
+    const publisherFilename = publisher => publisher.replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    const DEFAULT_DATA_SOURCE = `data/APC_${publisherFilename(DEFAULT_PUBLISHER)}.csv`;
     let dataTable;
     let currentDataSource = null;
     let currentDatasetLabel = '';
@@ -226,8 +227,7 @@ $(document).ready(function () {
             currentDatasetLabel = 'All Publishers';
             isAllPublishersMode = true;
         } else {
-            const safeName = publisher.replace(/ /g, '_');
-            currentDataSource = `data/APC_${safeName}.csv`;
+            currentDataSource = `data/APC_${publisherFilename(publisher)}.csv`;
             currentDatasetLabel = publisher;
             isAllPublishersMode = false;
         }
@@ -330,10 +330,8 @@ $(document).ready(function () {
     function rowPassesApcFilter(row) {
         if (!row) return false;
         if (currentMinAPC !== '0' || currentMaxAPC !== '5000') {
-            const apcRaw = row[currentApcColIdx] ? String(row[currentApcColIdx]) : '';
-            const apcValue = apcRaw.replace(/[^\d]/g, '');
-            if (apcValue === '') return false;
-            const apc = parseInt(apcValue, 10);
+            const apc = Number.parseFloat(row[currentApcColIdx]);
+            if (!Number.isFinite(apc)) return false;
             const minApc = parseInt(currentMinAPC, 10);
             const maxApc = parseInt(currentMaxAPC, 10);
             if (maxApc === 5000) {
@@ -393,22 +391,17 @@ $(document).ready(function () {
     });
 
     async function fetchCSVFile(csvFile) {
-        try {
-            const response = await fetch(csvFile);
-            if (!response.ok) {
-                console.error(`Failed to fetch ${csvFile}: ${response.statusText}`);
-                return {data: []};
-            }
-            const csvText = await response.text();
-            return parseCSV(csvText, csvFile === ALL_PUBLISHERS_SOURCE);
-        } catch (error) {
-            console.error('Error fetching CSV file:', error);
-            return {data: []};
+        const response = await fetch(csvFile);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch ${csvFile}: ${response.status} ${response.statusText}`);
         }
+        const csvText = await response.text();
+        return parseCSV(csvText, csvFile === ALL_PUBLISHERS_SOURCE);
     }
 
     async function loadTable(dataSource) {
         console.time('loadTable');
+        const stateStorageKey = `apc_global_state_v2_${dataSource}`;
         try {
             let currentSearch = '';
             if (dataTable) {
@@ -453,9 +446,8 @@ $(document).ready(function () {
                     if (!settings.nTable || settings.nTable.id !== 'journalTable') return true;
                     if (currentMinAPC === '0' && currentMaxAPC === '5000') return true;
                     const apcRaw = data && data[currentApcColIdx] ? data[currentApcColIdx] : '';
-                    const apcValue = apcRaw.replace(/[^\d]/g, '');
-                    if (apcValue === '') return false;
-                    const apc = parseInt(apcValue, 10);
+                    const apc = Number.parseFloat(apcRaw);
+                    if (!Number.isFinite(apc)) return false;
                     const minApc = parseInt(currentMinAPC, 10);
                     const maxApc = parseInt(currentMaxAPC, 10);
                     if (maxApc === 5000) return apc >= minApc;
@@ -498,20 +490,18 @@ $(document).ready(function () {
                     buttonsConfig.push({
                         extend: 'colvis',
                         text: '<i class="fas fa-columns"></i> Show/Hide year columns',
-                        columns: ':not(.noVis)',
+                        columns: yearColIndices,
                         postfixButtons: [
                             {
                                 text: 'Reset columns',
                                 className: 'dt-button--reset',
                                 action: function (e, dt) {
-                                    try {
-                                        allHeadersText.forEach(function (header, idx) {
-                                            var mustShow = mandatoryHeaders.has(header) || defaultVisibleHeaders.has(header);
-                                            dt.column(idx).visible(mustShow, false);
-                                        });
-                                        dt.columns.adjust().draw(false);
-                                        if (dt.state && typeof dt.state.save === 'function') dt.state.save();
-                                    } catch (err) {}
+                                    allHeadersText.forEach(function (header, idx) {
+                                        var mustShow = mandatoryHeaders.has(header) || defaultVisibleHeaders.has(header);
+                                        dt.column(idx).visible(mustShow, false);
+                                    });
+                                    dt.columns.adjust().draw(false);
+                                    if (dt.state && typeof dt.state.save === 'function') dt.state.save();
                                 }
                             }
                         ]
@@ -542,12 +532,12 @@ $(document).ready(function () {
                                 time: data.time, start: data.start, length: data.length,
                                 order: data.order, search: data.search, columns: data.columns, custom: data.custom
                             };
-                            localStorage.setItem('apc_global_state_v1', JSON.stringify(stateToSave));
+                            localStorage.setItem(stateStorageKey, JSON.stringify(stateToSave));
                         } catch (e) {}
                     },
                     stateLoadCallback: function () {
                         try {
-                            const raw = localStorage.getItem('apc_global_state_v1');
+                            const raw = localStorage.getItem(stateStorageKey);
                             return raw ? JSON.parse(raw) : null;
                         } catch (e) { return null; }
                     },
@@ -576,13 +566,22 @@ $(document).ready(function () {
                     responsive: true,
                     columnDefs: [
                         {targets: [2, apcColIdx], columnControl: ['order']},
+                        {
+                            targets: apcColIdx,
+                            render: function (value, type, row) {
+                                if (type === 'display') return `${value} (${row.__apcYear})`;
+                                if (type === 'filter') return `${value} ${row.__apcYear}`;
+                                return value;
+                            }
+                        },
                         {targets: [1], columnControl: ['order', {
                             extend: 'dropdown', icon: 'search', className: 'searchList', content: ['searchList']
                         }]},
                         {targets: [0, 2, apcColIdx], className: 'noVis'},
                         {targets: 0, responsivePriority: 1},
-                        {targets: 1, responsivePriority: 2},
-                        {targets: apcColIdx, responsivePriority: 1000000},
+                        {targets: apcColIdx, responsivePriority: 2},
+                        {targets: 1, responsivePriority: 3},
+                        {targets: 2, responsivePriority: 4},
                         ...(toHide.length ? [{targets: toHide, visible: false}] : [])
                     ],
                     language: {
@@ -595,12 +594,7 @@ $(document).ready(function () {
                     rowCallback: function (row, data) {
                         const publisher = data[1];
                         if (!publisher) return;
-                        const $row = $(row);
-                        // Remove all publisher classes
-                        $row[0].className = $row[0].className.replace(/\bpublisher-\S+/g, '').trim();
-                        // Add publisher class
-                        const safePub = publisher.replace(/ /g, '_');
-                        $row.addClass('publisher-' + safePub);
+                        $(row).attr('data-publisher', publisher);
                     },
                     preDrawCallback: function () {
                         if (!firstDrawCompleted) {
@@ -668,7 +662,14 @@ $(document).ready(function () {
             }
         } catch (error) {
             console.error('Error loading or processing CSV files:', error);
-            $('#journalTable').parent().append('<p style="color:red;">Could not load data. Check that APC CSV files exist in the data folder.</p>');
+            $('#loading-indicator').remove();
+            $('#apc-load-error').remove();
+            $('#journalTable').parent().append(
+                $('<p>')
+                    .attr('id', 'apc-load-error')
+                    .css('color', 'red')
+                    .text(`Could not load APC data: ${error.message}`)
+            );
         } finally {
             console.timeEnd('loadTable');
         }
@@ -697,8 +698,8 @@ $(document).ready(function () {
 
     // Load default table
     currentDataSource = DEFAULT_DATA_SOURCE;
-    currentDatasetLabel = 'PLOS';
-    currentPublisher = 'PLOS';
+    currentDatasetLabel = DEFAULT_PUBLISHER;
+    currentPublisher = DEFAULT_PUBLISHER;
     isAllPublishersMode = false;
     loadTable(DEFAULT_DATA_SOURCE);
 });

@@ -28,6 +28,7 @@ EXPECTED_COLUMNS = [
     "PCI partner",
     "e-ISSN",
     "p-ISSN",
+    "APC year",
 ]
 
 dico_field_normalization = {
@@ -150,6 +151,18 @@ def merge_text_field(values: list, field: str) -> tuple[str, str | None]:
     return best_val, conflict
 
 
+def year_of_selected_apc(entries: list[dict], apc) -> str | None:
+    """Return the most recent 'APC year' among the duplicates whose APC equals the selected APC."""
+    if not is_valid_value(apc):
+        return None
+    years = [
+        entry["APC year"] for entry in entries
+        if is_valid_value(entry.get("APC year")) and is_valid_value(entry.get("APC Euros"))
+        and float(entry["APC Euros"]) == float(apc)
+    ]
+    return max(years, key=int) if years else None
+
+
 def merge_duplicates(entries: list[dict], all_columns: list[str], concat_fields: bool) -> dict:
     """Merge duplicate entries by keeping the best information from all duplicates.
     Args:
@@ -173,6 +186,8 @@ def merge_duplicates(entries: list[dict], all_columns: list[str], concat_fields:
     for col in EXPECTED_COLUMNS:
         if col not in all_columns:
             continue
+        if col == "APC year":
+            continue  # Derived below from the selected APC
         values = collect_valid_values(entries, col)
 
         if not values:
@@ -195,6 +210,10 @@ def merge_duplicates(entries: list[dict], all_columns: list[str], concat_fields:
             merged[col] = best_val
             if conflict:
                 conflicts.append(conflict)
+
+    # For any remaining columns, keep the first non-null entry
+    if "APC year" in all_columns:
+        merged["APC year"] = year_of_selected_apc(entries, merged.get("APC Euros"))
 
     # For any remaining columns, keep the first non-null entry
     for col in all_columns:

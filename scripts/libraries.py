@@ -29,6 +29,7 @@ FINAL_COLUMNS: list[str] = [
     "e-ISSN",
     "p-ISSN",
     "ISSN-L",
+    "APC year",
 ]
 
 COUNTRY_FORMATTING_PATH = Path("config/country_formatting.json")
@@ -265,6 +266,16 @@ def format_APC_Euros(df: pl.DataFrame, col: str = "APC Euros") -> pl.DataFrame:
     if filter_invalid.height > 0:
         print("Invalid APC Euros values found:")
         print(filter_invalid)
+    return df
+
+
+def format_APC_year(df: pl.DataFrame, col: str = "APC year") -> pl.DataFrame:
+    """Cast the 'APC year' column to integer and check that every year is plausible and comes with an APC."""
+    df = df.with_columns(pl.col(col).cast(pl.Int64, strict=True).alias(col))
+    invalid = df.filter(pl.col(col).is_not_null() & ((pl.col(col) < 2000) | (pl.col(col) > 2100)))
+    assert invalid.height == 0, f"Invalid '{col}' values found: {invalid[col].to_list()}"
+    orphan = df.filter(pl.col(col).is_not_null() & pl.col("APC Euros").is_null())
+    assert orphan.height == 0, f"{orphan.height} rows have an '{col}' but no APC Euros"
     return df
 
 
@@ -790,7 +801,15 @@ def derive_APC_from_business_model(df: pl.DataFrame) -> pl.DataFrame:
     """ Derive 'APC Euros' from 'Business model'.
     - If Business model is 'OA diamond', set 'APC Euros' to 0.
     - If Business model is 'Subscription', set 'APC Euros' to None.
+    The 'APC year' is dropped whenever the APC is changed by this rule, as it no longer dates a recorded value.
     """
+    changed = (
+            ((pl.col("Business model") == "OA diamond") & (pl.col("APC Euros").fill_null(-1) != 0))
+            | (pl.col("Business model") == "Subscription")
+    )
+    df = df.with_columns(
+        pl.when(changed).then(pl.lit(None)).otherwise(pl.col("APC year")).cast(pl.Int64).alias("APC year")
+    )
     df = df.with_columns(
         pl.when(pl.col("Business model") == "OA diamond")
         .then(pl.lit(0))
@@ -804,7 +823,9 @@ def derive_APC_from_business_model(df: pl.DataFrame) -> pl.DataFrame:
 
 def format_table(df: pl.DataFrame) -> pl.DataFrame:
     # Format numeric columns and URLs
+    df = ensure_columns(df)
     df = format_APC_Euros(df)
+    df = format_APC_year(df)
     df = format_Scimago_Rank(df)
     df = format_urls(df)
 
@@ -863,6 +884,13 @@ def format_table(df: pl.DataFrame) -> pl.DataFrame:
     # Then derive APC from Business model (OA diamond → 0, Subscription → None)
     df = derive_APC_from_business_model(df)
     return df
+
+
+def normalize_dataverse_publisher(name: str | None) -> str:
+    """Normalize the uppercase, underscore-separated publisher codes in the APC dataset."""
+    if name is None:
+        return ""
+    return normalize_publisher(str(name).replace("_", " "))
 
 
 def normalize_publisher_type(name: str) -> str:

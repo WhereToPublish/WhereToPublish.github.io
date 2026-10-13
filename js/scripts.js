@@ -34,7 +34,7 @@ function parseCSV(csvText) {
     // 0: Journal, 1: Field, 2: Publisher, 3: Publisher type, 4: Business model,
     // 5: Institution, 6: Institution type, 7: Country, 8: Website, 9: APC Euros,
     // 10: Scimago Rank, 11: Scimago Quartile, 12: H index, 13: PCI partner,
-    // 14: e-ISSN, 15: p-ISSN
+    // 14: e-ISSN, 15: p-ISSN, 16: APC year
     const lines = csvText.split('\n');
     const data = [];
 
@@ -68,7 +68,7 @@ function parseCSV(csvText) {
         2: 'The company or organization that publishes the journal. In some cases, societies are in charge of editorial content but delegate publishing to a publishing company. ',
         3: 'Main: For-profit, Non-profit, or University Press. Subcases: "Associated with" to indicate when the publisher who handles production differs from the institution which maintains editorial oversight.',
         4: 'Revenue model of the publisher: Subscription, Hybrid, OA (Open Access), or OA Diamond (free for authors and readers)',
-        5: 'Article Processing Charges in euros (most recent year based on OpenAPC)',
+        5: 'Article Processing Charges in euros: the most recent entry among OpenAPC, DOAJ and the APC dataset (Butler et al., Matthias et al.), with the year of that entry in parentheses',
         6: 'Country where the publisher is headquartered',
         7: 'The scientific society, university, or government institution associated with the journal, if any. For-profit journals may or may not be associated with an institution.',
         8: 'The type of associated institution: Society/Association, University/Government, or Museum',
@@ -177,7 +177,9 @@ function parseCSV(csvText) {
         ];
 
         // Pre-compute APC bin index for histogram optimization
+        // Keep the APC numeric in the row (sorting, filtering, histogram); the year is only added when displayed
         const apcValue = row[5].replace(/[^\d]/g, '');
+        row.__apcYear = cols[16] || '';
         if (apcValue !== '') {
             const apc = parseInt(apcValue);
             for (let i = 0; i < apcBins.length - 1; i++) {
@@ -759,8 +761,8 @@ $(document).ready(function () {
                     // If showing all APCs, return true
                     if (currentMinAPC === '0' && currentMaxAPC === '5000') return true;
                     const apcRaw = data && data[5] ? data[5] : '';
-                    const apcValue = apcRaw.replace(/[^\d]/g, '');
-                    if (apcValue === '') return false; // exclude non-numeric/missing APC when filter is applied
+                    const apcValue = apcRaw.match(/^\d+/)?.[0] ?? '';
+                    if (apcValue === '') return false; // exclude non-numeric/missing APC when filter is applied non-numeric/missing APC when filter is applied
                     const apc = parseInt(apcValue, 10);
                     const minApc = parseInt(currentMinAPC, 10);
                     const maxApc = parseInt(currentMaxAPC, 10);
@@ -956,6 +958,14 @@ $(document).ready(function () {
                                 className: 'searchList',
                                 content: ['searchList']
                             }]
+                        },
+                        {
+                            targets: 5,
+                            render: function (data, type, row) {
+                                if (!data || !row.__apcYear) return data;
+                                if (type === 'display' || type === 'filter') return `${data} (${row.__apcYear})`;
+                                return data;
+                            }
                         },
                         {targets: [0, 3, 4, 5], className: 'noVis'},
                         {targets: 0, responsivePriority: 1},

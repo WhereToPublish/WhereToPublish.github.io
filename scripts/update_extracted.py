@@ -14,7 +14,7 @@ SCIMAGO_FILE = os.path.join("data_extraction", "scimagojr.csv.gz")
 ISSN_TYPE_FILE = os.path.join("config", "ISSN_type.csv")
 OPENAPC_FILE = os.path.join("data_extraction", "openapc.csv.gz")
 DOAJ_FILE = os.path.join("data_extraction", "DOAJ.csv.gz")
-DATAVERSE_FILE = os.path.join("data_extraction", "APC_dataverse.txt.gz")
+DATAVERSE_FILE = os.path.join("data_extraction", "scholcommlab_apc_dataset_2019_2025-2.csv.gz")
 FILES_TO_SKIP = []
 
 # Columns that should be updated from each data source
@@ -26,8 +26,7 @@ FILE_COLS = {"scimago": [("Scimago Rank", True),
                          ("e-ISSN", False),
                          ("p-ISSN", False),
                          ("ISSN-L", False)],
-             "openapc": [("APC Euros", True),
-                         ("Publisher", False),
+             "openapc": [("Publisher", False),
                          ("Business model", False),
                          ("e-ISSN", False),
                          ("p-ISSN", False),
@@ -36,14 +35,14 @@ FILE_COLS = {"scimago": [("Scimago Rank", True),
                       ("Country", False),
                       ("Website", False),
                       ("Institution", False),
-                      ("APC Euros", False),
                       ("e-ISSN", False),
                       ("p-ISSN", False)],
-             "dataverse": [("APC Euros", False),
-                           ("Publisher", False),
+             "dataverse": [("Publisher", False),
                            ("Business model", False)]}
 
-COLUMNS_TO_UPDATE = set([col for cols in FILE_COLS.values() for col, _ in cols])
+# APC Euros and APC year are not enriched source by source: select_latest_apc picks the most recent entry
+APC_SOURCES = ["openapc", "doaj", "dataverse"]
+COLUMNS_TO_UPDATE = set([col for cols in FILE_COLS.values() for col, _ in cols]) | {"APC Euros", "APC year"}
 print(f"Columns to update: {COLUMNS_TO_UPDATE}")
 
 # Maps source name -> presence column written in data_extracted CSVs
@@ -84,9 +83,17 @@ CANDIDATE_KEYS: dict[str, list[tuple[str, str, str]]] = {
         ("p-ISSN", "p-ISSN_doaj", "p-ISSN match"),
     ],
     "dataverse": [
+        ("ISSN-L", "ISSN-L_dataverse", "ISSN-L match"),
+        ("ISSN-L", "issn1_dataverse", "ISSN-L match"),
+        ("ISSN-L", "issn2_dataverse", "ISSN-L match"),
+        ("e-ISSN", "issn1_dataverse", "e-ISSN match"),
+        ("e-ISSN", "issn2_dataverse", "e-ISSN match"),
+        ("e-ISSN", "ISSN-L_dataverse", "e-ISSN match"),
+        ("p-ISSN", "issn1_dataverse", "p-ISSN match"),
+        ("p-ISSN", "issn2_dataverse", "p-ISSN match"),
+        ("p-ISSN", "ISSN-L_dataverse", "p-ISSN match"),
         ("norm_journal", "norm_journal_dataverse", "Yes"),
         ("alt_journal_norm", "norm_journal_dataverse", "With alternative journal name"),
-        # Dataverse lookup has no ISSN columns
     ],
 }
 PUBLISHER_TYPE_BG_HEX: dict[str, str] = {
@@ -340,12 +347,13 @@ def load_openapc_lookup() -> pl.DataFrame:
         "BUG: stale openAPC records still present after filtering"
 
     # Group by normalized journal name and aggregate:
-    # - Mean APC Euros from records in the most recent year
+    # - Mean APC Euros from records in the most recent year, dated with that year
     # - Most frequent publisher from the most recent year
     # - Majority vote for is_hybrid (if more than 50% are hybrid, mark as Hybrid)
     # - First ISSN values (consistent within a journal)
     agg_expressions = [
         pl.col("APC Euros_openapc").mean().alias("APC Euros_openapc"),
+        pl.col("max_period").first().cast(pl.Int64).alias("APC year_openapc"),
         pl.col("Publisher_openapc").mode().first().alias("Publisher_openapc"),
         pl.when(pl.col("is_hybrid").mean() > 0.5)
         .then(pl.lit("Hybrid"))
@@ -377,6 +385,7 @@ def load_openapc_lookup() -> pl.DataFrame:
         "norm_journal_openapc",
         "Journal_openapc",
         "APC Euros_openapc",
+        "APC year_openapc",
         "Publisher_openapc",
         "Business model_openapc",
         "e-ISSN_openapc",
@@ -386,63 +395,72 @@ def load_openapc_lookup() -> pl.DataFrame:
     return openapc_df.select(selected_columns)
 
 
-def load_dataverse_lookup() -> pl.DataFrame:
+def load_dataverse_lookup(file_path: str = DATAVERSE_FILE) -> pl.DataFrame:
     """Load and process APC Dataverse data into a lookup table.
 
     Returns:
-        pl.DataFrame: Processed Dataverse lookup table with normalized journal names and aggregated data from last 5 years.
+        pl.DataFrame: Latest year with an APC per journal (the latest year when no APC exists).
     """
-    dataverse_df = load_csv(DATAVERSE_FILE, separator='\t', encoding="utf8-lossy")
+    dataverse_df = load_csv(file_path, infer_schema=False)
+    required_columns = {
+        "unique_id", "publisher", "journal", "issn1", "issn2", "issn_l",
+        "oa_status", "apc_year", "apc_eur",
+    }
+    missing_columns = required_columns.difference(dataverse_df.columns)
+    assert not missing_columns, f"Missing APC dataset columns: {sorted(missing_columns)}"
+    assert dataverse_df.height > 0, "The APC dataset is empty"
+    assert dataverse_df["unique_id"].null_count() == 0, "APC dataset contains missing unique_id values"
 
-    # Only keep rows where APC was actually provided
-    dataverse_df = dataverse_df.filter(pl.col("APC_provided") == "yes")
-
-    # Rename columns to our convention
-    dataverse_df = dataverse_df.rename({
-        "Journal": "Journal_dataverse",
-        "Publisher": "Publisher_dataverse",
-        "APC_EUR": "APC Euros_dataverse",
-        "APC_year": "period_dataverse",
-    })
-
-    # Normalize journal names
-    dataverse_df = dataverse_df.with_columns(
-        pl.col("Journal_dataverse").map_elements(norm_name, return_dtype=pl.Utf8).alias("norm_journal_dataverse")
-    )
-
-    # Map OA_status to Business model
-    dataverse_df = dataverse_df.with_columns(
-        pl.when(pl.col("OA_status") == "Gold")
+    dataverse_df = dataverse_df.with_columns([
+        pl.col("apc_year").cast(pl.Int64, strict=True).alias("period_dataverse"),
+        pl.col("apc_eur").cast(pl.Float64, strict=False).alias("APC Euros_dataverse"),
+        pl.col("journal").map_elements(norm_name, return_dtype=pl.Utf8).alias("norm_journal_dataverse"),
+        pl.col("publisher")
+        .map_elements(normalize_dataverse_publisher, return_dtype=pl.Utf8)
+        .alias("Publisher_dataverse"),
+        pl.when(pl.col("oa_status") == "Gold OA")
         .then(pl.lit("OA"))
-        .when(pl.col("OA_status") == "Hybrid")
+        .when(pl.col("oa_status") == "Hybrid OA")
         .then(pl.lit("Hybrid"))
         .otherwise(None)
-        .alias("Business model_dataverse")
-    )
-
-    # For each journal, keep only last 5 years of data
-    max_periods = dataverse_df.group_by("norm_journal_dataverse").agg(
-        pl.col("period_dataverse").max().alias("max_period")
-    )
-    dataverse_df = dataverse_df.join(max_periods, on="norm_journal_dataverse", how="left")
-    dataverse_df = dataverse_df.filter(
-        pl.col("period_dataverse") > (pl.col("max_period") - 5)
-    )
-
-    # Aggregate per journal: mean APC, mode publisher and business model
-    dataverse_df = dataverse_df.group_by("norm_journal_dataverse").agg([
-        pl.col("APC Euros_dataverse").mean().alias("APC Euros_dataverse"),
-        pl.col("Publisher_dataverse").mode().first().alias("Publisher_dataverse"),
-        pl.col("Business model_dataverse").mode().first().alias("Business model_dataverse"),
+        .alias("Business model_dataverse"),
+        pl.col("issn_l").map_elements(format_issn, return_dtype=pl.Utf8).alias("ISSN-L_dataverse"),
+        pl.col("issn1").map_elements(format_issn, return_dtype=pl.Utf8).alias("issn1_dataverse"),
+        pl.col("issn2").map_elements(format_issn, return_dtype=pl.Utf8).alias("issn2_dataverse"),
     ])
 
-    # Normalize publisher names
-    dataverse_df = dataverse_df.with_columns(
-        pl.col("Publisher_dataverse").map_elements(normalize_publisher, return_dtype=pl.Utf8).alias(
-            "Publisher_dataverse")
+    has_apc_text = pl.col("apc_eur").cast(pl.Utf8).str.strip_chars() != ""
+    assert dataverse_df.filter(
+        pl.col("apc_eur").is_not_null() & has_apc_text & pl.col("APC Euros_dataverse").is_null()
+    ).height == 0, "APC dataset contains non-numeric EUR values"
+    assert dataverse_df.filter(pl.col("APC Euros_dataverse") < 0).height == 0, (
+        "APC dataset contains negative EUR values"
     )
 
-    return format_APC_Euros(dataverse_df, "APC Euros_dataverse")
+    # Each journal keeps the latest year that has an APC (or its latest year when it never has one)
+    selected_years = dataverse_df.group_by("unique_id").agg([
+        pl.col("period_dataverse").max().alias("max_period"),
+        pl.col("period_dataverse").filter(pl.col("APC Euros_dataverse").is_not_null()).max().alias("max_apc_period"),
+    ])
+    dataverse_df = (
+        dataverse_df.join(selected_years, on="unique_id", how="left")
+        .filter(pl.col("period_dataverse") == pl.coalesce("max_apc_period", "max_period"))
+    )
+
+    dataverse_df = dataverse_df.group_by("unique_id").agg([
+        pl.col("norm_journal_dataverse").drop_nulls().first().alias("norm_journal_dataverse"),
+        pl.col("APC Euros_dataverse").mean().round(0).cast(pl.Int64).alias("APC Euros_dataverse"),
+        pl.col("period_dataverse").first().alias("APC year_dataverse"),
+        pl.col("Publisher_dataverse").mode().first().alias("Publisher_dataverse"),
+        pl.col("Business model_dataverse").drop_nulls().mode().first().alias("Business model_dataverse"),
+        pl.col("ISSN-L_dataverse").drop_nulls().first().alias("ISSN-L_dataverse"),
+        pl.col("issn1_dataverse").drop_nulls().first().alias("issn1_dataverse"),
+        pl.col("issn2_dataverse").drop_nulls().first().alias("issn2_dataverse"),
+    ])
+    assert dataverse_df["norm_journal_dataverse"].null_count() == 0, (
+        "Dataverse lookup contains journal titles that could not be normalized"
+    )
+    return dataverse_df
 
 
 def load_doaj_lookup() -> pl.DataFrame:
@@ -502,6 +520,11 @@ def load_doaj_lookup() -> pl.DataFrame:
 
     # Format APC Euros (extract numeric value)
     doaj_df = format_APC_Euros(doaj_df, "APC Euros_doaj")
+    # DOAJ only provides the current APC: it is dated by the year the journal record was last updated
+    doaj_df = doaj_df.with_columns(
+        pl.col("Last updated Date").cast(pl.Utf8).str.slice(0, 4).cast(pl.Int64).alias("APC year_doaj")
+    )
+    assert doaj_df["APC year_doaj"].null_count() == 0, "DOAJ records without a 'Last updated Date'"
     doaj_df = format_urls(doaj_df, "Website_doaj")
 
     selected_columns = [
@@ -512,6 +535,7 @@ def load_doaj_lookup() -> pl.DataFrame:
         "Institution_doaj",
         "Website_doaj",
         "APC Euros_doaj",
+        "APC year_doaj",
         "e-ISSN_doaj",
         "p-ISSN_doaj",
     ]
@@ -880,11 +904,11 @@ def apply_candidate_key(target_df: pl.DataFrame, lookup_df: pl.DataFrame, left_c
 
 def compute_presence_and_keys(target_df: pl.DataFrame, lookup_df: pl.DataFrame, source: str,
                               presence_col: str | None) -> tuple[pl.DataFrame, pl.DataFrame]:
-    """Compute presence column and unique join keys for a source via the candidate key cascade.
+    """Compute unique join keys for a source using its ordered candidate key cascade.
 
-    Tries candidate keys in priority order (norm_journal → alt_journal_norm → ISSN-L →
-    e-ISSN → p-ISSN, as defined in CANDIDATE_KEYS). Each step only operates on rows
-    still labelled "No" or "Ambiguous".
+    Candidate-key order is source-specific. Dataverse tries ISSN-L, the dataset's
+    two ISSNs against target e-/p-ISSNs, and then normalized journal titles.
+    Each step only operates on rows still labelled "No" or "Ambiguous".
 
     Presence values (written to presence_col if provided, otherwise internal only):
         "Yes"                    — matched via normalized journal name
@@ -1020,14 +1044,51 @@ def join_and_enrich(target_df: pl.DataFrame, lookup_df: pl.DataFrame, source: st
     return result
 
 
+def select_latest_apc(df: pl.DataFrame, totals: dict) -> pl.DataFrame:
+    """Update 'APC Euros' and 'APC year' from the lookup sources (APC_SOURCES).
+
+    Each source pair 'APC Euros_{source}' / 'APC year_{source}' replaces the current values when:
+      - its year is more recent than the current year, or the current row has no 'APC year';
+      - its year equals the current year and its APC is higher.
+    Values are never averaged across sources, so the result does not depend on the source order.
+    """
+    original = df.select("APC Euros", "APC year")
+    apc, year = pl.col("APC Euros").cast(pl.Int64), pl.col("APC year").cast(pl.Int64)
+    df = df.with_columns(apc, year)
+    for source in APC_SOURCES:
+        src_apc, src_year = f"APC Euros_{source}", f"APC year_{source}"
+        assert src_apc in df.columns and src_year in df.columns, f"Missing APC columns for source '{source}'"
+        assert df.filter(pl.col(src_apc).is_not_null() & pl.col(src_year).is_null()).height == 0, (
+            f"Source '{source}' has APC values without a year"
+        )
+        cur_apc, cur_year = pl.col("APC Euros"), pl.col("APC year")
+        use_source = pl.col(src_apc).is_not_null() & (
+            cur_year.is_null()
+            | (pl.col(src_year) > cur_year)
+            | ((pl.col(src_year) == cur_year) & (pl.col(src_apc) > cur_apc))
+        )
+        df = df.with_columns(
+            pl.when(use_source).then(pl.col(src_apc).cast(pl.Int64)).otherwise(cur_apc).alias("APC Euros"),
+            pl.when(use_source).then(pl.col(src_year).cast(pl.Int64)).otherwise(cur_year).alias("APC year"),
+        )
+    for col in ("APC Euros", "APC year"):
+        totals[col] += df.filter(
+            pl.col(col).is_not_null() & (original[col].cast(pl.Int64).is_null() | (original[col].cast(pl.Int64) != pl.col(col)))
+        ).height
+    assert df.filter(pl.col("APC year").is_not_null() & pl.col("APC Euros").is_null()).height == 0, (
+        "BUG: APC year set without an APC"
+    )
+    return df
+
+
 def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup: pl.DataFrame,
                      doaj_lookup: pl.DataFrame, dataverse_lookup: pl.DataFrame,
                      pci_friendly_set: set, totals: dict, disagreement_rows: list) -> None:
     """Process a single CSV file: enrich with external sources, then write back.
 
-    For each source, compute_presence_and_keys assigns unique join keys via a key-cascade
-    (norm_journal → alt_journal_norm → ISSN-L → e-ISSN → p-ISSN), then join_and_enrich
-    does a single left join and applies enrichment rules. Disagreements between dataset
+    For each source, compute_presence_and_keys assigns unique join keys via a source-specific
+    cascade (Dataverse tries ISSNs before journal titles), then join_and_enrich does a
+    single left join and applies enrichment rules. Disagreements between dataset
     and source values are detected from the joined source columns before cleanup.
 
     Args:
@@ -1045,7 +1106,8 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
 
     # Ensure all FINAL_COLUMNS exist (adds missing columns as nulls, e.g. e-ISSN, p-ISSN, ISSN-L)
     target_df = ensure_columns(target_df)
-
+    # Existing APC values and years must be numeric before being compared with the lookup entries
+    target_df = format_APC_year(format_APC_Euros(target_df))
     # Use the canonical FINAL_COLUMNS as the set of output columns
     original_cols = FINAL_COLUMNS
 
@@ -1077,7 +1139,7 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
         presence_col = SOURCE_PRESENCE_COL.get(source)
         updated_df, augmented_lookup = compute_presence_and_keys(updated_df, lookup_df, source, presence_col)
         updated_df = join_and_enrich(updated_df, augmented_lookup, source, totals)
-
+    updated_df = select_latest_apc(updated_df, totals)
     # Apply formatting and normalization (format_table also re-formats ISSNs idempotently)
     updated_df = format_table(updated_df)
     # Mark PCI friendly journals
@@ -1104,7 +1166,7 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
 
 
 def main():
-    """Main function to update Scimago and OpenAPC information in CSV files."""
+    """Enrich extracted journal records with external sources."""
     print("Starting script to update Scimago, OpenAPC, and DOAJ info...")
 
     # Load lookup tables

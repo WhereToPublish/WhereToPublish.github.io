@@ -73,10 +73,18 @@
 <body>
 
 <div class="container">
-    <h1><span class="modal-trigger">APC Explorer</span></h1>
-    <p id="intro-p" class="modal-trigger">Article Processing Charges from 14 scholarly publishers (2019&ndash;2025).</p>
+    <h1><span class="modal-trigger">Article Processing Charges (APC) from 14 scholarly publishers.</span></h1>
+    <p id="intro-p" class="modal-trigger">
+            An interactive explorer based on a dataset published by: Matthias, L., Chavarro, D., Schares, E., Alperin, J. P., Rose, M., Frost, M., et al. (2026).
+            <em>A dataset of article processing charges from 14 scholarly publishers, 2019&ndash;2025</em>.
+    </p>
+    <p style="margin-bottom: 10px;">
+    <a href="https://arxiv.org/abs/2608.14116" target="_blank" rel="noopener noreferrer">arXiv:2608.14116</a>
+    &mdash;
+    <a href="https://doi.org/10.7910/DVN/AZ985C" target="_blank" rel="noopener noreferrer">Harvard Dataverse</a>
+    </p>
     <p class="line"></p>
-    <div id="dataSourceFilters" style="margin-bottom: 5px; text-align: center;">
+    <div id="dataSourceFilters" style="margin-bottom: 5px; text-align: center; padding-top: 10px;">
         <!-- Publisher selector buttons -->
         <button class="data-source-button publisher-button" data-publisher="all" id="allPublishersBtn">All Publishers</button>
         <button class="data-source-button publisher-button" data-publisher="American Chemical Society (ACS)" id="acs">ACS</button>
@@ -164,7 +172,7 @@
 <div id="aboutModal" class="modal">
     <div class="modal-content">
         <span class="close-modal">&times;</span>
-        <h2>About APC Explorer</h2>
+        <h2>About</h2>
         <p>
             This page displays annual APC list prices from 14 scholarly publishers between 2019 and 2025.
             The dataset contains 12,540 journals and 69,856 journal-year records. These are listed prices,

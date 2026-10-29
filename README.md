@@ -77,7 +77,7 @@ These rules are applied in the order listed so that a journal with `Subscription
 
 - `Open Access Diamond == Yes` → `OA diamond`
 - `Open Access == Yes` → `OA`
-- otherwise → `Subscription` (will be promoted to `Hybrid` by the rule above if APC Euros > 0 from another source)
+- otherwise → no value (the journal keeps its current business model)
 
 Intermediate files in `data_extracted/` (the Google Sheet tabs) carry more columns than the website CSVs. The sheet columns are, in order (`FINAL_COLUMNS` in `scripts/libraries.py`, which `upload_sheets.py` asserts before uploading):
 
@@ -114,7 +114,7 @@ yearly APC columns.
 
 ### Data Pipeline
 
-The data is updated monthly via GitHub Actions:
+The data is updated manually: a maintainer starts the *Extract Data* GitHub Action (there is no automatic schedule), which runs:
 
 ```bash
 # 1. Download raw data from Google Sheets (via Sheets API)

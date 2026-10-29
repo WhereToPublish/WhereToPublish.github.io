@@ -298,7 +298,10 @@ def upload_all_fields(service, metadata: dict) -> None:
         rows = sheets_client.read_csv_as_rows(csv_path)
         validate_before_upload(slug, rows, metadata[slug])
         reordered = reorder_columns(rows, FINAL_COLUMNS)
-
+        assert reordered[0] == FINAL_COLUMNS, (
+            f"[{slug}] CSV columns {rows[0]} do not match the expected sheet columns {FINAL_COLUMNS}. "
+            "Upload aborted to avoid shifting columns in the sheet."
+        )
         print(f"  [{slug}] → '{tab_name}' ...")
         n_rows = upload_rows_to_sheet(service, reordered, tab_name)
         print(f"    {n_rows} data rows uploaded.")

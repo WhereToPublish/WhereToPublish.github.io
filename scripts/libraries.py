@@ -22,9 +22,11 @@ FINAL_COLUMNS: list[str] = [
     "Present in Scimago",
     "Present in DOAJ",
     "Present in openAPC",
+    "Present in Scholcommlab APC",
     "Scimago Rank",
     "Scimago Quartile",
     "H index",
+    "Impact Factor (IF)",
     "PCI partner",
     "e-ISSN",
     "p-ISSN",
@@ -34,10 +36,10 @@ FINAL_COLUMNS: list[str] = [
 
 COUNTRY_FORMATTING_PATH = Path("config/country_formatting.json")
 
-NUMERIC_COLUMNS = [
-    "APC Euros",
+# Columns holding decimal numbers (floats), possibly written with a decimal comma
+DECIMAL_COLUMNS = [
     "Scimago Rank",
-    "H index",
+    "Impact Factor (IF)",
 ]
 
 
@@ -279,8 +281,8 @@ def format_APC_year(df: pl.DataFrame, col: str = "APC year") -> pl.DataFrame:
     return df
 
 
-def format_Scimago_Rank(df: pl.DataFrame, col: str = "Scimago Rank") -> pl.DataFrame:
-    """Format the 'Scimago Rank' column to be a float, removing non-numeric characters."""
+def format_decimal(df: pl.DataFrame, col: str) -> pl.DataFrame:
+    """Format a column to be a float, turning a decimal comma into a point and removing other non-numeric characters."""
     return df.with_columns(
         pl.col(col)
         .cast(pl.Utf8)
@@ -826,7 +828,8 @@ def format_table(df: pl.DataFrame) -> pl.DataFrame:
     df = ensure_columns(df)
     df = format_APC_Euros(df)
     df = format_APC_year(df)
-    df = format_Scimago_Rank(df)
+    for col in DECIMAL_COLUMNS:
+        df = format_decimal(df, col)
     df = format_urls(df)
 
     # Normalize text fields
@@ -919,12 +922,6 @@ def normalize_publisher_type(name: str) -> str:
     else:
         print(f"Unknown publisher type: '{name}'")
         return s
-
-
-def write_ordered(df: pl.DataFrame, out_path: str) -> None:
-    # Order columns and write CSV
-    ordered = df.select([pl.col(c) for c in FINAL_COLUMNS])
-    ordered.write_csv(out_path)
 
 
 def check_consistency(df: pl.DataFrame) -> None:

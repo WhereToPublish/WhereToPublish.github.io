@@ -25,6 +25,7 @@ EXPECTED_COLUMNS = [
     "Scimago Rank",
     "Scimago Quartile",
     "H index",
+    "Impact Factor (IF)",
     "PCI partner",
     "e-ISSN",
     "p-ISSN",
@@ -178,7 +179,7 @@ def merge_duplicates(entries: list[dict], all_columns: list[str], concat_fields:
     if len(entries) == 1:
         return {col: entries[0].get(col) for col in all_columns}
 
-    numeric_max_fields = {"APC Euros", "H index", "Scimago Rank"}
+    numeric_max_fields = {"APC Euros", "H index", "Scimago Rank", "Impact Factor (IF)"}
     merged = {}
     conflicts = []
 

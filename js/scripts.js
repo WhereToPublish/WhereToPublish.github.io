@@ -14,6 +14,9 @@
 // Configuration: Number of bins for APC histogram (change this value to adjust histogram granularity)
 const APC_HISTOGRAM_BINS = 16;
 
+// The Impact Factor column is hidden until the user accepts the disclaimer in the Impact Factor modal
+const IMPACT_FACTOR_HEADER = 'Impact Factor (IF)';
+
 // Configuration: Breakpoint for disabling FixedHeader on small screens (in pixels)
 // FixedHeader is disabled at or below this width to prevent alignment issues on mobile
 const FIXEDHEADER_BREAKPOINT = 768;
@@ -33,8 +36,8 @@ function parseCSV(csvText) {
     // We know the exact column order in the CSV:
     // 0: Journal, 1: Field, 2: Publisher, 3: Publisher type, 4: Business model,
     // 5: Institution, 6: Institution type, 7: Country, 8: Website, 9: APC Euros,
-    // 10: Scimago Rank, 11: Scimago Quartile, 12: H index, 13: PCI partner,
-    // 14: e-ISSN, 15: p-ISSN, 16: APC year
+    // 10: Scimago Rank, 11: Scimago Quartile, 12: H index, 13: Impact Factor (IF), 14: PCI partner,
+    // 15: e-ISSN, 16: p-ISSN, 17: APC year
     const lines = csvText.split('\n');
     const data = [];
 
@@ -58,9 +61,10 @@ function parseCSV(csvText) {
         'Scimago Rank',       // 10
         'Scimago Quartile',   // 11
         'H Index',            // 12
-        'PCI Partner',        // 13
-        'e-ISSN',             // 14
-        'p-ISSN',             // 15
+        IMPACT_FACTOR_HEADER, // 13 (hidden until the Impact Factor modal is accepted)
+        'PCI Partner',        // 14
+        'e-ISSN',             // 15
+        'p-ISSN',             // 16
     ];
     const columnDefs = {
         0: 'Official journal names might differ from the name on the list.',
@@ -76,9 +80,10 @@ function parseCSV(csvText) {
         10: 'SCImago Journal Rank (SJR): >1.0 = above average citation potential',
         11: 'Field ranking: Q1 (top 25%) to Q4 (bottom 25%)',
         12: 'Journal H-index: h papers from that journal were cited at least h times',
-        13: 'Partner of Peer Community In (free preprint peer review)',
-        14: 'Electronic ISSN (e-ISSN) of the journal',
-        15: 'Print ISSN (p-ISSN) of the journal',
+        13: 'Average number of citations per document over the last 2 years (SCImago "Citations / Doc. (2years)"), the closest equivalent to the 2-year Journal Impact Factor. It should not be used to judge the quality of an individual paper or researcher.',
+        14: 'Partner of Peer Community In (free preprint peer review)',
+        15: 'Electronic ISSN (e-ISSN) of the journal',
+        16: 'Print ISSN (p-ISSN) of the journal',
     };
 
     // Mandatory columns that cannot be hidden
@@ -171,15 +176,16 @@ function parseCSV(csvText) {
             cols[10] || '', // Scimago Rank
             cols[11] || '', // Scimago Quartile
             cols[12] || '', // H index
-            cols[13] || '', // PCI partner
-            cols[14] || '', // e-ISSN
-            cols[15] || '', // p-ISSN
+            cols[13] || '', // Impact Factor (IF)
+            cols[14] || '', // PCI partner
+            cols[15] || '', // e-ISSN
+            cols[16] || '', // p-ISSN
         ];
 
         // Pre-compute APC bin index for histogram optimization
         // Keep the APC numeric in the row (sorting, filtering, histogram); the year is only added when displayed
         const apcValue = row[5].replace(/[^\d]/g, '');
-        row.__apcYear = cols[16] || '';
+        row.__apcYear = cols[17] || '';
         if (apcValue !== '') {
             const apc = parseInt(apcValue);
             for (let i = 0; i < apcBins.length - 1; i++) {
@@ -212,6 +218,8 @@ $(document).ready(function () {
     const ALL_FIELDS_SOURCE = 'data/all_biology.csv';
     const DEFAULT_DATA_SOURCE = 'data/generalist.csv';
     let dataTable; // Variable to store the DataTable instance
+    let impactFactorIdx = -1; // Index of the Impact Factor column in the current table
+    let impactFactorAccepted = false; // Set once the user accepts the Impact Factor disclaimer
     let currentDataSource = null; // Track current CSV file
     let currentDatasetLabel = '';
     // Clear existing saved state on first load
@@ -784,6 +792,8 @@ $(document).ready(function () {
             const parsed = await fetchCSVFile(dataSource);
             console.timeEnd('fetchCSVFile');
             const {data: tableData, allHeadersText, defaultVisibleHeaders, mandatoryHeaders, apcBins} = parsed;
+            impactFactorIdx = allHeadersText.indexOf(IMPACT_FACTOR_HEADER);
+            if (impactFactorIdx === -1) throw new Error('Impact Factor column not found in the table headers');
 
             // Store bins for later use
             if (apcBins) {
@@ -889,10 +899,17 @@ $(document).ready(function () {
                             columns: ':not(.noVis)',
                             postfixButtons: [
                                 {
+                                    // Behaves like the other column toggles once the disclaimer has been accepted
+                                    extend: 'columnVisibility',
+                                    columns: impactFactorIdx,
                                     text: 'Impact Factor',
                                     action: function (e, dt, node, config) {
-                                        $('div.dt-button-background').click();
-                                        openModal($('#impactFactorModal'));
+                                        if (impactFactorAccepted) {
+                                            DataTable.ext.buttons.columnVisibility.action(e, dt, node, config);
+                                        } else {
+                                            $('div.dt-button-background').click();
+                                            openImpactFactorModal();
+                                        }
                                     }
                                 },
                                 {
@@ -962,7 +979,7 @@ $(document).ready(function () {
                             targets: [3, 4, 5], columnControl: ['order']
                         },
                         {
-                            targets: [1, 6, 8, 13],
+                            targets: [1, 6, 8, 14],
                             columnControl: ['order', {
                                 extend: 'dropdown',
                                 icon: 'search',
@@ -978,7 +995,8 @@ $(document).ready(function () {
                                 return data;
                             }
                         },
-                        {targets: [0, 3, 4, 5], className: 'noVis'},
+                        // The Impact Factor column can only be shown through the Impact Factor modal
+                        {targets: [0, 3, 4, 5, impactFactorIdx], className: 'noVis'},
                         {targets: 0, responsivePriority: 1},
                         {targets: 1, responsivePriority: 2},
                         {targets: 5, responsivePriority: 1000000},
@@ -1170,6 +1188,30 @@ $(document).ready(function () {
         $('.modal').removeClass('show');
         $('body').css('overflow', '');
     }
+
+    // Impact Factor modal: the column can only be displayed after accepting the disclaimer.
+    // The acceptance is kept in a variable, so the modal is shown once per page load.
+    const impactFactorModal = $('#impactFactorModal');
+    const impactFactorConsent = $('#impactFactorConsent');
+    const impactFactorDisplayButton = $('#impactFactorDisplay');
+
+    function openImpactFactorModal() {
+        impactFactorConsent.prop('checked', false);
+        impactFactorDisplayButton.prop('disabled', true);
+        openModal(impactFactorModal);
+    }
+
+    impactFactorConsent.on('change', function () {
+        impactFactorDisplayButton.prop('disabled', !this.checked);
+    });
+
+    impactFactorDisplayButton.on('click', function () {
+        impactFactorAccepted = true;
+        dataTable.column(impactFactorIdx).visible(true);
+        closeModal();
+    });
+
+    $('#impactFactorDecline').on('click', closeModal);
 
     modalTriggers.on('click', function () {
         openModal(aboutModal);

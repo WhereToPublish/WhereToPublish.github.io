@@ -23,6 +23,7 @@ FILE_COLS = {"scimago": [("Scimago Rank", True),
                          ("Business model", False),
                          ("Scimago Quartile", True),
                          ("H index", True),
+                         ("Impact Factor (IF)", True),
                          ("e-ISSN", False),
                          ("p-ISSN", False),
                          ("ISSN-L", False)],
@@ -46,16 +47,17 @@ COLUMNS_TO_UPDATE = set([col for cols in FILE_COLS.values() for col, _ in cols])
 print(f"Columns to update: {COLUMNS_TO_UPDATE}")
 
 # Maps source name -> presence column written in data_extracted CSVs
-# (Dataverse intentionally omitted — no presence column was requested for it)
 SOURCE_PRESENCE_COL = {
     "scimago": "Present in Scimago",
     "doaj": "Present in DOAJ",
     "openapc": "Present in openAPC",
+    "dataverse": "Present in Scholcommlab APC",
 }
 
 # Presence column values (ordered from best to worst match)
 PRESENCE_VALUES = ["Yes", "With alternative journal name", "ISSN-L match",
                    "e-ISSN match", "p-ISSN match", "Ambiguous", "No"]
+UNMATCHED_PRESENCE_VALUES = ["Ambiguous", "No"]
 
 # Candidate join key cascade for each source.
 # Each entry is (left_col_in_target, right_col_in_lookup, presence_label).
@@ -200,26 +202,6 @@ def classify_scimago_issns(issns_str: str | None, issn_type_lookup: dict[str, st
     return e_issn, p_issn, issn_l
 
 
-def build_issn_title_lookup(lookup_df: pl.DataFrame, title_col: str, issn_cols: list[str]) -> dict[str, list[str]]:
-    """Return a mapping of formatted ISSN -> ordered unique source titles."""
-    lookup: dict[str, list[str]] = {}
-
-    for row in lookup_df.select([title_col] + issn_cols).iter_rows(named=True):
-        title = clean_string(row.get(title_col))
-        if not title:
-            continue
-
-        for issn_col in issn_cols:
-            formatted_issn = format_issn(row.get(issn_col))
-            if formatted_issn is None:
-                continue
-            values = lookup.setdefault(formatted_issn, [])
-            if title not in values:
-                values.append(title)
-
-    return lookup
-
-
 def load_scimago_lookup() -> pl.DataFrame:
     """Load and process Scimago data into a lookup table.
 
@@ -233,6 +215,7 @@ def load_scimago_lookup() -> pl.DataFrame:
         "Publisher": "Publisher_scimago",
         "SJR Best Quartile": "Scimago Quartile_scimago",
         "H index": "H index_scimago",
+        "Citations / Doc. (2years)": "Impact Factor (IF)_scimago",
         "Country": "Country_scimago",
         "Areas": "Areas_scimago",
         "Categories": "Categories_scimago",
@@ -257,7 +240,11 @@ def load_scimago_lookup() -> pl.DataFrame:
     )
 
     # Format Scimago Rank to standard numeric format
-    scimago_df = format_Scimago_Rank(scimago_df, "Scimago Rank_scimago")
+    # Scimago has no impact factor: its 2-year "Citations / Doc." is the equivalent metric
+    for col in ("Scimago Rank_scimago", "Impact Factor (IF)_scimago"):
+        scimago_df = format_decimal(scimago_df, col)
+    assert scimago_df["Impact Factor (IF)_scimago"].null_count() == 0, "Scimago rows without 'Citations / Doc. (2years)'"
+    assert scimago_df["Impact Factor (IF)_scimago"].max() < 1000, "Implausible Scimago 'Citations / Doc. (2years)'"
 
     # Build formatted Scimago Quartile from Categories + best quartile
     scimago_df = scimago_df.with_columns(
@@ -295,6 +282,7 @@ def load_scimago_lookup() -> pl.DataFrame:
         "Business model_scimago",
         "Scimago Quartile_scimago",
         "H index_scimago",
+        "Impact Factor (IF)_scimago",
         "Country_scimago",
         "e-ISSN_scimago",
         "p-ISSN_scimago",
@@ -543,27 +531,6 @@ def load_doaj_lookup() -> pl.DataFrame:
     return doaj_df.select(selected_columns)
 
 
-def load_scimago_issn_title_lookup() -> dict[str, list[str]]:
-    """Return formatted ISSN -> Scimago title(s) using the canonical lookup loader."""
-    return build_issn_title_lookup(
-        load_scimago_lookup(), title_col="Journal_scimago",
-        issn_cols=["e-ISSN_scimago", "p-ISSN_scimago", "ISSN-L_scimago"])
-
-
-def load_doaj_issn_title_lookup() -> dict[str, list[str]]:
-    """Return formatted ISSN -> DOAJ title(s) using the canonical lookup loader."""
-    return build_issn_title_lookup(
-        load_doaj_lookup(), title_col="Journal_doaj",
-        issn_cols=["e-ISSN_doaj", "p-ISSN_doaj"])
-
-
-def load_openapc_issn_title_lookup() -> dict[str, list[str]]:
-    """Return formatted ISSN -> OpenAPC title(s) using the canonical lookup loader."""
-    return build_issn_title_lookup(
-        load_openapc_lookup(), title_col="Journal_openapc",
-        issn_cols=["e-ISSN_openapc", "p-ISSN_openapc", "ISSN-L_openapc"])
-
-
 # ---------------------------------------------------------------------------
 # Disagreement report helpers
 # ---------------------------------------------------------------------------
@@ -605,7 +572,7 @@ def has_disagreement(vals: list, col_name: str) -> bool:
     """
     non_null = [v for v in vals if v is not None and str(v).strip() != ""]
     # If contains "(", remove it and everything after to ignore details
-    non_null = [str(v).split("(", 1)[0].strip().lower() if isinstance(v, str) else v for v in non_null]
+    non_null = [clean_variable(v) for v in non_null]
     if len(non_null) < 2:
         return False
     # For business model, if first (dataset) value is "Hybrid" and second (scimago) value is "OA", do not count as disagreement
@@ -803,6 +770,11 @@ def compute_publisher_type_disagreements(enriched_df: pl.DataFrame, type_map: di
     return disagreements
 
 
+def is_nonempty(col: str) -> pl.Expr:
+    """Expression that is true where the column is neither null nor blank."""
+    return pl.col(col).is_not_null() & (pl.col(col).cast(pl.Utf8).str.strip_chars() != "")
+
+
 def apply_candidate_key(target_df: pl.DataFrame, lookup_df: pl.DataFrame, left_col: str, right_col: str, label: str,
                         left_key_col: str, right_key_col: str,
                         presence_col: str) -> tuple[pl.DataFrame, pl.DataFrame]:
@@ -834,8 +806,8 @@ def apply_candidate_key(target_df: pl.DataFrame, lookup_df: pl.DataFrame, left_c
     if left_col not in target_df.columns or right_col not in lookup_df.columns:
         return target_df, lookup_df
 
-    is_nonempty_left = (pl.col(left_col).is_not_null() & (pl.col(left_col).cast(pl.Utf8).str.strip_chars() != ""))
-    is_nonempty_right = (pl.col(right_col).is_not_null() & (pl.col(right_col).cast(pl.Utf8).str.strip_chars() != ""))
+    is_nonempty_left = is_nonempty(left_col)
+    is_nonempty_right = is_nonempty(right_col)
 
     # Count occurrences of candidate key values in each table
     left_counts = target_df.filter(is_nonempty_left).group_by(left_col).agg(pl.len().alias("_left_count"))
@@ -863,7 +835,7 @@ def apply_candidate_key(target_df: pl.DataFrame, lookup_df: pl.DataFrame, left_c
     blocked_clean = clean_values & claimed_right  # clean but lookup row already taken
     all_ambiguous = ambiguous_values | blocked_clean  # flag as ambiguous
 
-    needs_match = (pl.col(presence_col).is_in(["No", "Ambiguous"]) & is_nonempty_left)
+    needs_match = (pl.col(presence_col).is_in(UNMATCHED_PRESENCE_VALUES) & is_nonempty_left)
 
     # Update target_df: assign key and presence in one pass
     update_exprs = []
@@ -902,15 +874,15 @@ def apply_candidate_key(target_df: pl.DataFrame, lookup_df: pl.DataFrame, left_c
     return target_df, lookup_df
 
 
-def compute_presence_and_keys(target_df: pl.DataFrame, lookup_df: pl.DataFrame, source: str,
-                              presence_col: str | None) -> tuple[pl.DataFrame, pl.DataFrame]:
+def compute_presence_and_keys(target_df: pl.DataFrame, lookup_df: pl.DataFrame,
+                              source: str) -> tuple[pl.DataFrame, pl.DataFrame]:
     """Compute unique join keys for a source using its ordered candidate key cascade.
 
     Candidate-key order is source-specific. Dataverse tries ISSN-L, the dataset's
     two ISSNs against target e-/p-ISSNs, and then normalized journal titles.
     Each step only operates on rows still labelled "No" or "Ambiguous".
 
-    Presence values (written to presence_col if provided, otherwise internal only):
+    Presence values (written to SOURCE_PRESENCE_COL[source]):
         "Yes"                    — matched via normalized journal name
         "With alternative journal name" — matched via alternative journal name
         "ISSN-L match"           — matched via ISSN-L
@@ -923,28 +895,26 @@ def compute_presence_and_keys(target_df: pl.DataFrame, lookup_df: pl.DataFrame, 
     Adds left_key_{source} to target_df and right_key_{source} to lookup_df.
     Both columns are null for rows/rows that could not be cleanly matched.
 
-    Asserts that non-null left-key values are unique in target_df and non-null
-    right-key values are unique in lookup_df (guarantees join produces no duplicates).
+    Asserts that a row has a left key exactly when its presence is a match, and that non-null
+    left-key values are unique in target_df and non-null right-key values are unique in
+    lookup_df (guarantees join produces no duplicates).
 
     Args:
         target_df:    Left DataFrame being enriched.
         lookup_df:    Lookup table for this source.
-        source:       Source name ("scimago", "openapc", "doaj", "dataverse").
-        presence_col: Column name to write presence info into target_df, or None to
-                      skip writing the presence column (for sources like "dataverse").
+        source:       Source name (key of SOURCE_PRESENCE_COL).
 
     Returns:
         (target_df_with_left_key, lookup_df_with_right_key)
     """
     left_key_col = f"left_key_{source}"
     right_key_col = f"right_key_{source}"
-    # Use a temporary internal name if no permanent presence column is needed
-    presence_col_alias = presence_col if presence_col is not None else f"_presence_{source}"
+    presence_col = SOURCE_PRESENCE_COL[source]
 
     # Initialize: all rows start with no key and presence "No"
     target_df = target_df.with_columns([
         pl.lit(None).cast(pl.Utf8).alias(left_key_col),
-        pl.lit("No").alias(presence_col_alias),
+        pl.lit("No").alias(presence_col),
     ])
     lookup_df = lookup_df.with_columns(
         pl.lit(None).cast(pl.Utf8).alias(right_key_col)
@@ -954,20 +924,22 @@ def compute_presence_and_keys(target_df: pl.DataFrame, lookup_df: pl.DataFrame, 
     for left_col, right_col, label in CANDIDATE_KEYS[source]:
         target_df, lookup_df = apply_candidate_key(
             target_df, lookup_df, left_col, right_col, label,
-            left_key_col, right_key_col, presence_col_alias,
+            left_key_col, right_key_col, presence_col,
         )
 
     # Log presence distribution
     print(f"  [{source}] presence distribution:")
     for val in PRESENCE_VALUES:
-        count = target_df.filter(pl.col(presence_col_alias) == val).height
+        count = target_df.filter(pl.col(presence_col) == val).height
         if count > 0:
             print(f"    - {val}: {count}")
 
-    # Drop internal presence column if it was not requested
-    if presence_col is None:
-        target_df = target_df.drop(presence_col_alias)
-
+    assert target_df.filter(pl.col(presence_col).is_in(PRESENCE_VALUES).not_()).height == 0, (
+        f"BUG: unexpected values in '{presence_col}': {target_df[presence_col].unique().to_list()}"
+    )
+    assert target_df.filter(
+        pl.col(left_key_col).is_not_null() == pl.col(presence_col).is_in(UNMATCHED_PRESENCE_VALUES)
+    ).height == 0, f"BUG: '{presence_col}' is inconsistent with {left_key_col}"
     # Assert: non-null left_key values are unique in target_df (no duplicate join keys)
     non_null_left = target_df.filter(pl.col(left_key_col).is_not_null())
     assert non_null_left[left_key_col].n_unique() == non_null_left.height, (
@@ -1081,6 +1053,19 @@ def select_latest_apc(df: pl.DataFrame, totals: dict) -> pl.DataFrame:
     return df
 
 
+def check_scimago_enrichment(df: pl.DataFrame) -> None:
+    """Assert that every journal matched to Scimago has its H index and impact factor filled.
+
+    Scimago Rank and Quartile are not checked: Scimago leaves them empty for some (discontinued) journals.
+    """
+    matched = pl.col(SOURCE_PRESENCE_COL["scimago"]).is_in(UNMATCHED_PRESENCE_VALUES).not_()
+    for col in ("H index", "Impact Factor (IF)"):
+        missing = df.filter(matched & pl.col(col).is_null())
+        assert missing.height == 0, (
+            f"{missing.height} journals matched to Scimago have no '{col}': {missing['Journal'].head(5).to_list()}"
+        )
+
+
 def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup: pl.DataFrame,
                      doaj_lookup: pl.DataFrame, dataverse_lookup: pl.DataFrame,
                      pci_friendly_set: set, totals: dict, disagreement_rows: list) -> None:
@@ -1102,12 +1087,16 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
         disagreement_rows: List accumulating disagreement report dicts (mutated in-place).
     """
     print(f"Processing file: {csv_path}")
-    target_df = load_csv(csv_path, ignore_errors=True)
+    # Read every cell as text: values typed by hand in the sheet (e.g. "10 898€") are parsed by the format_* helpers
+    # instead of being silently dropped by a type inference
+    target_df = load_csv(csv_path, infer_schema=False)
 
     # Ensure all FINAL_COLUMNS exist (adds missing columns as nulls, e.g. e-ISSN, p-ISSN, ISSN-L)
     target_df = ensure_columns(target_df)
     # Existing APC values and years must be numeric before being compared with the lookup entries
     target_df = format_APC_year(format_APC_Euros(target_df))
+    for col in DECIMAL_COLUMNS:
+        target_df = format_decimal(target_df, col)
     # Use the canonical FINAL_COLUMNS as the set of output columns
     original_cols = FINAL_COLUMNS
 
@@ -1136,9 +1125,9 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
     ]
     updated_df = target_df
     for source, lookup_df in source_lookups:
-        presence_col = SOURCE_PRESENCE_COL.get(source)
-        updated_df, augmented_lookup = compute_presence_and_keys(updated_df, lookup_df, source, presence_col)
+        updated_df, augmented_lookup = compute_presence_and_keys(updated_df, lookup_df, source)
         updated_df = join_and_enrich(updated_df, augmented_lookup, source, totals)
+    check_scimago_enrichment(updated_df)
     updated_df = select_latest_apc(updated_df, totals)
     # Apply formatting and normalization (format_table also re-formats ISSNs idempotently)
     updated_df = format_table(updated_df)

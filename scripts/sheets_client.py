@@ -137,27 +137,6 @@ def read_csv_as_rows(csv_path: Path) -> list[list[str]]:
     return rows
 
 
-def recreate_sheet_tab(service: Any, spreadsheet_id: str, tab_name: str) -> None:
-    """Delete a sheet tab if it exists, then create a fresh one with the same name.
-
-    Used for report tabs (Disagreements, Missing publishers) that should be
-    completely replaced on each run rather than updated in-place.
-
-    Args:
-        service: Authenticated Sheets API service with write scope.
-        spreadsheet_id: Google Sheets spreadsheet ID.
-        tab_name: Exact name of the tab to recreate.
-    """
-    spreadsheet_meta = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
-    existing = {s["properties"]["title"]: s["properties"]["sheetId"] for s in spreadsheet_meta["sheets"]}
-    requests: list[dict] = []
-    if tab_name in existing:
-        requests.append({"deleteSheet": {"sheetId": existing[tab_name]}})
-    requests.append({"addSheet": {"properties": {"title": tab_name}}})
-    service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body={"requests": requests}, ).execute()
-    print(f"  Recreated sheet tab '{tab_name}'.")
-
-
 def get_sheet_properties(service: Any, spreadsheet_id: str, tab_name: str) -> dict[str, int]:
     """Return basic properties for *tab_name*: sheetId, rowCount, and columnCount."""
     spreadsheet_meta = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()

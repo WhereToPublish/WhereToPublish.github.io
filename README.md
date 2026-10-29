@@ -50,14 +50,16 @@ An interactive database of for-profit and non-profit scientific journals in biol
 
 ### Journal-table CSV Column Schema
 
-Output CSV files in `data/` contain these 16 columns in order:
+Output CSV files in `data/` contain these 18 columns in order:
 
 ```
 Journal, Field, Publisher, Publisher type, Business model,
 Institution, Institution type, Country, Website, APC Euros,
-Scimago Rank, Scimago Quartile, H index, PCI partner,
+Scimago Rank, Scimago Quartile, H index, Impact Factor (IF), PCI partner,
 e-ISSN, p-ISSN, APC year
 ```
+
+**Impact Factor (IF).** Scimago does not publish impact factors; `Impact Factor (IF)` is filled from Scimago's `Citations / Doc. (2years)` column (the average number of citations per document over a 2-year window, the closest equivalent of a 2-year impact factor), for every journal matched to Scimago. The website hides this column by default. The **Impact Factor** entry of the "Show/Hide more columns" dropdown first opens a modal explaining why the Impact Factor was originally left out (with a link to the DORA guidance). The modal has a "hold WhereToPublish harmless" checkbox, a **Display IF** button that is enabled only once the checkbox is ticked, and an **Ok, I don't want to display IF** button that closes the modal and leaves the column hidden. Once **Display IF** is used, the acceptance is kept in the `impactFactorAccepted` variable of `js/scripts.js` (no cookie or localStorage, so it is forgotten on page reload): the modal never reappears and the **Impact Factor** entry becomes a regular show/hide toggle, also after switching dataset or resetting the columns.
 
 **APC and APC year.** `APC Euros` is the *latest* entry among the APC sources (OpenAPC, DOAJ, Dataverse), not an average across sources, and `APC year` is the year of that entry. The website shows it as `167 (2025)`; sorting, the APC range filter and the histogram use only the numeric amount. Per-source years: OpenAPC = latest year with payments for the journal (amount = mean of that year's payments), Dataverse = latest year with an APC, DOAJ = the year of the record's `Last updated Date`. A source value replaces the current one when its year is more recent (or the current row has no year); for the same year the highest APC is kept. Existing manual APCs have no year and are only kept when no source provides an APC. `APC year` is the last column, so the Google Sheet gains a new last column on the next upload.
 
@@ -77,13 +79,23 @@ These rules are applied in the order listed so that a journal with `Subscription
 - `Open Access == Yes` → `OA`
 - otherwise → `Subscription` (will be promoted to `Hybrid` by the rule above if APC Euros > 0 from another source)
 
-Intermediate files in `data_extracted/` also carry additional columns that are not published to the website:
+Intermediate files in `data_extracted/` (the Google Sheet tabs) carry more columns than the website CSVs. The sheet columns are, in order (`FINAL_COLUMNS` in `scripts/libraries.py`, which `upload_sheets.py` asserts before uploading):
+
+```
+Journal's MAIN field, Field, Journal, Website, Publisher type, Publisher,
+Institution, Institution type, Country, Business model, APC Euros,
+Alternative journal name, Present in Scimago, Present in DOAJ, Present in openAPC,
+Present in Scholcommlab APC, Scimago Rank, Scimago Quartile, H index,
+Impact Factor (IF), PCI partner, e-ISSN, p-ISSN, ISSN-L, APC year
+```
+
+The columns below are not published to the website:
 
 - `Alternative journal name` — used as a fallback join key during enrichment when the primary journal name does not match an external source.
-- `Present in Scimago`, `Present in DOAJ`, `Present in openAPC` — records how each journal was matched to the corresponding external source. Possible values:
+- `Present in Scimago`, `Present in DOAJ`, `Present in openAPC`, `Present in Scholcommlab APC` — records how each journal was matched to the corresponding external source (`Present in Scholcommlab APC` refers to the Dataverse file `scholcommlab_apc_dataset_2019_2025-2.csv.gz`, which only covers 14 publishers, so `No` there does not mean the journal has no APC). Possible values:
 
   - `"Yes"` — matched via normalized journal name
-  - `"Alternative journal name"` — matched via the alternative journal name
+  - `"With alternative journal name"` — matched via the alternative journal name
   - `"ISSN-L match"` — matched via ISSN-L
   - `"e-ISSN match"` — matched via e-ISSN
   - `"p-ISSN match"` — matched via p-ISSN
@@ -169,7 +181,7 @@ cd scripts && python data_process.py
 | `scripts/upload_sheets.py`       | Uploads enriched`data_extracted/` field CSVs back to Google Sheets (field tabs updated in-place). Also uploads `logs/disagreements.csv` to a **Disagreements** tab and `logs/missing_publisher_in_configs.csv` to a **Missing publishers** tab by clearing tab values then rewriting (tab formatting is preserved). ISSN values in Disagreements value columns are hyperlinked to the ISSN portal for ISSN disagreements. Report tabs are styled on upload (Roboto size 10, left/top alignment, grey header, white data cells); Publisher disagreement value cells are color-coded by publisher type. |
 | `scripts/fetch_sheet.py`         | Downloads a single field tab (CLI helper)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `scripts/download_extraction.sh` | Downloads external data sources to`data_extraction/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `scripts/update_extracted.py`    | Enriches raw data with Scimago, OpenAPC, DOAJ, and Dataverse. The APC is the latest entry (by dataset year) among OpenAPC, DOAJ and Dataverse; Dataverse uses its latest year with an APC, matching by ISSN-L and the dataset's ISSNs before falling back to journal title. Candidate keys must be unique on both sides; ambiguous matches are skipped. Also writes`logs/disagreements.csv` for Scimago, OpenAPC, and DOAJ conflicts.                                                                                                                                                                                 |
+| `scripts/update_extracted.py`    | Enriches raw data with Scimago, OpenAPC, DOAJ, and Dataverse. The APC is the latest entry (by dataset year) among OpenAPC, DOAJ and Dataverse; Dataverse uses its latest year with an APC, matching by ISSN-L and the dataset's ISSNs before falling back to journal title. Candidate keys must be unique on both sides; ambiguous matches are skipped. Fills the four `Present in …` match columns (including `Present in Scholcommlab APC` for Dataverse) and `Impact Factor (IF)` from Scimago. Also writes`logs/disagreements.csv` for Scimago, OpenAPC, and DOAJ conflicts.                                                                                                                                                                                 |
 | `scripts/APC_process.py`         | Processes the 2019–2025 Harvard Dataverse APC dataset into publisher-specific yearly APC tables and the compact`APC_all.csv` table used by APC Explorer.                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `scripts/data_process.py`        | Cleans, normalizes, deduplicates, and outputs to`data/`. Also writes `logs/missing_publisher_in_configs.csv` — journals whose publisher (after normalization) is not found in `config/country_formatting.json`, with columns `journal`, `publisher`, `country`, `publisher_type` (sorted by `publisher`, then `journal`).                                                                                                                                                                                                                                                                            |
 | `scripts/libraries.py`           | Shared utility functions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
@@ -181,7 +193,7 @@ cd scripts && python data_process.py
 
 | Source                                         | File                                                            | Description                                                                                                                                    |
 | ---------------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Scimago](https://www.scimagojr.com/)           | `data_extraction/scimagojr.csv.gz`                            | Journal rankings, quartiles, H-index                                                                                                           |
+| [Scimago](https://www.scimagojr.com/)           | `data_extraction/scimagojr.csv.gz`                            | Journal rankings, quartiles, H-index, impact factor (`Citations / Doc. (2years)`)                                                              |
 | [OpenAPC](https://openapc.net/)                 | `data_extraction/openapc.csv.gz`                              | Article Processing Charges — uses only the most recent year's records per journal; journals with no data within the last 3 years are excluded |
 | [DOAJ](https://doaj.org/)                       | `data_extraction/DOAJ.csv.gz`                                 | Open access journal metadata                                                                                                                   |
 | [Dataverse](https://doi.org/10.7910/DVN/AZ985C) | `data_extraction/scholcommlab_apc_dataset_2019_2025-2.csv.gz` | Annual APC list prices for 14 publishers, 2019–2025                                                                                           |

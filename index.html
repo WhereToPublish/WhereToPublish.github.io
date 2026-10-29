@@ -166,13 +166,31 @@
         <span class="close-modal">&times;</span>
         <h2>About Impact Factor</h2>
         <p>
-            If you were looking for Impact Factor (IF) metrics, note that we have decided to not include it on purpose
-            because it is a flawed metric that is often misused to classify researchers and journals.
-            <br>
-            For more information, please see <a href="https://sfdora.org/dora_indicators_guidance/" target="_blank"
-                                                rel="noopener noreferrer">DORA indicator guidance</a>.
-            <br>
+            We originally left out the Journal Impact Factor (JIF) for a reason: it is a flawed metric, too often used
+            as a proxy for research quality. But any system bends under pressure… and you pressured us... So here it
+            is.
         </p>
+        <p>
+            Our concerns remain, and as <a href="https://sfdora.org/dora_indicators_guidance/" target="_blank"
+                                           rel="noopener noreferrer">DORA's guidance</a> explains, a journal’s Impact
+            Factor should not be used to judge the quality of an individual paper or researcher. We also display other
+            indicators, including SCImago Journal Rank (SJR), SCImago quartile, and the journal h-index. These offer
+            different perspectives, but each has limitations.
+        </p>
+        <p class="modal-consent">
+            <label for="impactFactorConsent">
+                <input type="checkbox" id="impactFactorConsent">
+                <span>I use the Impact Factor at my own risk, and at the risk of my career, my science, and research assessment as a whole.</span>
+            </label>
+        </p>
+        <div class="modal-actions">
+            <button type="button" id="impactFactorDisplay" class="modal-button modal-button--primary" disabled>
+                Display IF
+            </button>
+            <button type="button" id="impactFactorDecline" class="modal-button">
+                Ok, I don't want to display IF
+            </button>
+        </div>
     </div>
 </div>
 

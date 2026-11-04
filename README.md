@@ -48,6 +48,35 @@ An interactive database of for-profit and non-profit scientific journals in biol
 └── img/                    # Images and logo
 ```
 
+### Website filters (index.html)
+
+The filter buttons above the journal table are data-driven: each button carries a
+`data-*` attribute and a single delegated click handler in `js/scripts.js` applies the
+corresponding DataTables column search.
+
+- **Field buttons** (`.data-source-button`): `data-source` (CSV path) and `data-label`.
+- **Publisher type buttons** (`.profit-status-button`): `data-publisher-filter`, whose
+  keys are defined in the `PUBLISHER_TYPE_FILTERS` map at the top of `js/scripts.js`.
+  Each entry gives the column search term (a regex for the pooled entry), a local `match`
+  function used to count rows, and the button selector. The pooled
+  **Non-profit + University Press** entry (`^(Non-profit|University Press)` regex on the
+  *Publisher Type* column) shows all non-profit and university-press journals — the
+  "ethical" journals — in one click, including their *associated with a society*
+  variants; its button label shows the summed NP + UP count.
+- **Business model buttons** (`.business-model-button`): `data-business-model`, keys
+  defined in `BUSINESS_MODEL_FILTERS` (same structure).
+
+Button labels show live counts, recomputed on every table draw. Column searches are
+saved in `localStorage` (`wtp_global_state_v1`) and therefore persist when switching
+field datasets within a page session (including the pooled regex filter); the saved
+state is cleared on every full page load.
+
+The publisher-type buttons and the matching table rows use a single-hue ramp from the
+Material Design green palette (UP = green 50 `#E8F5E9`, NP = green 100 `#C8E6C9`,
+pooled NP+UP = green 200 `#A5D6A7`; for-profit stays red 50 `#FFEBEE`), so the three
+"ethical" shades harmonize and darken as more categories are pooled. All three pass
+WCAG AA contrast (≥ 4.5:1) against the button text color `#2D3748`.
+
 ### Journal-table CSV Column Schema
 
 Output CSV files in `data/` contain these 18 columns in order:

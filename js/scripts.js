@@ -21,6 +21,90 @@ const IMPACT_FACTOR_HEADER = 'Impact Factor (IF)';
 // FixedHeader is disabled at or below this width to prevent alignment issues on mobile
 const FIXEDHEADER_BREAKPOINT = 768;
 
+// Publisher type filters. Each key is a possible value of `currentPublisherTypeFilter`
+// and matches the `data-publisher-filter` attribute of the corresponding button.
+// - `search` is the term applied to the Publisher Type column (column 3) of the table,
+//   interpreted as a regular expression when `regex` is true.
+// - `match` is the equivalent local test used to count rows; it must agree with `search`.
+// The pooled 'Non-profit + University Press' entry shows all "ethical" journals at once.
+const PUBLISHER_TYPE_FILTERS = {
+    'all': {
+        button: '#allPublishers', label: 'All Publishers',
+        search: '', match: () => true
+    },
+    'Non-profit + University Press': {
+        button: '#ethicalPublishers', label: 'Non-profit + University Press',
+        search: '^(Non-profit|University Press)', regex: true,
+        match: type => type.indexOf('Non-profit') === 0 || type.indexOf('University Press') === 0
+    },
+    'Non-profit': {
+        button: '#nonProfitPublishers', label: 'Non-profit',
+        search: 'Non-profit',
+        match: type => type.indexOf('Non-profit') === 0
+    },
+    'University Press': {
+        button: '#universityPressPublishers', label: 'University Press',
+        search: 'University Press',
+        match: type => type.indexOf('University Press') === 0
+    },
+    'For-profit': {
+        button: '#forProfitPublishers', label: 'For-profit',
+        search: 'For-profit',
+        match: type => type.indexOf('For-profit') === 0
+    }
+};
+
+// Business model filters. Same structure as PUBLISHER_TYPE_FILTERS, applied to the
+// Business Model column (column 4). Note: the 'OA' search also matches 'OA diamond',
+// so its `match` uses a prefix test on purpose.
+const BUSINESS_MODEL_FILTERS = {
+    'all': {
+        button: '#allBusinessModels', label: 'All Business Models',
+        search: '', match: () => true
+    },
+    'OA diamond': {
+        button: '#diamondOABusinessModel', label: 'OA diamond',
+        search: 'OA diamond',
+        match: model => model === 'OA diamond'
+    },
+    'OA': {
+        button: '#oaBusinessModel', label: 'OA',
+        search: 'OA',
+        match: model => model.indexOf('OA') === 0
+    },
+    'Hybrid': {
+        button: '#hybridBusinessModel', label: 'Hybrid',
+        search: 'Hybrid',
+        match: model => model === 'Hybrid'
+    },
+    'Subscription': {
+        button: '#subscriptionBusinessModel', label: 'Subscription',
+        search: 'Subscription',
+        match: model => model === 'Subscription'
+    }
+};
+
+// Apply a publisher type filter to the Publisher Type column of the given table
+function applyPublisherTypeFilter(tableApi, filterKey) {
+    const filter = PUBLISHER_TYPE_FILTERS[filterKey] || PUBLISHER_TYPE_FILTERS['all'];
+    tableApi.column(3).search(filter.search, !!filter.regex, false, false);
+}
+
+// Apply a business model filter to the Business Model column of the given table
+function applyBusinessModelFilter(tableApi, filterKey) {
+    const filter = BUSINESS_MODEL_FILTERS[filterKey] || BUSINESS_MODEL_FILTERS['all'];
+    tableApi.column(4).search(filter.search, false, false, false);
+}
+
+// Find the filter key whose column search term matches the one currently applied to the table
+function publisherFilterKeyFromSearch(searchTerm) {
+    return Object.keys(PUBLISHER_TYPE_FILTERS).find(key => PUBLISHER_TYPE_FILTERS[key].search === searchTerm) || 'all';
+}
+
+function businessModelFilterKeyFromSearch(searchTerm) {
+    return Object.keys(BUSINESS_MODEL_FILTERS).find(key => BUSINESS_MODEL_FILTERS[key].search === searchTerm) || 'all';
+}
+
 // Generate APC bins array based on the number of bins
 function generateApcBins(numBins, maxApc = 5000) {
     const bins = [];
@@ -269,198 +353,45 @@ $(document).ready(function () {
     }
 
     function matchesPublisherFilter(row, filterKey) {
+        const filter = PUBLISHER_TYPE_FILTERS[filterKey] || PUBLISHER_TYPE_FILTERS['all'];
         const publisherType = row && row[3] ? String(row[3]) : '';
-        switch (filterKey) {
-            case 'For-profit':
-                return publisherType.indexOf('For-profit') === 0;
-            case 'Non-profit':
-                return publisherType.indexOf('Non-profit') === 0;
-            case 'University Press':
-                return publisherType.indexOf('University Press') === 0;
-            default:
-                return true;
-        }
+        return filter.match(publisherType);
     }
 
     function matchesBusinessModelFilter(row, filterKey) {
+        const filter = BUSINESS_MODEL_FILTERS[filterKey] || BUSINESS_MODEL_FILTERS['all'];
         const businessModel = row && row[4] ? String(row[4]) : '';
-        switch (filterKey) {
-            case 'OA diamond':
-                return businessModel === 'OA diamond';
-            case 'OA':
-                return businessModel.indexOf('OA') === 0;
-            case 'Hybrid':
-                return businessModel === 'Hybrid';
-            case 'Subscription':
-                return businessModel === 'Subscription';
-            default:
-                return true;
-        }
+        return filter.match(businessModel);
     }
 
-    // Data source buttons
-    $('#allJournals').on('click', function () {
+    // Data source buttons: one handler for all, source file and label come from data attributes
+    $('.data-source-button').on('click', function () {
         $('.data-source-button').removeClass('active');
         $(this).addClass('active');
-        const src = ALL_FIELDS_SOURCE;
-        currentDataSource = src;
-        currentDatasetLabel = 'All fields';
-        loadTable(src);
-    });
-    $('#anatomy_physiology').on('click', function () {
-        $('.data-source-button').removeClass('active');
-        $(this).addClass('active');
-        const src = 'data/anatomy_physiology.csv';
-        currentDataSource = src;
-        currentDatasetLabel = 'Anatomy & Physiology';
-        loadTable(src);
-    });
-    $('#generalist').on('click', function () {
-        $('.data-source-button').removeClass('active');
-        $(this).addClass('active');
-        const src = 'data/generalist.csv';
-        currentDataSource = src;
-        currentDatasetLabel = 'Generalist';
-        loadTable(src);
-    });
-    $('#cancer').on('click', function () {
-        $('.data-source-button').removeClass('active');
-        $(this).addClass('active');
-        const src = 'data/cancer.csv';
-        currentDataSource = src;
-        currentDatasetLabel = 'Cancer';
-        loadTable(src);
-    });
-    $('#development').on('click', function () {
-        $('.data-source-button').removeClass('active');
-        $(this).addClass('active');
-        const src = 'data/development.csv';
-        currentDataSource = src;
-        currentDatasetLabel = 'Development';
-        loadTable(src);
-    });
-    $('#ecologyEvolution').on('click', function () {
-        $('.data-source-button').removeClass('active');
-        $(this).addClass('active');
-        const src = 'data/ecology_evolution.csv';
-        currentDataSource = src;
-        currentDatasetLabel = 'Ecology & Evolution';
-        loadTable(src);
-    });
-    $('#geneticsGenomics').on('click', function () {
-        $('.data-source-button').removeClass('active');
-        $(this).addClass('active');
-        const src = 'data/genetics_genomics.csv';
-        currentDataSource = src;
-        currentDatasetLabel = 'Genetics & Genomics';
-        loadTable(src);
-    });
-    $('#immunology').on('click', function () {
-        $('.data-source-button').removeClass('active');
-        $(this).addClass('active');
-        const src = 'data/immunology.csv';
-        currentDataSource = src;
-        currentDatasetLabel = 'Immunology';
-        loadTable(src);
-    });
-    $('#molecularCellularBiology').on('click', function () {
-        $('.data-source-button').removeClass('active');
-        $(this).addClass('active');
-        const src = 'data/molecular_cellular_biology.csv';
-        currentDataSource = src;
-        currentDatasetLabel = 'Molecular & Cellular Biology';
-        loadTable(src);
-    });
-    $('#neurosciences').on('click', function () {
-        $('.data-source-button').removeClass('active');
-        $(this).addClass('active');
-        const src = 'data/neurosciences.csv';
-        currentDataSource = src;
-        currentDatasetLabel = 'Neurosciences';
-        loadTable(src);
-    });
-    $('#plants').on('click', function () {
-        $('.data-source-button').removeClass('active');
-        $(this).addClass('active');
-        const src = 'data/plants.csv';
-        currentDataSource = src;
-        currentDatasetLabel = 'Plants';
-        loadTable(src);
+        currentDataSource = String($(this).data('source') || DEFAULT_DATA_SOURCE);
+        currentDatasetLabel = String($(this).data('label') || '');
+        loadTable(currentDataSource);
     });
 
-    // Profit status filter buttons
-    $('#allPublishers').on('click', function () {
+    // Profit status filter buttons: one handler for all, filter key comes from data-publisher-filter
+    $('.profit-status-button').on('click', function () {
         $('.profit-status-button').removeClass('active');
         $(this).addClass('active');
         if (dataTable) {
-            currentPublisherTypeFilter = 'all';
-            dataTable.column(3).search('').draw();
-        }
-    });
-    $('#forProfitPublishers').on('click', function () {
-        $('.profit-status-button').removeClass('active');
-        $(this).addClass('active');
-        if (dataTable) {
-            currentPublisherTypeFilter = 'For-profit';
-            dataTable.column(3).search(currentPublisherTypeFilter, false, false, false).draw();
-        }
-    });
-    $('#universityPressPublishers').on('click', function () {
-        $('.profit-status-button').removeClass('active');
-        $(this).addClass('active');
-        if (dataTable) {
-            currentPublisherTypeFilter = 'University Press';
-            dataTable.column(3).search(currentPublisherTypeFilter, false, false, false).draw();
-        }
-    });
-    $('#nonProfitPublishers').on('click', function () {
-        $('.profit-status-button').removeClass('active');
-        $(this).addClass('active');
-        if (dataTable) {
-            currentPublisherTypeFilter = 'Non-profit';
-            dataTable.column(3).search(currentPublisherTypeFilter, false, false, false).draw();
+            currentPublisherTypeFilter = String($(this).data('publisher-filter') || 'all');
+            applyPublisherTypeFilter(dataTable, currentPublisherTypeFilter);
+            dataTable.draw();
         }
     });
 
-    // Business model filter buttons
-    $('#allBusinessModels').on('click', function () {
+    // Business model filter buttons: one handler for all, filter key comes from data-business-model
+    $('.business-model-button').on('click', function () {
         $('.business-model-button').removeClass('active');
         $(this).addClass('active');
         if (dataTable) {
-            currentBusinessModelFilter = 'all';
-            dataTable.column(4).search('').draw();
-        }
-    });
-    $('#diamondOABusinessModel').on('click', function () {
-        $('.business-model-button').removeClass('active');
-        $(this).addClass('active');
-        if (dataTable) {
-            currentBusinessModelFilter = 'OA diamond';
-            dataTable.column(4).search(currentBusinessModelFilter, false, false).draw();
-        }
-    });
-    $('#oaBusinessModel').on('click', function () {
-        $('.business-model-button').removeClass('active');
-        $(this).addClass('active');
-        if (dataTable) {
-            currentBusinessModelFilter = 'OA';
-            dataTable.column(4).search(currentBusinessModelFilter, false, false).draw();
-        }
-    });
-    $('#hybridBusinessModel').on('click', function () {
-        $('.business-model-button').removeClass('active');
-        $(this).addClass('active');
-        if (dataTable) {
-            currentBusinessModelFilter = 'Hybrid';
-            dataTable.column(4).search(currentBusinessModelFilter, false, false).draw();
-        }
-    });
-    $('#subscriptionBusinessModel').on('click', function () {
-        $('.business-model-button').removeClass('active');
-        $(this).addClass('active');
-        if (dataTable) {
-            currentBusinessModelFilter = 'Subscription';
-            dataTable.column(4).search(currentBusinessModelFilter, false, false).draw();
+            currentBusinessModelFilter = String($(this).data('business-model') || 'all');
+            applyBusinessModelFilter(dataTable, currentBusinessModelFilter);
+            dataTable.draw();
         }
     });
 
@@ -519,18 +450,21 @@ $(document).ready(function () {
         tableApi.column(4).search('')
         const allRows = tableApi.rows({search: 'applied'}).data().toArray();
 
-        if (currentPublisherTypeFilter !== 'all') {
-            tableApi.column(3).search(currentPublisherTypeFilter, false, false, false);
-        }
-        if (currentBusinessModelFilter !== 'all') {
-            tableApi.column(4).search(currentBusinessModelFilter, false, false);
-        }
+        // Restore the active column filters after the temporary clear above
+        applyPublisherTypeFilter(tableApi, currentPublisherTypeFilter);
+        applyBusinessModelFilter(tableApi, currentBusinessModelFilter);
 
         let publisherConsidered = 0;
         let businessConsidered = 0;
 
-        const publisherTypeCounts = {'For-profit': 0, 'Non-profit': 0, 'University Press': 0};
-        const businessModelCounts = {'OA diamond': 0, 'OA': 0, 'Hybrid': 0, 'Subscription': 0};
+        const publisherTypeCounts = {};
+        Object.keys(PUBLISHER_TYPE_FILTERS).forEach(key => {
+            if (key !== 'all') publisherTypeCounts[key] = 0;
+        });
+        const businessModelCounts = {};
+        Object.keys(BUSINESS_MODEL_FILTERS).forEach(key => {
+            if (key !== 'all') businessModelCounts[key] = 0;
+        });
 
         // Single iteration to compute both publisher and business model counts
         allRows.forEach((row) => {
@@ -543,39 +477,34 @@ $(document).ready(function () {
 
             if (matchesBM) {
                 publisherConsidered++;
-                if (publisherType === 'Non-profit') publisherTypeCounts['Non-profit']++;
-                else if (publisherType.indexOf('For-profit') === 0) publisherTypeCounts['For-profit']++;
-                else if (publisherType.indexOf('University Press') === 0) publisherTypeCounts['University Press']++;
+                Object.keys(publisherTypeCounts).forEach(key => {
+                    if (PUBLISHER_TYPE_FILTERS[key].match(publisherType)) publisherTypeCounts[key]++;
+                });
             }
 
             if (matchesPub) {
                 businessConsidered++;
-                if (businessModel === 'OA diamond') businessModelCounts['OA diamond']++;
-                if (businessModel.indexOf('OA') === 0) businessModelCounts['OA']++;
-                else if (businessModel === 'Hybrid') businessModelCounts['Hybrid']++;
-                else if (businessModel === 'Subscription') businessModelCounts['Subscription']++;
+                Object.keys(businessModelCounts).forEach(key => {
+                    if (BUSINESS_MODEL_FILTERS[key].match(businessModel)) businessModelCounts[key]++;
+                });
             }
         });
 
-        $('#allPublishers').text('All Publishers (' + publisherConsidered + ')');
-        $('#forProfitPublishers').text('For-profit (' + (publisherTypeCounts['For-profit'] || 0) + ')');
-        $('#nonProfitPublishers').text('Non-profit (' + (publisherTypeCounts['Non-profit'] || 0) + ')');
-        $('#universityPressPublishers').text('University Press (' + (publisherTypeCounts['University Press'] || 0) + ')');
-
-        $('#allBusinessModels').text('All Business Models (' + businessConsidered + ')');
+        // Update publisher type buttons, including the pooled 'Non-profit + University Press' one
+        Object.entries(PUBLISHER_TYPE_FILTERS).forEach(([key, filter]) => {
+            const count = key === 'all' ? publisherConsidered : (publisherTypeCounts[key] || 0);
+            $(filter.button).text(filter.label + ' (' + count + ')');
+        });
 
         // Update business model buttons and handle visibility
-        const modelButtons = [
-            {id: '#diamondOABusinessModel', label: 'OA diamond', key: 'OA diamond'},
-            {id: '#oaBusinessModel', label: 'OA', key: 'OA'},
-            {id: '#hybridBusinessModel', label: 'Hybrid', key: 'Hybrid'},
-            {id: '#subscriptionBusinessModel', label: 'Subscription', key: 'Subscription'}
-        ];
-
-        modelButtons.forEach(function (btn) {
-            const count = businessModelCounts[btn.key] || 0;
-            const $button = $(btn.id);
-            $button.text(btn.label + ' (' + count + ')');
+        Object.entries(BUSINESS_MODEL_FILTERS).forEach(([key, filter]) => {
+            if (key === 'all') {
+                $(filter.button).text(filter.label + ' (' + businessConsidered + ')');
+                return;
+            }
+            const count = businessModelCounts[key] || 0;
+            const $button = $(filter.button);
+            $button.text(filter.label + ' (' + count + ')');
 
             if (count === 0) {
                 $button.addClass('hidden');
@@ -585,7 +514,8 @@ $(document).ready(function () {
                     $('.business-model-button').removeClass('active');
                     $('#allBusinessModels').addClass('active');
                     currentBusinessModelFilter = 'all';
-                    tableApi.column(4).search('').draw();
+                    applyBusinessModelFilter(tableApi, 'all');
+                    tableApi.draw();
                 }
             } else {
                 $button.removeClass('hidden');
@@ -1079,45 +1009,12 @@ $(document).ready(function () {
 
                         // Sync publisher and business model filter buttons with restored state
                         $('.profit-status-button').removeClass('active');
-                        const pubSearch = table.column(3).search();
-                        if (!pubSearch) {
-                            $('#allPublishers').addClass('active');
-                            currentPublisherTypeFilter = 'all';
-                        } else if (pubSearch.indexOf('For-profit') === 0) {
-                            $('#forProfitPublishers').addClass('active');
-                            currentPublisherTypeFilter = 'For-profit';
-                        } else if (pubSearch.indexOf('Non-profit') === 0) {
-                            $('#nonProfitPublishers').addClass('active');
-                            currentPublisherTypeFilter = 'Non-profit';
-                        } else if (pubSearch.indexOf('University Press') === 0) {
-                            $('#universityPressPublishers').addClass('active');
-                            currentPublisherTypeFilter = 'University Press';
-                        } else {
-                            $('#allPublishers').addClass('active');
-                            currentPublisherTypeFilter = 'all';
-                        }
+                        currentPublisherTypeFilter = publisherFilterKeyFromSearch(table.column(3).search());
+                        $(PUBLISHER_TYPE_FILTERS[currentPublisherTypeFilter].button).addClass('active');
 
                         $('.business-model-button').removeClass('active');
-                        const bmSearch = table.column(4).search();
-                        if (!bmSearch) {
-                            $('#allBusinessModels').addClass('active');
-                            currentBusinessModelFilter = 'all';
-                        } else if (bmSearch === 'OA diamond') {
-                            $('#diamondOABusinessModel').addClass('active');
-                            currentBusinessModelFilter = 'OA diamond';
-                        } else if (bmSearch === 'OA') {
-                            $('#oaBusinessModel').addClass('active');
-                            currentBusinessModelFilter = 'OA';
-                        } else if (bmSearch === 'Hybrid') {
-                            $('#hybridBusinessModel').addClass('active');
-                            currentBusinessModelFilter = 'Hybrid';
-                        } else if (bmSearch === 'Subscription') {
-                            $('#subscriptionBusinessModel').addClass('active');
-                            currentBusinessModelFilter = 'Subscription';
-                        } else {
-                            $('#allBusinessModels').addClass('active');
-                            currentBusinessModelFilter = 'all';
-                        }
+                        currentBusinessModelFilter = businessModelFilterKeyFromSearch(table.column(4).search());
+                        $(BUSINESS_MODEL_FILTERS[currentBusinessModelFilter].button).addClass('active');
 
                         // Event listener for when a column's visibility changes
                         table.on('column-visibility.dt', function (e, settings, column, state) {

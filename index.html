@@ -30,18 +30,18 @@
         biology.</p>
     <p class="line"></p>
     <div id="dataSourceFilters" style="margin-bottom: 5px; text-align: center;">
-        <!-- Data source buttons: one per CSV category -->
-        <button id="generalist" class="data-source-button active">Generalist</button>
-        <button id="anatomy_physiology" class="data-source-button">Anatomy & Physiology</button>
-        <button id="cancer" class="data-source-button">Cancer</button>
-        <button id="development" class="data-source-button">Development</button>
-        <button id="ecologyEvolution" class="data-source-button">Ecology & Evolution</button>
-        <button id="geneticsGenomics" class="data-source-button">Genetics & Genomics</button>
-        <button id="immunology" class="data-source-button">Immunology</button>
-        <button id="molecularCellularBiology" class="data-source-button">Molecular & Cellular Biology</button>
-        <button id="neurosciences" class="data-source-button">Neurosciences</button>
-        <button id="plants" class="data-source-button">Plants</button>
-        <button id="allJournals" class="data-source-button">All Fields</button>
+        <!-- Data source buttons: one per CSV category (source/label read from data attributes) -->
+        <button id="generalist" class="data-source-button active" data-source="data/generalist.csv" data-label="Generalist">Generalist</button>
+        <button id="anatomy_physiology" class="data-source-button" data-source="data/anatomy_physiology.csv" data-label="Anatomy & Physiology">Anatomy & Physiology</button>
+        <button id="cancer" class="data-source-button" data-source="data/cancer.csv" data-label="Cancer">Cancer</button>
+        <button id="development" class="data-source-button" data-source="data/development.csv" data-label="Development">Development</button>
+        <button id="ecologyEvolution" class="data-source-button" data-source="data/ecology_evolution.csv" data-label="Ecology & Evolution">Ecology & Evolution</button>
+        <button id="geneticsGenomics" class="data-source-button" data-source="data/genetics_genomics.csv" data-label="Genetics & Genomics">Genetics & Genomics</button>
+        <button id="immunology" class="data-source-button" data-source="data/immunology.csv" data-label="Immunology">Immunology</button>
+        <button id="molecularCellularBiology" class="data-source-button" data-source="data/molecular_cellular_biology.csv" data-label="Molecular & Cellular Biology">Molecular & Cellular Biology</button>
+        <button id="neurosciences" class="data-source-button" data-source="data/neurosciences.csv" data-label="Neurosciences">Neurosciences</button>
+        <button id="plants" class="data-source-button" data-source="data/plants.csv" data-label="Plants">Plants</button>
+        <button id="allJournals" class="data-source-button" data-source="data/all_biology.csv" data-label="All fields">All Fields</button>
     </div>
     <div style="position: relative; margin-bottom: 20px; margin-top: 10px;">
         <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 80px; height: 3px; background: linear-gradient(90deg, #3182ce, #63b3ed); border-radius: 3px;"></div>
@@ -50,14 +50,17 @@
     <div class="filters-row">
         <div class="filters-column">
             <div id="profitStatusFilters" style="text-align: center;">
-                <button id="allPublishers" class="profit-status-button active">All Publishers</button>
-                <button id="nonProfitPublishers" class="profit-status-button" style="background-color: #e8f5e9;">
+                <button id="allPublishers" class="profit-status-button active" data-publisher-filter="all">All Publishers</button>
+                <button id="ethicalPublishers" class="profit-status-button" data-publisher-filter="Non-profit + University Press" style="background-color: #a5d6a7;">
+                    Non-profit + University Press
+                </button>
+                <button id="nonProfitPublishers" class="profit-status-button" data-publisher-filter="Non-profit" style="background-color: #c8e6c9;">
                     Non-profit
                 </button>
-                <button id="universityPressPublishers" class="profit-status-button" style="background-color: #e7fbff;">
+                <button id="universityPressPublishers" class="profit-status-button" data-publisher-filter="University Press" style="background-color: #e8f5e9;">
                     University Press
                 </button>
-                <button id="forProfitPublishers" class="profit-status-button" style="background-color: #ffebee;">
+                <button id="forProfitPublishers" class="profit-status-button" data-publisher-filter="For-profit" style="background-color: #ffebee;">
                     For-profit
                 </button>
             </div>
@@ -65,16 +68,16 @@
 
         <div class="filters-column">
             <div id="businessModelFilters" style="text-align: center;">
-                <button id="allBusinessModels" class="business-model-button active">All Business Models</button>
-                <button id="diamondOABusinessModel" class="business-model-button" style="background-color: #e8eaf6;">OA
+                <button id="allBusinessModels" class="business-model-button active" data-business-model="all">All Business Models</button>
+                <button id="diamondOABusinessModel" class="business-model-button" data-business-model="OA diamond" style="background-color: #e8eaf6;">OA
                     diamond
                 </button>
-                <button id="oaBusinessModel" class="business-model-button" style="background-color: #e8eaf6;">OA
+                <button id="oaBusinessModel" class="business-model-button" data-business-model="OA" style="background-color: #e8eaf6;">OA
                 </button>
-                <button id="hybridBusinessModel" class="business-model-button" style="background-color: #e8eaf6;">
+                <button id="hybridBusinessModel" class="business-model-button" data-business-model="Hybrid" style="background-color: #e8eaf6;">
                     Hybrid
                 </button>
-                <button id="subscriptionBusinessModel" class="business-model-button" style="background-color: #e8eaf6;">
+                <button id="subscriptionBusinessModel" class="business-model-button" data-business-model="Subscription" style="background-color: #e8eaf6;">
                     Subscription
                 </button>
             </div>
@@ -180,9 +183,10 @@
         <p class="modal-consent">
             <label for="impactFactorConsent">
                 <input type="checkbox" id="impactFactorConsent">
-                <span></span>
-            </label>I am aware that the a journal's Impact Factor is a biased metric and is not an accurate indicator of the journal's quality, prestige or impact and decisively not a measure of the quality of individual papers of researchers publishing in it.
-        </p>
+                <span>
+                    I am aware that a journal's Impact Factor is a biased metric and is not an accurate indicator of the journal's quality, prestige or impact and decisively not a measure of the quality of individual papers of researchers publishing in it.
+                </span>
+            </label>
         <div class="modal-actions">
             <button type="button" id="impactFactorDisplay" class="modal-button modal-button--primary" disabled>
                 Display IF

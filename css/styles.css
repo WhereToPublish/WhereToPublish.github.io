@@ -166,16 +166,20 @@ table.dataTable tr.for-profit-society-run-row {
     background-color: #ffebee; /* Light orange */
 }
 
+/* University Press / Non-profit rows use shades of the Material Design green ramp
+   (50/100), matching the corresponding filter buttons; the pooled NP+UP button uses
+   green 200 (#a5d6a7) — deeper shade for the combined category */
+
 table.dataTable tr.university-press-row {
-    background-color: #e7fbff; /* Light blue */
+    background-color: #e8f5e9; /* Material green 50 */
 }
 
 table.dataTable tr.university-press-society-run-row {
-    background-color: #e7fbff; /* Light blue */
+    background-color: #e8f5e9; /* Material green 50 */
 }
 
 table.dataTable tr.non-profit-row {
-    background-color: #e8f5e9; /* Light green */
+    background-color: #c8e6c9; /* Material green 100 */
 }
 
 /* Ensure hover effect still works with colored rows */

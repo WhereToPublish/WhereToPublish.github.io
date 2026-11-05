@@ -8,6 +8,7 @@ logs
 zenodo
 node_modules/
 WhereToPublish.github.io.wiki/
+journal-metadata-enrichment/
 .github/*.md
 TODO.md
 TODOs

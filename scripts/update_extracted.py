@@ -3,6 +3,12 @@ import os
 from glob import glob
 from collections import Counter, defaultdict
 from libraries import *
+from review_common import (
+    DISAGREEMENT_COLUMNS,
+    STATUS_PENDING,
+)
+import sheets_client
+from pathlib import Path
 import re
 
 # Current year used for openAPC recency check
@@ -547,20 +553,9 @@ DISAGREEMENT_COLS: list[tuple[str, str | None, str | None, str | None]] = [
     ("APC Euros", None, "APC Euros_openapc", "APC Euros_doaj"),
 ]
 
-REPORT_SCHEMA = {
-    "priority": pl.Utf8,
-    "journal": pl.Utf8,
-    "url": pl.Utf8,
-    "publisher": pl.Utf8,
-    "publisher_type": pl.Utf8,
-    "field": pl.Utf8,
-    "column": pl.Utf8,
-    "dataset_value": pl.Utf8,
-    "expected_value": pl.Utf8,
-    "Scimago_value": pl.Utf8,
-    "DOAJ_value": pl.Utf8,
-    "OpenAPC_value": pl.Utf8,
-}
+# Subset of the disagreement report acting as the CSV schema
+# (the shared review-row schema lives in review_common.DISAGREEMENT_COLUMNS).
+REPORT_SCHEMA = {col: pl.Utf8 for col in DISAGREEMENT_COLUMNS}
 
 
 def has_disagreement(vals: list, col_name: str) -> bool:
@@ -639,36 +634,159 @@ def color_value(val, publisher_type: str = None) -> str | None:
         return str(val)
 
 
-def compute_disagreements(enriched_df: pl.DataFrame, type_map: dict[str, str]) -> list[dict]:
-    """Generate disagreement rows comparing enriched dataset values with source lookup values.
+def select_suggested_value(dataset_val, source_vals: list[tuple[str, Any]]) -> tuple[Any, str | None]:
+    """Pick the external value an approved disagreement would apply.
+
+    Candidates are (source_name, value) pairs of the external sources. The
+    majority value (compared after clean_variable) wins; ties and candidates
+    equal to the current dataset value are not auto-applied — the suggested
+    value then stays empty and the reviewer fills it manually in the sheet
+    before approving.
+
+    Returns:
+        (suggested_value, source_name) — both empty/None when no unambiguous
+        external candidate exists.
+    """
+    candidates = [(clean_variable(v), name, v) for name, v in source_vals if v is not None and str(v).strip() != ""]
+    if not candidates:
+        return None, None
+    counts = Counter(c[0] for c in candidates)
+    top = counts.most_common(2)
+    if len(top) == 2 and top[0][1] == top[1][1]:
+        return None, None  # no majority between the disagreeing sources
+    winner = top[0][0]
+    if winner == clean_variable(dataset_val):
+        return None, None  # dataset already holds the majority value
+    for cleaned, name, value in candidates:
+        if cleaned == winner:
+            return value, name
+
+
+def build_disagreement_reasoning(dataset_col: str, dataset_val, source_vals: dict,
+                                 dico_pt: dict[str, str] | None = None) -> str:
+    """Build the factual justification shown in the report's reasoning column.
+
+    States what each external data source reports and how it compares with the
+    dataset value, mirroring the priority rules, so the reviewer can judge the
+    row from facts:
+    - all external sources agree on the same value → 'All external sources ...'
+    - a subset of sources agrees on a value → the consensus and the dissenters
+    - no consensus between the sources → each source's value is listed
+    - (Publisher rows only) when a source implies a different publisher type,
+      the sentence says so, since classifying the publisher is the actual risk.
+    """
+    labels = [("Scimago", source_vals.get("scimago")),
+              ("OpenAPC", source_vals.get("openapc")),
+              ("DOAJ", source_vals.get("doaj"))]
+    present = [(name, value) for name, value in labels
+               if value is not None and str(value).strip() != ""]
+    if not present:
+        return ""
+
+    dataset_empty = dataset_val is None or str(dataset_val).strip() == ""
+    col = dataset_col.lower()
+    names = ", ".join(name for name, _ in present)
+    counts = Counter(clean_variable(value) for _, value in present)
+    top_value, top_count = counts.most_common(1)[0]
+
+    sentences = []
+    if top_count == len(present) and top_value != clean_variable(dataset_val) and not dataset_empty:
+        sentences.append(
+            f"All external sources ({names}) agree the {col} is '{present[0][1]}', "
+            f"which differs from the dataset value '{dataset_val}'")
+    elif top_count == len(present) and top_value != clean_variable(dataset_val) and dataset_empty:
+        sentences.append(
+            f"The dataset has no {col}, and all external sources ({names}) agree it should be '{present[0][1]}'")
+    else:
+        # Group sources by normalized value; name the consensus (if any) and the outliers.
+        groups: dict[str, list] = defaultdict(list)
+        for name, value in present:
+            groups[clean_variable(value)].append((name, value))
+        described = []
+        for cleaned, members in groups.items():
+            if len(members) > 1:
+                described.append(f"{', '.join(m[0] for m in members)} agree on '{members[0][1]}'")
+            else:
+                described.append(f"{members[0][0]} reports '{members[0][1]}'")
+        if dataset_empty:
+            sentences.append(
+                f"The dataset has no {col}, and the external sources disagree: " + "; ".join(described))
+        else:
+            sentences.append(
+                f"The {col} '{dataset_val}' in the dataset is contradicted by the "
+                f"external sources: " + "; ".join(described))
+
+    if dico_pt and (sentence := _publisher_type_sentence_context(present, dico_pt)):
+        sentences.append(sentence)
+
+    return ". ".join(sentences)
+
+
+def _publisher_type_sentence_context(present: list, dico_pt: dict[str, str]) -> str:
+    """Like _publisher_type_sentence, but phrases the contrast per present source."""
+    dataset_type = dico_pt.get("dataset")
+    contrasts = []
+    for name, value in present:
+        source = {"Scimago": "scimago", "OpenAPC": "openapc", "DOAJ": "doaj"}[name]
+        source_type = dico_pt.get(source)
+        if source_type and source_type != "Other" and dataset_type and source_type != dataset_type:
+            contrasts.append(f"{name} classifies '{value}' as a {source_type} publisher "
+                             f"rather than the dataset's {dataset_type}")
+    return "; ".join(contrasts)
+
+
+def write_target_cell(row: dict, target_row: int, field: str, tab_name: str) -> None:
+    """Record the data-tab cell coordinates targeted by a review row.
+
+    Mutates *row* in place with data_tab / target_row / target_col. The Apps
+    Script re-verifies the journal, the column header, and the current value
+    at (target_row, target_col) before writing.
+    """
+    row["data_tab"] = tab_name
+    row["target_row"] = str(target_row)
+    row["target_col"] = str(FINAL_COLUMNS.index(field) + 1)
+
+
+def compute_disagreements(enriched_df: pl.DataFrame, type_map: dict[str, str], tab_name: str) -> list[dict]:
+    """Generate review rows comparing enriched dataset values with source lookup values.
 
     Source columns (Publisher_scimago, APC Euros_openapc, etc.) are already present in
     enriched_df after the join_and_enrich calls and are used directly — no re-matching needed.
     Dataverse is excluded (enrichment only, not in disagreement report).
+
+    Each emitted row follows the shared review-row schema of review_common:
+    a Status column, apply columns (journal, current_value, suggested_value,
+    suggestion_type) and the exact target cell in the data tab so that the
+    Google Apps Script can verify and apply approved changes without scanning
+    the data tabs.
 
     Args:
         enriched_df: DataFrame after all join_and_enrich calls and format_table. Must contain
                      Journal, Website, Field, all dataset columns in DISAGREEMENT_COLS, and
                      all source columns referenced in DISAGREEMENT_COLS.
         type_map: Publisher name -> publisher type map from country_formatting.json.
+        tab_name: Google Sheet tab the enriched CSV is uploaded to; the row order
+                  of enriched_df matches the tab row order, so sheet row = data
+                  row index + 2 (header in row 1).
 
     Returns:
         List of dicts with keys matching REPORT_SCHEMA.
     """
     dataset_cols = [d for d, *_ in DISAGREEMENT_COLS]
     all_source_cols = [c for _, s, o, d in DISAGREEMENT_COLS for c in [s, o, d] if c is not None]
-    needed_cols = ["Journal", "Website", "Publisher type", "Field"] + dataset_cols + all_source_cols
+    needed_cols = ["Journal", "Website", "Publisher", "Publisher type"] + dataset_cols + all_source_cols
+    needed_cols = list(dict.fromkeys(needed_cols))  # 'Publisher' is both a dataset column and a context column
     assert all(c in enriched_df.columns for c in needed_cols), (
         f"compute_disagreements: missing columns in enriched_df: "
         f"{[c for c in needed_cols if c not in enriched_df.columns]}"
     )
 
     disagreements: list[dict] = []
-    for row in enriched_df.select(needed_cols).iter_rows(named=True):
+    for row_idx, row in enumerate(enriched_df.select(needed_cols).iter_rows(named=True)):
         journal = str(row["Journal"] or "")
         url = str(row.get("Website") or "")
-        field = str(row["Field"] or "")
         publisher_type = str(row.get("Publisher type") or "")
+        sheet_row = row_idx + 2  # header occupies sheet row 1
 
         for dataset_col, scimago_col, openapc_col, doaj_col in DISAGREEMENT_COLS:
             dataset_val = row.get(dataset_col)
@@ -691,26 +809,42 @@ def compute_disagreements(enriched_df: pl.DataFrame, type_map: dict[str, str]) -
             priority = calculate_disagreement_priority(
                 dataset_val, {"scimago": scimago_val, "openapc": openapc_val, "doaj": doaj_val}, dataset_col, dico_pt)
 
-            disagreements.append({
-                "priority": priority,
+            suggested_val, suggested_source = select_suggested_value(
+                dataset_val,
+                [("scimago", scimago_val), ("openapc", openapc_val), ("doaj", doaj_val)],
+            )
+
+            reasoning = build_disagreement_reasoning(
+                dataset_col, dataset_val,
+                {"scimago": scimago_val, "openapc": openapc_val, "doaj": doaj_val},
+                dico_pt if dataset_col == "Publisher" else None,
+            )
+
+            new_row = {
+                "Status": STATUS_PENDING,
                 "journal": journal,
+                "field": dataset_col,
+                "current_value": color_value(dataset_val, dico_pt["dataset"]),
+                "suggested_value": color_value(suggested_val, dico_pt.get(suggested_source)),
+                "suggestion_type": "fill" if dataset_val is None or str(dataset_val).strip() == "" else "correct",
+                "data_tab": "",
+                "target_row": "",
+                "target_col": "",
+                "priority": priority,
                 "url": url,
-                "publisher": "",
-                "publisher_type": publisher_type,
-                "field": field,
-                "column": dataset_col,
-                "dataset_value": color_value(dataset_val, dico_pt["dataset"]),
-                "expected_value": "",
                 "Scimago_value": color_value(scimago_val, dico_pt["scimago"]),
                 "DOAJ_value": color_value(doaj_val, dico_pt["doaj"]),
                 "OpenAPC_value": color_value(openapc_val, dico_pt["openapc"]),
-            })
+                "reasoning": reasoning,
+            }
+            write_target_cell(new_row, sheet_row, dataset_col, tab_name)
+            disagreements.append(new_row)
 
     return disagreements
 
 
-def compute_publisher_type_disagreements(enriched_df: pl.DataFrame, type_map: dict[str, str]) -> list[dict]:
-    """Generate disagreement rows where the dataset Publisher type does not match
+def compute_publisher_type_disagreements(enriched_df: pl.DataFrame, type_map: dict[str, str], tab_name: str) -> list[dict]:
+    """Generate review rows where the dataset Publisher type does not match
     the publisher type inferred from the normalized Publisher name using
     config/country_formatting.json.
 
@@ -721,20 +855,21 @@ def compute_publisher_type_disagreements(enriched_df: pl.DataFrame, type_map: di
 
     Args:
         enriched_df: DataFrame after format_table. Must contain Journal, Website,
-                     Publisher type, Field, and Publisher.
+                     Publisher type, and Publisher.
         type_map: Publisher name -> publisher type map from country_formatting.json.
+        tab_name: Google Sheet tab the enriched CSV is uploaded to (row order matches).
 
     Returns:
         List of dicts with keys matching REPORT_SCHEMA.
     """
-    needed_cols = ["Journal", "Website", "Publisher type", "Field", "Publisher"]
+    needed_cols = ["Journal", "Website", "Publisher type", "Publisher"]
     assert all(c in enriched_df.columns for c in needed_cols), (
         f"compute_publisher_type_disagreements: missing columns in enriched_df: "
         f"{[c for c in needed_cols if c not in enriched_df.columns]}"
     )
 
     disagreements: list[dict] = []
-    for row in enriched_df.select(needed_cols).iter_rows(named=True):
+    for row_idx, row in enumerate(enriched_df.select(needed_cols).iter_rows(named=True)):
         publisher = str(row["Publisher"] or "")
         dataset_type = str(row["Publisher type"] or "")
         if not publisher or not dataset_type:
@@ -748,24 +883,29 @@ def compute_publisher_type_disagreements(enriched_df: pl.DataFrame, type_map: di
         if dataset_base == "Other" or dataset_base == inferred_type:
             continue
 
-        journal = str(row["Journal"] or "")
-        url = str(row.get("Website") or "")
-        field = str(row["Field"] or "")
-
-        disagreements.append({
+        new_row = {
+            "Status": STATUS_PENDING,
+            "journal": str(row["Journal"] or ""),
+            "field": "Publisher type",
+            "current_value": color_value(dataset_type, dataset_base),
+            "suggested_value": color_value(inferred_type, inferred_type),
+            "suggestion_type": "correct",
+            "data_tab": "",
+            "target_row": "",
+            "target_col": "",
             "priority": "Utmost priority",
-            "journal": journal,
-            "url": url,
-            "publisher": publisher,
-            "publisher_type": dataset_type,
-            "field": field,
-            "column": "Publisher type",
-            "dataset_value": color_value(dataset_type, dataset_base),
-            "expected_value": color_value(inferred_type, inferred_type),
+            "url": str(row.get("Website") or ""),
             "Scimago_value": "",
             "DOAJ_value": "",
             "OpenAPC_value": "",
-        })
+            "reasoning": (
+                f"The publisher '{publisher}' is classified as '{inferred_type}' in the publisher "
+                f"configuration (config/country_formatting.json), so the recorded publisher type "
+                f"'{dataset_type}' appears incorrect"
+            ),
+        }
+        write_target_cell(new_row, row_idx + 2, "Publisher type", tab_name)
+        disagreements.append(new_row)
 
     return disagreements
 
@@ -1136,13 +1276,14 @@ def process_csv_file(csv_path: str, scimago_lookup: pl.DataFrame, openapc_lookup
 
     # Compute disagreements from enriched values and the source columns still present
     type_map = build_publisher_type_map()
-    new_rows = compute_disagreements(updated_df, type_map)
+    tab_name = sheets_client.SHEET_TAB_NAMES[Path(csv_path).stem]
+    new_rows = compute_disagreements(updated_df, type_map, tab_name)
     if new_rows:
         print(f"  External disagreements found: {len(new_rows)}")
     disagreement_rows.extend(new_rows)
 
     # Compute internal Publisher type disagreements (dataset vs country_formatting.json)
-    pt_rows = compute_publisher_type_disagreements(updated_df, type_map)
+    pt_rows = compute_publisher_type_disagreements(updated_df, type_map, tab_name)
     if pt_rows:
         print(f"  Publisher type disagreements found: {len(pt_rows)}")
     disagreement_rows.extend(pt_rows)
@@ -1194,13 +1335,13 @@ def main():
     else:
         report_df = pl.DataFrame(schema=REPORT_SCHEMA)
     assert report_df.columns == list(REPORT_SCHEMA.keys()), f"Disagreement col mismatch: {report_df.columns}"
-    # Sort by priority (Utmost priority first), then by column, then by journal
+    # Sort by priority (Utmost priority first), then by field, then by journal
     report_df = report_df.with_columns(
         pl.col("priority").map_elements(
             lambda p: {"Utmost priority": 0, "Highest": 1, "High": 2, "Medium": 3, "Low": 4}.get(p, 5),
             return_dtype=pl.Int64
         ).alias("_ps")
-    ).sort(["_ps", "column", "journal"]).drop("_ps")
+    ).sort(["_ps", "field", "journal"]).drop("_ps")
     report_df.write_csv(report_path)
     print(f"\nDisagreement report written to {report_path} ({len(disagreement_rows)} rows).")
 

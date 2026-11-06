@@ -37,6 +37,7 @@ An interactive database of for-profit and non-profit scientific journals in biol
 ├── index.html              # Main webpage
 ├── css/styles.css          # Stylesheet
 ├── js/scripts.js           # Application logic
+├── apps_script/            # Google Apps Script applying approved review-tab rows
 ├── config/                 # Configuration and lookup caches
 │   ├── country_formatting.json   # Publisher→country mapping from the 'variables' Google Sheet tab
 │   └── ISSN_type.csv             # ISSN type cache (print/electronic/linking) — built by Scimago_ISSN_type.py
@@ -155,7 +156,7 @@ python3 scripts/download_sheets.py
 #    ISSN-L and its two ISSN values before normalized title matching.
 #    A key is only used when it is unique on both sides; ambiguous matches are flagged.
 #    Dataverse uses 2025 records when available, otherwise the journal's latest year.
-#    Also generates logs/disagreements.csv — a CSV report of conflicts between
+#    Also generates logs/disagreements.csv — the review report of conflicts between
 #    the dataset and external sources (Scimago, OpenAPC, DOAJ; not Dataverse),
 #    plus an internal consistency check on Publisher type.
 #    External columns checked: Publisher, Business model, e-ISSN, p-ISSN, APC Euros.
@@ -164,11 +165,23 @@ python3 scripts/download_sheets.py
 #    Society-run variants (e.g. "For-profit Society-Run") are not flagged when the inferred
 #    base category matches (e.g. "For-profit"). Unknown publishers are not flagged here;
 #    they are reported separately by data_process.py in missing_publisher_in_configs.csv.
-#    Report columns: priority, journal, url, publisher, publisher_type, field, column,
-#    dataset_value, expected_value, Scimago_value, DOAJ_value, OpenAPC_value.
+#    Report rows follow the shared review schema (scripts/review_common.py): a Status
+#    column (pending/approve/reject), the verified apply columns (journal, field,
+#    current_value, suggested_value, suggestion_type), and the exact target cell
+#    (data_tab, target_row, target_col) so the Google Apps Script applies approved
+#    rows with a single verified cell write. suggested_value is the majority external
+#    value (empty when sources tie or already match the dataset — fill it in in the
+#    sheet before approving); publisher-type rows suggest the inferred type.
+#    Evidence columns: priority (Utmost priority, Highest, High, Medium, Low), url,
+#    Scimago_value, DOAJ_value, OpenAPC_value, and a factual reasoning sentence
+#    explaining the conflict (which sources report what, whether they agree, and —
+#    for Publisher rows — the publisher-type each source implies), so reviewers can
+#    judge the priority from facts.
 #    Internal Publisher type mismatches are assigned priority "Utmost priority" so they
 #    appear first in the report.
 #    APC disagreement is flagged only when one source has 0 and another has non-zero.
+#    Rows where the field is an ISSN get source-value cells hyperlinked to the ISSN
+#    portal on upload.
 python3 scripts/update_extracted.py
 
 # 3. Process, clean, and deduplicate
@@ -180,12 +193,23 @@ python3 scripts/data_process.py
 
 # 4. Upload enriched data and pipeline reports back to Google Sheets
 #    - Uploads enriched field CSVs to their corresponding field tabs (in-place).
-#    - Uploads logs/disagreements.csv to the "Disagreements" tab (values cleared then rewritten,
-#      formatting preserved), including ISSN hyperlinks in value columns for ISSN disagreements.
+#    - Uploads logs/disagreements.csv to the "Disagreements" review tab (values
+#      cleared then rewritten, formatting preserved): rows carry the shared
+#      Status/apply/target schema of scripts/review_common.py and start as
+#      "pending"; a pending/approve/reject dropdown is applied to the Status
+#      column. Publisher-type per-cell background colors come from the
+#      "#RRGGBB; value" report prefixes (stripped on upload). 'Low' priority rows
+#      are skipped on upload when more than 10 higher-priority rows exist (the
+#      full report stays in logs/disagreements.csv).
 #    - Uploads logs/missing_publisher_in_configs.csv to the "Missing publishers" tab
 #      (values cleared then rewritten, formatting preserved).
-#    Report tabs are styled on upload: Roboto size 10, left/top alignment, white data-cell
-#    background, grey header row, and Publisher disagreement value cells colored by publisher type.
+#    - Report tabs are styled on upload: Roboto size 10, left/top alignment, white
+#      data-cell background, grey header row, and Publisher disagreement value cells
+#      colored by publisher type.
+#    Approved Disagreements rows are applied to the data tabs by the Google Apps
+#    Script (apps_script/GOOGLE_APP_SCRIPT.md + apps_script/ApplyReviewedChanges.gs),
+#    never by these scripts: each approval is a single verified cell write to the
+#    recorded target_row/target_col of data_tab.
 python3 scripts/upload_sheets.py
 ```
 
@@ -207,12 +231,13 @@ cd scripts && python data_process.py
 | Script                             | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `scripts/download_sheets.py`     | Downloads all field tabs from Google Sheets API to`data_extracted/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `scripts/upload_sheets.py`       | Uploads enriched`data_extracted/` field CSVs back to Google Sheets (field tabs updated in-place). Also uploads `logs/disagreements.csv` to a **Disagreements** tab and `logs/missing_publisher_in_configs.csv` to a **Missing publishers** tab by clearing tab values then rewriting (tab formatting is preserved). ISSN values in Disagreements value columns are hyperlinked to the ISSN portal for ISSN disagreements. Report tabs are styled on upload (Roboto size 10, left/top alignment, grey header, white data cells); Publisher disagreement value cells are color-coded by publisher type. |
+| `scripts/upload_sheets.py`       | Uploads enriched`data_extracted/` field CSVs back to Google Sheets (field tabs updated in-place). Also uploads `logs/disagreements.csv` to the **Disagreements** review tab and `logs/missing_publisher_in_configs.csv` to a **Missing publishers** tab by clearing tab values then rewriting (tab formatting is preserved), via the shared helpers of `scripts/review_common.py`. Disagreements rows are uploaded as `pending` with a pending/approve/reject dropdown on the Status column; ISSN source values are hyperlinked to the ISSN portal; report tabs are styled on upload (Roboto size 10, left/top alignment, grey header, white data cells); Publisher disagreement value cells are color-coded by publisher type. |
 | `scripts/fetch_sheet.py`         | Downloads a single field tab (CLI helper)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `scripts/download_extraction.sh` | Downloads external data sources to`data_extraction/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `scripts/update_extracted.py`    | Enriches raw data with Scimago, OpenAPC, DOAJ, and Dataverse. The APC is the latest entry (by dataset year) among OpenAPC, DOAJ and Dataverse; Dataverse uses its latest year with an APC, matching by ISSN-L and the dataset's ISSNs before falling back to journal title. Candidate keys must be unique on both sides; ambiguous matches are skipped. Fills the four `Present in …` match columns (including `Present in Scholcommlab APC` for Dataverse) and `Impact Factor (IF)` from Scimago. Also writes`logs/disagreements.csv` for Scimago, OpenAPC, and DOAJ conflicts.                                                                                                                                                                                 |
+| `scripts/update_extracted.py`    | Enriches raw data with Scimago, OpenAPC, DOAJ, and Dataverse. The APC is the latest entry (by dataset year) among OpenAPC, DOAJ and Dataverse; Dataverse uses its latest year with an APC, matching by ISSN-L and the dataset's ISSNs before falling back to journal title. Candidate keys must be unique on both sides; ambiguous matches are skipped. Fills the four `Present in …` match columns (including `Present in Scholcommlab APC` for Dataverse) and `Impact Factor (IF)` from Scimago. Also writes`logs/disagreements.csv` — the review report of Scimago, OpenAPC, and DOAJ conflicts plus internal Publisher-type checks — following the shared review schema of `scripts/review_common.py` (Status `pending`, apply columns, and the precomputed target cell in the data tab; `suggested_value` is the majority external value).                                                                                                                                                                                 |
 | `scripts/APC_process.py`         | Processes the 2019–2025 Harvard Dataverse APC dataset into publisher-specific yearly APC tables and the compact`APC_all.csv` table used by APC Explorer.                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `scripts/data_process.py`        | Cleans, normalizes, deduplicates, and outputs to`data/`. Also writes `logs/missing_publisher_in_configs.csv` — journals whose publisher (after normalization) is not found in `config/country_formatting.json`, with columns `journal`, `publisher`, `country`, `publisher_type` (sorted by `publisher`, then `journal`).                                                                                                                                                                                                                                                                            |
+| `scripts/review_common.py`      | Shared review-tab schema and helpers used by both review workflows: the deterministic disagreement report (`logs/disagreements.csv` → `Disagreements` tab) and the AI suggestions of `journal-metadata-enrichment/` (`Agent_suggestions` tab). Defines the Status/apply/target column schema, resolves journal → data-tab cell locations from `data_extracted/`, and provides the clear-and-rewrite review-tab upload (Status dropdown + report formatting). Imported by both projects; the Google Apps Script applies approved rows. |
 | `scripts/libraries.py`           | Shared utility functions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `scripts/sheets_client.py`       | Google Sheets API client (shared by download and upload scripts)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `scripts/run.sh`                 | Runs the full pipeline                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |

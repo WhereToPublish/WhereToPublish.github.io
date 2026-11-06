@@ -156,6 +156,61 @@ def clear_tab_values(service: Any, spreadsheet_id: str, tab_name: str) -> None:
     service.spreadsheets().values().clear(spreadsheetId=spreadsheet_id, range=tab_name, body={}, ).execute()
 
 
+def get_or_create_tab(service: Any, spreadsheet_id: str, tab_name: str) -> None:
+    """Ensure a tab with the given name exists; create it if it doesn't."""
+    spreadsheet = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+    existing_titles = {s["properties"]["title"] for s in spreadsheet["sheets"]}
+    if tab_name not in existing_titles:
+        service.spreadsheets().batchUpdate(
+            spreadsheetId=spreadsheet_id,
+            body={"requests": [{"addSheet": {"properties": {"title": tab_name}}}]},
+        ).execute()
+
+
+def apply_status_validation(service: Any, spreadsheet_id: str, tab_name: str,
+                           column_index: int, options: list[str],
+                           rows_count: int, extra_rows: int = 2000) -> None:
+    """Add a dropdown data-validation to a Status column of a review tab.
+
+    Covers all written data rows plus *extra_rows* future rows, so newly
+    appended (e.g. re-uploaded) rows keep the dropdown. Non-strict: any typed
+    value is accepted, but the dropdown offers the review workflow options.
+
+    Args:
+        column_index: 0-based column index holding the Status column.
+        options: Allowed dropdown values (pending / approve / reject).
+        rows_count: Number of table rows written (including header row).
+        extra_rows: How many rows below the table also get the validation.
+    """
+    assert column_index >= 0, f"column_index must be >= 0, got {column_index}"
+    assert rows_count >= 1, f"rows_count must be >= 1, got {rows_count}"
+    props = get_sheet_properties(service, spreadsheet_id, tab_name)
+    sheet_id = props["sheetId"]
+    end_row = min(rows_count + extra_rows, props["rowCount"])
+    if end_row <= rows_count:
+        return
+    request = {
+        "setDataValidation": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 1,
+                "endRowIndex": end_row,
+                "startColumnIndex": column_index,
+                "endColumnIndex": column_index + 1,
+            },
+            "rule": {
+                "condition": {
+                    "type": "ONE_OF_LIST",
+                    "values": [{"userEnteredValue": v} for v in options],
+                },
+                "showCustomUi": True,
+                "strict": False,
+            },
+        }
+    }
+    chunked_batch_update(service, spreadsheet_id, [request])
+
+
 def chunked_batch_update(service: Any, spreadsheet_id: str, requests: list[dict], chunk_size: int = 500) -> None:
     """Send batchUpdate requests in chunks to avoid API limits."""
     assert chunk_size > 0, f"chunk_size must be > 0, got {chunk_size}"
@@ -196,7 +251,7 @@ def apply_report_formatting(service: Any, spreadsheet_id: str, tab_name: str, ro
     sheet_id = props["sheetId"]
 
     requests: list[dict] = []
-    for row_idx, col_idx, color_hex in bg_overrides:
+    for row_idx, col_idx, color_hex in (bg_overrides or []):
         assert row_idx >= 1, f"Override row index must be >= 1 (data rows only), got {row_idx}"
         assert row_idx < rows_count, f"Override row out of bounds: {row_idx} >= {rows_count}"
         assert col_idx >= 0, f"Override col index must be >= 0, got {col_idx}"

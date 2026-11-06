@@ -36,6 +36,8 @@ Set GOOGLE_SERVICE_ACCOUNT_KEY or place the key at
 ~/.config/wheretopublish/google_service_account.json.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 from pathlib import Path
